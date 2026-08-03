@@ -3693,6 +3693,9 @@ if(isDisplay){
   let childClosedPoll = null;
 
   // ---------- 承認待ち投稿(写真・メッセージ) ----------
+  // Apps Script経由での取得を優先(スプレッドシートへの直接リンクを画面に出さないため)
+  const PENDING_APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec?action=getPending";
+  // 上記が通信エラー等で使えない場合の予備(スプレッドシートを直接読む方法)
   const PENDING_CSV_URL = "https://docs.google.com/spreadsheets/d/1m_2r8VBmrFw6aben2TeZN0tP4hzav0F2GjWxRgeL3Fo/gviz/tq?tqx=out:csv";
   const approvedKeys = new Set();
   let pendingPollTimer = null;
@@ -3718,19 +3721,29 @@ if(isDisplay){
     return rows;
   }
 
-  async function fetchPendingSubmissions(){
-    const listEl = document.getElementById('pending-list');
-    const countEl = document.getElementById('pending-count');
+  async function fetchPendingItems(){
+    // ① まずApps Script経由を試す(こちらが使えれば、スプレッドシートIDを外部に出さずに済む)
     try{
+      const res = await fetch(PENDING_APPSCRIPT_URL, { cache: 'no-store' });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      return json.map(r => ({ time: r.time || '', message: (r.message || '').trim(), photoUrl: (r.photoUrl || '').trim() }));
+    }catch(err){
+      // ② ダメだった場合のみ、従来のCSV直読みにフォールバック
       const res = await fetch(PENDING_CSV_URL, { cache: 'no-store' });
       if(!res.ok) throw new Error('HTTP ' + res.status);
       const text = await res.text();
       const rows = parsePendingCSV(text);
+      return rows.map(r => ({ time: r[0] || '', message: (r[1] || '').trim(), photoUrl: (r[2] || '').trim() }));
+    }
+  }
 
-      // ヘッダー行なし想定(1行目からデータ)。[timestamp, message, photoUrl, consent]
-      const items = rows
-        .map(r => ({ time: r[0] || '', message: (r[1] || '').trim(), photoUrl: (r[2] || '').trim() }))
-        .filter(item => (item.message || item.photoUrl) && !approvedKeys.has(item.time + '|' + item.message));
+  async function fetchPendingSubmissions(){
+    const listEl = document.getElementById('pending-list');
+    const countEl = document.getElementById('pending-count');
+    try{
+      const rawItems = await fetchPendingItems();
+      const items = rawItems.filter(item => (item.message || item.photoUrl) && !approvedKeys.has(item.time + '|' + item.message));
 
       countEl.textContent = items.length + '件';
       if(items.length === 0){
