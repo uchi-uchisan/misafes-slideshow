@@ -213,7 +213,7 @@
     font-family:"Yomogi","Klee One","UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体",cursive;
     line-height:1.4;
     text-align:center;
-    white-space:nowrap;
+    white-space:pre;
     overflow:hidden;
     text-overflow:ellipsis;
   }
@@ -418,7 +418,7 @@
     font-size:22px;
     font-weight:600;
     line-height:1.5;
-    white-space:nowrap;
+    white-space:pre;
     max-width:100%;
     overflow:hidden;
     text-overflow:ellipsis;
@@ -732,7 +732,7 @@
     text-align:center;
     line-height:1.4;
     font-weight:600;
-    white-space:nowrap;
+    white-space:pre;
     overflow:hidden;
     text-overflow:ellipsis;
     max-width:100%;
@@ -754,12 +754,15 @@
   }
   .mini-preview-caption{
     position:relative;
-    max-width:88%;
+    max-width:90%;
+    width:max-content;
     padding:10px 18px;
     border-radius:4px;
     text-align:center;
     line-height:1.4;
-    white-space:pre-wrap;
+    white-space:pre;
+    overflow:hidden;
+    text-overflow:ellipsis;
     font-size:16px;
   }
   .mini-preview-caption.corner-square{ border-radius:0; }
@@ -793,12 +796,15 @@
   #preview-live-caption{
     position:absolute;
     left:50%;
-    max-width:82%;
+    max-width:90%;
+    width:max-content;
     padding:8px 16px;
     border-radius:4px;
     text-align:center;
     line-height:1.5;
-    white-space:pre-wrap;
+    white-space:pre;
+    overflow:hidden;
+    text-overflow:ellipsis;
     transform:translateX(-50%);
   }
   #preview-modal .preview-time{
