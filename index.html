@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>町内スライドショー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Yomogi&display=swap" rel="stylesheet">
 <style>
   :root{
     --night: #12162c;
@@ -188,7 +191,7 @@
     padding:14px 26px;
     border-radius:4px;
     box-shadow:0 6px 18px rgba(0,0,0,0.4);
-    font-family:"UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体","Klee One",cursive;
+    font-family:"Yomogi","Klee One","UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体",cursive;
     line-height:1.4;
     text-align:center;
     white-space:pre-wrap;
@@ -208,7 +211,7 @@
   .slide.text-slide .text-slide-inner{
     max-width:78%;
     color:var(--paper);
-    font-family:"UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体","Klee One",cursive;
+    font-family:"Yomogi","Klee One","UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体",cursive;
     font-size:clamp(24px, 4vw, 46px);
     line-height:1.6;
     text-align:center;
@@ -494,10 +497,10 @@
     border-color:var(--gold);
     background:rgba(212,168,67,0.1);
   }
-  #announce-modal .btn-row, #caption-modal .btn-row, #restyle-modal .btn-row, #ticker-modal .btn-row{
+  #announce-modal .btn-row, #caption-modal .btn-row, #restyle-modal .btn-row, #ticker-modal .btn-row, #preview-modal .btn-row{
     display:flex; gap:10px;
   }
-  #announce-modal .btn-row button, #caption-modal .btn-row button, #restyle-modal .btn-row button, #ticker-modal .btn-row button{
+  #announce-modal .btn-row button, #caption-modal .btn-row button, #restyle-modal .btn-row button, #ticker-modal .btn-row button, #preview-modal .btn-row button{
     flex:1;
     padding:11px;
     border-radius:10px;
@@ -505,11 +508,11 @@
     font-size:13px;
     cursor:pointer;
   }
-  #announce-cancel, #caption-skip, #restyle-cancel, #ticker-edit-cancel{
+  #announce-cancel, #caption-skip, #restyle-cancel, #ticker-edit-cancel, #preview-modal-close{
     background:rgba(233,228,216,0.08);
     color:var(--ink);
   }
-  #announce-submit, #caption-submit, #restyle-apply, #ticker-edit-apply{
+  #announce-submit, #caption-submit, #restyle-apply, #ticker-edit-apply, #preview-modal-add{
     background:linear-gradient(135deg, var(--lantern), #c9401f);
     color:var(--paper);
     font-weight:600;
@@ -608,12 +611,14 @@
     object-fit:cover;
     flex-shrink:0;
     background:rgba(233,228,216,0.08);
+    cursor:pointer;
   }
   .pending-thumb.no-photo{
     display:flex; align-items:center; justify-content:center;
     font-size:18px;
+    cursor:default;
   }
-  .pending-body{ flex:1; min-width:0; }
+  .pending-body{ flex:1; min-width:0; cursor:pointer; }
   .pending-msg{
     font-size:12.5px; color:var(--ink);
     overflow:hidden; text-overflow:ellipsis;
@@ -630,6 +635,43 @@
     cursor:pointer;
   }
   .pending-add-btn:disabled{ opacity:0.4; cursor:default; }
+
+  #preview-modal{
+    position:fixed; inset:0;
+    background:rgba(6,8,18,0.85);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:60;
+    padding:24px;
+  }
+  #preview-modal.active{ display:flex; }
+  #preview-modal .preview-box{
+    width:min(520px, 100%);
+    background:var(--night);
+    border:1px solid rgba(212,168,67,0.4);
+    border-radius:18px;
+    padding:20px;
+    max-height:88vh;
+    overflow-y:auto;
+  }
+  #preview-modal img{
+    width:100%;
+    border-radius:12px;
+    margin-bottom:16px;
+    display:block;
+  }
+  #preview-modal .preview-msg{
+    font-size:15px;
+    color:var(--ink);
+    line-height:1.7;
+    white-space:pre-wrap;
+    margin-bottom:18px;
+  }
+  #preview-modal .preview-time{
+    font-size:11.5px;
+    color:rgba(233,228,216,0.4);
+    margin-bottom:18px;
+  }
 
   .style-row-label{
     font-size:11.5px;
@@ -780,6 +822,18 @@
     </div>
   </div>
 
+  <div id="preview-modal">
+    <div class="preview-box">
+      <img id="preview-modal-img" src="" style="display:none;">
+      <div class="preview-msg" id="preview-modal-msg"></div>
+      <div class="preview-time" id="preview-modal-time"></div>
+      <div class="btn-row">
+        <button id="preview-modal-close">閉じる</button>
+        <button id="preview-modal-add">追加する</button>
+      </div>
+    </div>
+  </div>
+
   <div id="restyle-modal">
     <div class="box">
       <h2>今表示中の写真の文字を編集</h2>
@@ -796,6 +850,14 @@
         <div class="color-opt" data-color="#f5ece0" style="background:#2a2118;"></div>
         <div class="color-opt" data-color="#c9401f" style="background:#f5ece0;"></div>
         <div class="color-opt" data-color="#d4a843" style="background:#2a2118;"></div>
+      </div>
+      <div class="style-row-label">背景の色</div>
+      <div class="icon-row" id="restyle-bg-row">
+        <div class="color-opt selected" data-bg="paper" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);" title="和紙"></div>
+        <div class="color-opt" data-bg="ink" style="background:#2a2118;" title="墨"></div>
+        <div class="color-opt" data-bg="gold" style="background:linear-gradient(135deg,#e8c070,#8a5a12);" title="金"></div>
+        <div class="color-opt" data-bg="lantern" style="background:linear-gradient(135deg,#f2825c,#c9401f);" title="提灯"></div>
+        <div class="color-opt" data-bg="none" style="background:repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50%/10px 10px;" title="背景なし"></div>
       </div>
       <div class="style-row-label">表示位置</div>
       <div class="icon-row" id="restyle-pos-row">
@@ -949,6 +1011,15 @@
         <div class="color-opt" data-color="#f5ece0" style="background:#2a2118;"></div>
         <div class="color-opt" data-color="#c9401f" style="background:#f5ece0;"></div>
         <div class="color-opt" data-color="#d4a843" style="background:#2a2118;"></div>
+      </div>
+
+      <div class="style-row-label">背景の色</div>
+      <div class="icon-row" id="bg-row">
+        <div class="color-opt selected" data-bg="paper" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);" title="和紙"></div>
+        <div class="color-opt" data-bg="ink" style="background:#2a2118;" title="墨"></div>
+        <div class="color-opt" data-bg="gold" style="background:linear-gradient(135deg,#e8c070,#8a5a12);" title="金"></div>
+        <div class="color-opt" data-bg="lantern" style="background:linear-gradient(135deg,#f2825c,#c9401f);" title="提灯"></div>
+        <div class="color-opt" data-bg="none" style="background:repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50%/10px 10px;" title="背景なし"></div>
       </div>
 
       <div class="style-row-label">表示位置</div>
@@ -3333,6 +3404,14 @@ if(isDisplay){
   const startOverlay = document.getElementById('start-overlay');
   const displayStartBtn = document.getElementById('display-start-btn');
 
+  const CAPTION_BG = {
+    paper: 'rgba(245,236,224,0.94)',
+    ink: 'rgba(42,33,24,0.92)',
+    gold: 'linear-gradient(135deg, rgba(232,192,112,0.94), rgba(138,90,18,0.94))',
+    lantern: 'linear-gradient(135deg, rgba(242,130,92,0.94), rgba(201,64,31,0.94))',
+    none: 'transparent'
+  };
+
   function applyCaptionToEl(el, data){
     const existing = el.querySelector('.caption');
     if(existing) existing.remove();
@@ -3341,10 +3420,17 @@ if(isDisplay){
     const cap = document.createElement('div');
     cap.className = 'caption';
     cap.textContent = data.caption;
-    const st = data.style || { size: 20, color: '#2a2118', pos: 'bottom' };
+    const st = data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
     cap.style.fontSize = st.size + 'px';
     cap.style.color = st.color;
-    cap.style.background = (st.color === '#f5ece0') ? 'rgba(42,33,24,0.92)' : 'rgba(245,236,224,0.94)';
+    cap.style.background = CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper;
+    if(st.bg === 'none'){
+      cap.style.boxShadow = 'none';
+      cap.style.textShadow = '0 2px 6px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.5)';
+    }else{
+      cap.style.boxShadow = '';
+      cap.style.textShadow = '';
+    }
     if(st.pos === 'top'){ cap.style.top = '7%'; cap.style.bottom = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
     else if(st.pos === 'center'){ cap.style.top = '50%'; cap.style.bottom = 'auto'; cap.style.transform = 'translate(-50%, -50%) rotate(-1.2deg)'; }
     else { cap.style.bottom = '9%'; cap.style.top = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
@@ -3766,24 +3852,70 @@ if(isDisplay){
           </div>
           <button class="pending-add-btn">追加</button>
         `;
-        el.querySelector('.pending-add-btn').addEventListener('click', (e) => {
-          e.target.disabled = true;
-          e.target.textContent = '追加済み';
-          approvedKeys.add(key);
-          if(childWin && !childWin.closed){
-            if(item.photoUrl){
-              childWin.postMessage({ type: 'addPhotoByUrl', url: item.photoUrl, caption: item.message }, '*');
-            }else if(item.message){
-              childWin.postMessage({ type: 'announce', text: item.message, duration: 15, color: 'lantern', pos: 'top', motion: 'static', deco: 'normal' }, '*');
-            }
-          }
+        const addBtn = el.querySelector('.pending-add-btn');
+        addBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          approveItem(item, key, addBtn);
         });
+        el.querySelector('.pending-thumb').addEventListener('click', () => openPreviewModal(item, key, addBtn));
+        el.querySelector('.pending-body').addEventListener('click', () => openPreviewModal(item, key, addBtn));
         listEl.appendChild(el);
       });
     }catch(err){
       listEl.innerHTML = `<div class="pending-empty">読み込みに失敗しました(${err.message})</div>`;
     }
   }
+
+  function approveItem(item, key, listBtnEl){
+    approvedKeys.add(key);
+    if(listBtnEl){
+      listBtnEl.disabled = true;
+      listBtnEl.textContent = '追加済み';
+    }
+    if(childWin && !childWin.closed){
+      if(item.photoUrl){
+        childWin.postMessage({ type: 'addPhotoByUrl', url: item.photoUrl, caption: item.message }, '*');
+      }else if(item.message){
+        childWin.postMessage({ type: 'announce', text: item.message, duration: 15, color: 'lantern', pos: 'top', motion: 'static', deco: 'normal' }, '*');
+      }
+    }
+  }
+
+  // ---------- 承認待ちのプレビュー拡大表示(プライバシー確認用) ----------
+  const previewModal = document.getElementById('preview-modal');
+  const previewModalImg = document.getElementById('preview-modal-img');
+  const previewModalMsg = document.getElementById('preview-modal-msg');
+  const previewModalTime = document.getElementById('preview-modal-time');
+  const previewModalClose = document.getElementById('preview-modal-close');
+  const previewModalAdd = document.getElementById('preview-modal-add');
+  let previewCurrentItem = null;
+  let previewCurrentKey = null;
+  let previewCurrentListBtn = null;
+
+  function openPreviewModal(item, key, listBtnEl){
+    previewCurrentItem = item;
+    previewCurrentKey = key;
+    previewCurrentListBtn = listBtnEl;
+    if(item.photoUrl){
+      previewModalImg.src = item.photoUrl;
+      previewModalImg.style.display = 'block';
+    }else{
+      previewModalImg.style.display = 'none';
+    }
+    previewModalMsg.textContent = item.message || '(メッセージなし)';
+    previewModalTime.textContent = item.time;
+    previewModalAdd.disabled = approvedKeys.has(key);
+    previewModalAdd.textContent = approvedKeys.has(key) ? '追加済み' : '追加する';
+    previewModal.classList.add('active');
+  }
+  previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
+  previewModalAdd.addEventListener('click', () => {
+    if(!previewCurrentItem) return;
+    approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn);
+    previewModalAdd.disabled = true;
+    previewModalAdd.textContent = '追加済み';
+    previewModal.classList.remove('active');
+  });
 
   function escapeHtmlCP(str){
     const d = document.createElement('div');
@@ -3949,13 +4081,15 @@ if(isDisplay){
   const restyleApply = document.getElementById('restyle-apply');
   const restyleSizeOpts = document.querySelectorAll('#restyle-size-row .icon-opt');
   const restyleColorOpts = document.querySelectorAll('#restyle-color-row .color-opt');
+  const restyleBgOpts = document.querySelectorAll('#restyle-bg-row .color-opt');
   const restylePosOpts = document.querySelectorAll('#restyle-pos-row .icon-opt');
-  let restyleSize = 20, restyleColor = '#2a2118', restylePos = 'bottom';
+  let restyleSize = 20, restyleColor = '#2a2118', restyleBg = 'paper', restylePos = 'bottom';
 
-  function setRestyleUI(size, color, pos){
-    restyleSize = size; restyleColor = color; restylePos = pos;
+  function setRestyleUI(size, color, pos, bg){
+    restyleSize = size; restyleColor = color; restylePos = pos; restyleBg = bg || 'paper';
     restyleSizeOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.size,10) === size));
     restyleColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === color));
+    restyleBgOpts.forEach(o => o.classList.toggle('selected', o.dataset.bg === restyleBg));
     restylePosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === pos));
   }
 
@@ -3977,6 +4111,11 @@ if(isDisplay){
     opt.classList.add('selected');
     restyleColor = opt.dataset.color;
   }));
+  restyleBgOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleBgOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleBg = opt.dataset.bg;
+  }));
   restylePosOpts.forEach(opt => opt.addEventListener('click', () => {
     restylePosOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
@@ -3987,7 +4126,7 @@ if(isDisplay){
       childWin.postMessage({
         type: 'editCurrentCaption',
         text: restyleTextInput.value.trim(),
-        style: { size: restyleSize, color: restyleColor, pos: restylePos }
+        style: { size: restyleSize, color: restyleColor, bg: restyleBg, pos: restylePos }
       }, '*');
     }
     restyleModal.classList.remove('active');
@@ -4050,8 +4189,8 @@ if(isDisplay){
     if(!e.data) return;
     if(e.data.type === 'currentCaptionInfo'){
       restyleTextInput.value = e.data.text || '';
-      const st = e.data.style || { size: 20, color: '#2a2118', pos: 'bottom' };
-      setRestyleUI(st.size, st.color, st.pos);
+      const st = e.data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
+      setRestyleUI(st.size, st.color, st.pos, st.bg);
     }
     if(e.data.type === 'currentTickerMessages'){
       tickerEditTextarea.value = (e.data.messages || []).join('\n');
@@ -4096,10 +4235,12 @@ if(isDisplay){
   const iconOpts = document.querySelectorAll('#icon-row .icon-opt');
   const sizeOpts = document.querySelectorAll('#size-row .icon-opt');
   const colorOpts = document.querySelectorAll('#color-row .color-opt');
+  const bgOpts = document.querySelectorAll('#bg-row .color-opt');
   const posOpts = document.querySelectorAll('#pos-row .icon-opt');
   let selectedIcon = '';
   let selectedSize = 20;
   let selectedColor = '#2a2118';
+  let selectedBg = 'paper';
   let selectedPos = 'bottom';
 
   iconOpts.forEach(opt => opt.addEventListener('click', () => {
@@ -4116,6 +4257,11 @@ if(isDisplay){
     colorOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedColor = opt.dataset.color;
+  }));
+  bgOpts.forEach(opt => opt.addEventListener('click', () => {
+    bgOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedBg = opt.dataset.bg;
   }));
   posOpts.forEach(opt => opt.addEventListener('click', () => {
     posOpts.forEach(o => o.classList.remove('selected'));
@@ -4137,7 +4283,7 @@ if(isDisplay){
     if(pendingFiles.length === 0) return;
     const iconPrefix = selectedIcon ? selectedIcon + ' ' : '';
     const fullCaption = caption ? iconPrefix + caption : '';
-    const style = { size: selectedSize, color: selectedColor, pos: selectedPos };
+    const style = { size: selectedSize, color: selectedColor, bg: selectedBg, pos: selectedPos };
 
     if(childWin && !childWin.closed){
       childWin.postMessage({
@@ -4320,13 +4466,14 @@ if(isDisplay){
 
   document.addEventListener('keydown', e => {
     if(!controlPanel.classList.contains('active')) return;
-    const anyModalActive = announceModal.classList.contains('active') || captionModal.classList.contains('active') || restyleModal.classList.contains('active') || tickerModal.classList.contains('active');
+    const anyModalActive = announceModal.classList.contains('active') || captionModal.classList.contains('active') || restyleModal.classList.contains('active') || tickerModal.classList.contains('active') || previewModal.classList.contains('active');
     if(anyModalActive){
       if(e.code === 'Escape'){
         announceModal.classList.remove('active');
         captionModal.classList.remove('active');
         restyleModal.classList.remove('active');
         tickerModal.classList.remove('active');
+        previewModal.classList.remove('active');
       }
       return;
     }
