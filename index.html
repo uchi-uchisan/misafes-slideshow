@@ -833,7 +833,36 @@
       <img id="preview-modal-img" src="" style="display:none;">
       <div class="preview-msg" id="preview-modal-msg"></div>
       <div class="preview-time" id="preview-modal-time"></div>
-      <div class="btn-row">
+
+      <div class="style-row-label">文字の大きさ</div>
+      <div class="icon-row" id="preview-size-row">
+        <div class="icon-opt small" data-size="18">小</div>
+        <div class="icon-opt small selected" data-size="26">中</div>
+        <div class="icon-opt small" data-size="36">大</div>
+      </div>
+      <div class="style-row-label">文字の色</div>
+      <div class="icon-row" id="preview-color-row">
+        <div class="color-opt selected" data-color="#2a2118" style="background:#f5ece0;"></div>
+        <div class="color-opt" data-color="#f5ece0" style="background:#2a2118;"></div>
+        <div class="color-opt" data-color="#c9401f" style="background:#f5ece0;"></div>
+        <div class="color-opt" data-color="#d4a843" style="background:#2a2118;"></div>
+      </div>
+      <div class="style-row-label">背景の色</div>
+      <div class="icon-row" id="preview-bg-row">
+        <div class="color-opt selected" data-bg="paper" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);" title="和紙"></div>
+        <div class="color-opt" data-bg="ink" style="background:#2a2118;" title="墨"></div>
+        <div class="color-opt" data-bg="gold" style="background:linear-gradient(135deg,#e8c070,#8a5a12);" title="金"></div>
+        <div class="color-opt" data-bg="lantern" style="background:linear-gradient(135deg,#f2825c,#c9401f);" title="提灯"></div>
+        <div class="color-opt" data-bg="none" style="background:repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50%/10px 10px;" title="背景なし"></div>
+      </div>
+      <div class="style-row-label">表示位置</div>
+      <div class="icon-row" id="preview-pos-row">
+        <div class="icon-opt small selected" data-pos="bottom">下</div>
+        <div class="icon-opt small" data-pos="top">上</div>
+        <div class="icon-opt small" data-pos="center">中央</div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
         <button id="preview-modal-close">閉じる</button>
         <button id="preview-modal-add">追加する</button>
       </div>
@@ -3700,7 +3729,7 @@ if(isDisplay){
     }
     if(msg.type === 'addPhotoByUrl'){
       const startIndex = slides.length;
-      slides.push({ url: msg.url, caption: msg.caption || '', style: null });
+      slides.push({ url: msg.url, caption: msg.caption || '', style: msg.style || null });
       order.splice(1, 0, startIndex);
       updateCounter();
     }
@@ -3872,17 +3901,29 @@ if(isDisplay){
     }
   }
 
-  function approveItem(item, key, listBtnEl){
+  function approveItem(item, key, listBtnEl, style){
     approvedKeys.add(key);
     if(listBtnEl){
       listBtnEl.disabled = true;
       listBtnEl.textContent = '✓ 反映済み(操作不要)';
     }
+    style = style || { size: 26, color: '#2a2118', bg: 'paper', pos: 'bottom' };
     if(childWin && !childWin.closed){
       if(item.photoUrl){
-        childWin.postMessage({ type: 'addPhotoByUrl', url: item.photoUrl, caption: item.message }, '*');
+        childWin.postMessage({ type: 'addPhotoByUrl', url: item.photoUrl, caption: item.message, style }, '*');
       }else if(item.message){
-        childWin.postMessage({ type: 'announce', text: item.message, duration: 15, color: 'lantern', pos: 'top', motion: 'static', deco: 'normal' }, '*');
+        const announceColor = style.bg === 'ink' ? 'night' : (style.bg === 'none' ? 'lantern' : style.bg);
+        childWin.postMessage({
+          type: 'announce',
+          text: item.message,
+          duration: 15,
+          color: announceColor,
+          textColor: style.color,
+          pos: style.pos,
+          size: style.size,
+          motion: 'static',
+          deco: 'normal'
+        }, '*');
       }
     }
   }
@@ -3894,9 +3935,35 @@ if(isDisplay){
   const previewModalTime = document.getElementById('preview-modal-time');
   const previewModalClose = document.getElementById('preview-modal-close');
   const previewModalAdd = document.getElementById('preview-modal-add');
+  const previewSizeOpts = document.querySelectorAll('#preview-size-row .icon-opt');
+  const previewColorOpts = document.querySelectorAll('#preview-color-row .color-opt');
+  const previewBgOpts = document.querySelectorAll('#preview-bg-row .color-opt');
+  const previewPosOpts = document.querySelectorAll('#preview-pos-row .icon-opt');
   let previewCurrentItem = null;
   let previewCurrentKey = null;
   let previewCurrentListBtn = null;
+  let previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewPos = 'bottom';
+
+  previewSizeOpts.forEach(opt => opt.addEventListener('click', () => {
+    previewSizeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    previewSize = parseInt(opt.dataset.size, 10);
+  }));
+  previewColorOpts.forEach(opt => opt.addEventListener('click', () => {
+    previewColorOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    previewColor = opt.dataset.color;
+  }));
+  previewBgOpts.forEach(opt => opt.addEventListener('click', () => {
+    previewBgOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    previewBg = opt.dataset.bg;
+  }));
+  previewPosOpts.forEach(opt => opt.addEventListener('click', () => {
+    previewPosOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    previewPos = opt.dataset.pos;
+  }));
 
   function openPreviewModal(item, key, listBtnEl){
     previewCurrentItem = item;
@@ -3917,7 +3984,8 @@ if(isDisplay){
   previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
   previewModalAdd.addEventListener('click', () => {
     if(!previewCurrentItem) return;
-    approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn);
+    const style = { size: previewSize, color: previewColor, bg: previewBg, pos: previewPos };
+    approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style);
     previewModalAdd.disabled = true;
     previewModalAdd.textContent = '✓ 反映済み(操作不要)';
     previewModal.classList.remove('active');
