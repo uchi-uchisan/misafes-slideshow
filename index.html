@@ -214,12 +214,7 @@
   }
   .slide .caption.deco-outline,
   .slide.text-slide-card .text-slide-content.deco-outline{
-    -webkit-text-stroke:2px rgba(0,0,0,0.8);
-    text-shadow:
-      -2px -2px 0 rgba(0,0,0,0.8),
-       2px -2px 0 rgba(0,0,0,0.8),
-      -2px  2px 0 rgba(0,0,0,0.8),
-       2px  2px 0 rgba(0,0,0,0.8);
+    /* 縁取りの太さ・影の距離は、文字サイズに応じてJS側で動的に設定します */
   }
 
   /* 写真なし・文字だけのスライド */
@@ -456,12 +451,7 @@
 
   /* 袋文字(アウトライン)装飾 */
   #announce-banner .txt.deco-outline{
-    -webkit-text-stroke: 2px rgba(0,0,0,0.75);
-    text-shadow:
-      -2px -2px 0 rgba(0,0,0,0.75),
-       2px -2px 0 rgba(0,0,0,0.75),
-      -2px  2px 0 rgba(0,0,0,0.75),
-       2px  2px 0 rgba(0,0,0,0.75);
+    /* 縁取りの太さ・影の距離は、文字サイズに応じてJS側で動的に設定します */
   }
 
   /* ---------- モーダル共通(お知らせ/コメント/文字調整) ---------- */
@@ -3494,6 +3484,15 @@ function shuffleArray(arr){
   return a;
 }
 
+// 袋文字(アウトライン)の太さを、文字サイズに応じて計算する(細い書体でも潰れないように)
+function getOutlineStyle(fontSizePx, alpha){
+  alpha = alpha || 0.8;
+  const w = Math.max(1, Math.round(fontSizePx / 16));
+  const stroke = `${w}px rgba(0,0,0,${alpha})`;
+  const shadow = `-${w}px -${w}px 0 rgba(0,0,0,${alpha}), ${w}px -${w}px 0 rgba(0,0,0,${alpha}), -${w}px ${w}px 0 rgba(0,0,0,${alpha}), ${w}px ${w}px 0 rgba(0,0,0,${alpha})`;
+  return { stroke, shadow };
+}
+
 /* ==========================================================
    表示ウィンドウ側(会場スクリーン)
    ========================================================== */
@@ -3553,13 +3552,19 @@ if(isDisplay){
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     cap.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
+      const o = getOutlineStyle(st.size, 0.8);
+      cap.style.webkitTextStroke = o.stroke;
+      cap.style.textShadow = o.shadow;
       cap.style.boxShadow = 'none';
-    }else if(st.bg === 'none'){
-      cap.style.boxShadow = 'none';
-      cap.style.textShadow = '0 2px 6px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.5)';
     }else{
-      cap.style.boxShadow = '';
-      cap.style.textShadow = '';
+      cap.style.webkitTextStroke = '';
+      if(st.bg === 'none'){
+        cap.style.boxShadow = 'none';
+        cap.style.textShadow = '0 2px 6px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.5)';
+      }else{
+        cap.style.boxShadow = '';
+        cap.style.textShadow = '';
+      }
     }
     if(st.pos === 'top'){ cap.style.top = '7%'; cap.style.bottom = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
     else if(st.pos === 'center'){ cap.style.top = '50%'; cap.style.bottom = 'auto'; cap.style.transform = 'translate(-50%, -50%) rotate(-1.2deg)'; }
@@ -3578,9 +3583,17 @@ if(isDisplay){
     txt.className = 'text-slide-content';
     txt.textContent = data.caption;
     txt.style.color = st.color;
-    txt.style.fontSize = (st.size * 1.7) + 'px';
+    const displaySize = st.size * 1.7;
+    txt.style.fontSize = displaySize + 'px';
     if(st.font) txt.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     txt.classList.toggle('deco-outline', st.deco === 'outline');
+    if(st.deco === 'outline'){
+      const o = getOutlineStyle(displaySize, 0.8);
+      txt.style.webkitTextStroke = o.stroke;
+      txt.style.textShadow = o.shadow;
+    }else{
+      txt.style.webkitTextStroke = '';
+    }
     el.appendChild(txt);
   }
 
@@ -3728,6 +3741,14 @@ if(isDisplay){
     announceBanner.classList.add('pos-' + pos);
     announceBanner.classList.toggle('scroll-mode', motion === 'scroll');
     announceText.classList.toggle('deco-outline', deco === 'outline');
+    if(deco === 'outline'){
+      const o = getOutlineStyle(size, 0.75);
+      announceText.style.webkitTextStroke = o.stroke;
+      announceText.style.textShadow = o.shadow;
+    }else{
+      announceText.style.webkitTextStroke = '';
+      announceText.style.textShadow = '';
+    }
 
     // 一度アニメーションを解除してから再設定することで、同じ内容を続けて表示しても
     // 必ずアニメーションが最初から再生されるようにする(ブラウザの仕様への対策)
@@ -4107,6 +4128,7 @@ if(isDisplay){
     if(!previewCurrentItem) return;
     const isTextOnly = !previewCurrentItem.photoUrl;
     const msg = previewCurrentItem.message || '(メッセージなし)';
+    let liveFontSize;
 
     previewLiveCaption.textContent = msg;
     previewLiveCaption.style.fontFamily = FONT_STACKS[previewFont] || FONT_STACKS.yomogi;
@@ -4119,7 +4141,8 @@ if(isDisplay){
       previewLiveCaption.style.boxShadow = 'none';
       previewLiveCaption.style.padding = '0';
       previewLiveCaption.style.maxWidth = '86%';
-      previewLiveCaption.style.fontSize = (previewSize * 1.2) + 'px';
+      liveFontSize = previewSize * 1.2;
+      previewLiveCaption.style.fontSize = liveFontSize + 'px';
       previewLiveCaption.style.textShadow = '0 2px 8px rgba(0,0,0,0.4)';
     }else{
       // 写真つき:写真の上に吹き出しとして重ねる
@@ -4128,7 +4151,8 @@ if(isDisplay){
       previewLiveCaption.style.boxShadow = previewBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
       previewLiveCaption.style.padding = previewBg === 'none' ? '0' : '8px 16px';
       previewLiveCaption.style.maxWidth = '82%';
-      previewLiveCaption.style.fontSize = previewSize + 'px';
+      liveFontSize = previewSize;
+      previewLiveCaption.style.fontSize = liveFontSize + 'px';
       previewLiveCaption.style.textShadow = previewBg === 'none' ? '-1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)' : 'none';
     }
 
@@ -4137,10 +4161,11 @@ if(isDisplay){
     else{ previewLiveCaption.style.bottom = '6%'; previewLiveCaption.style.top = 'auto'; }
     if(previewPos !== 'center'){ previewLiveCaption.style.transform = 'translateX(-50%)'; }
 
-    // 袋文字(アウトライン)装飾:選んだ場合は縁取りを優先して適用
+    // 袋文字(アウトライン)装飾:選んだ場合は縁取りを優先して適用(文字サイズに応じた太さ)
     if(previewDeco === 'outline'){
-      previewLiveCaption.style.webkitTextStroke = '2px rgba(0,0,0,0.8)';
-      previewLiveCaption.style.textShadow = '-2px -2px 0 rgba(0,0,0,0.8), 2px -2px 0 rgba(0,0,0,0.8), -2px 2px 0 rgba(0,0,0,0.8), 2px 2px 0 rgba(0,0,0,0.8)';
+      const o = getOutlineStyle(liveFontSize, 0.8);
+      previewLiveCaption.style.webkitTextStroke = o.stroke;
+      previewLiveCaption.style.textShadow = o.shadow;
     }else{
       previewLiveCaption.style.webkitTextStroke = '';
     }
