@@ -743,6 +743,21 @@
     cursor:pointer;
   }
   .color-opt.selected{ border-color:var(--gold); }
+  .color-opt.bg-custom-swatch{
+    position:relative;
+    overflow:hidden;
+    background:conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  }
+  .color-opt.bg-custom-swatch input[type=color]{
+    position:absolute;
+    top:-4px; left:-4px;
+    width:calc(100% + 8px);
+    height:calc(100% + 8px);
+    border:none;
+    padding:0;
+    cursor:pointer;
+    opacity:0;
+  }
 
   /* ---------- 表示ウィンドウ開始オーバーレイ ---------- */
   #start-overlay{
@@ -819,7 +834,7 @@
 
       <div id="ticker-list" style="margin-top:14px;">
         <div class="ticker-item">
-          <input type="text" class="ticker-text-input" value="📷 QRコードから写真・感想やメッセージを送ってください/写真がなくてもOKです/撮影の際は第三者の顔が映り込まないようご配慮ください">
+          <input type="text" class="ticker-text-input" value="QRコードから写真・感想やメッセージを送ってください/写真がなくてもOKです/撮影の際は第三者の顔が映り込まないようご配慮ください">
           <button type="button" class="remove-ticker">✕</button>
         </div>
       </div>
@@ -916,6 +931,9 @@
           <div class="color-opt" data-bg="gold" style="background:linear-gradient(135deg,#e8c070,#8a5a12);" title="金"></div>
           <div class="color-opt" data-bg="lantern" style="background:linear-gradient(135deg,#f2825c,#c9401f);" title="提灯"></div>
           <div class="color-opt" data-bg="none" style="background:repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50%/10px 10px;" title="背景なし(文字だけの場合は墨扱い)"></div>
+          <div class="color-opt bg-custom-swatch" id="preview-bg-custom-swatch" data-bg="custom" title="自由に選ぶ">
+            <input type="color" id="preview-bg-custom-input" value="#8a5a12">
+          </div>
         </div>
         <div class="style-row-label">文字装飾</div>
         <div class="icon-row" id="preview-deco-row">
@@ -989,22 +1007,22 @@
 
       <div class="style-row-label">文字の大きさ</div>
       <div class="icon-row" id="ticker-size-row">
-        <div class="icon-opt small" data-size="14">小</div>
-        <div class="icon-opt small selected" data-size="20">中</div>
+        <div class="icon-opt small selected" data-size="14">小</div>
+        <div class="icon-opt small" data-size="20">中</div>
         <div class="icon-opt small" data-size="28">大</div>
       </div>
       <div class="style-row-label">文字の色</div>
       <div class="icon-row" id="ticker-color-row">
-        <div class="color-opt selected" data-color="#d4a843" style="background:#d4a843;"></div>
-        <div class="color-opt" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
+        <div class="color-opt" data-color="#d4a843" style="background:#d4a843;"></div>
+        <div class="color-opt selected" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
         <div class="color-opt" data-color="#e8542a" style="background:#e8542a;"></div>
         <div class="color-opt" data-color="#2a2118" style="background:#2a2118;"></div>
       </div>
       <div class="style-row-label">表示位置</div>
       <div class="icon-row" id="ticker-pos-row">
-        <div class="icon-opt small selected" data-pos="top">上</div>
+        <div class="icon-opt small" data-pos="top">上</div>
         <div class="icon-opt small" data-pos="middle">中央</div>
-        <div class="icon-opt small" data-pos="bottom">下</div>
+        <div class="icon-opt small selected" data-pos="bottom">下</div>
       </div>
 
       <div class="btn-row" style="margin-top:16px;">
@@ -3575,7 +3593,7 @@ if(isDisplay){
     const st = data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
     cap.style.fontSize = st.size + 'px';
     cap.style.color = st.color;
-    cap.style.background = CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper;
+    cap.style.background = st.bg === 'custom' ? (st.bgCustom || '#8a5a12') : (CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper);
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     cap.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
@@ -3603,7 +3621,7 @@ if(isDisplay){
     el.classList.add('text-slide-card');
     el.style.backgroundImage = 'none';
     const st = data.style || { size: 36, color: '#f5ece0', bg: 'ink', pos: 'center' };
-    el.style.background = FULLSCREEN_BG[st.bg || 'ink'] || FULLSCREEN_BG.ink;
+    el.style.background = st.bg === 'custom' ? (st.bgCustom || '#8a5a12') : (FULLSCREEN_BG[st.bg || 'ink'] || FULLSCREEN_BG.ink);
     el.style.alignItems = st.pos === 'top' ? 'flex-start' : (st.pos === 'bottom' ? 'flex-end' : 'center');
 
     const txt = document.createElement('div');
@@ -3696,7 +3714,7 @@ if(isDisplay){
   let tickerMessages = [];
   let tickerIdx = 0;
   let tickerRotateTimer = null;
-  let tickerStyle = { size: 20, color: '#d4a843', pos: 'top' };
+  let tickerStyle = { size: 14, color: '#f5ece0', pos: 'bottom' };
   const tickerEl = document.getElementById('ticker');
   const tickerTrack = document.getElementById('ticker-track');
 
@@ -4124,6 +4142,8 @@ if(isDisplay){
   const previewSizeOpts = document.querySelectorAll('#preview-size-row .icon-opt');
   const previewColorOpts = document.querySelectorAll('#preview-color-row .color-opt');
   const previewBgOpts = document.querySelectorAll('#preview-bg-row .color-opt');
+  const previewBgCustomInput = document.getElementById('preview-bg-custom-input');
+  const previewBgCustomSwatch = document.getElementById('preview-bg-custom-swatch');
   const previewDecoOpts = document.querySelectorAll('#preview-deco-row .icon-opt');
   const previewOutlineColorOpts = document.querySelectorAll('#preview-outline-color-row [data-outline]');
   const previewOutlineColorLabel = document.getElementById('preview-outline-color-label');
@@ -4132,7 +4152,7 @@ if(isDisplay){
   let previewCurrentItem = null;
   let previewCurrentKey = null;
   let previewCurrentListBtn = null;
-  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewDeco = 'normal', previewOutlineColor = 'auto', previewPos = 'bottom';
+  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewBgCustom = '#8a5a12', previewDeco = 'normal', previewOutlineColor = 'auto', previewPos = 'bottom';
 
   function updateOutlineColorVisibility(){
     const show = previewDeco === 'outline';
@@ -4172,7 +4192,7 @@ if(isDisplay){
 
     if(isTextOnly){
       // 文字だけのスライド:画面いっぱいに背景色、文字も大きめに
-      previewStage.style.background = PREVIEW_FULLSCREEN_BG[previewBg] || PREVIEW_FULLSCREEN_BG.ink;
+      previewStage.style.background = previewBg === 'custom' ? previewBgCustom : (PREVIEW_FULLSCREEN_BG[previewBg] || PREVIEW_FULLSCREEN_BG.ink);
       previewLiveCaption.style.background = 'transparent';
       previewLiveCaption.style.boxShadow = 'none';
       previewLiveCaption.style.padding = '0';
@@ -4183,7 +4203,7 @@ if(isDisplay){
     }else{
       // 写真つき:写真の上に吹き出しとして重ねる
       previewStage.style.background = 'transparent';
-      previewLiveCaption.style.background = PREVIEW_CAPTION_BG[previewBg] || PREVIEW_CAPTION_BG.paper;
+      previewLiveCaption.style.background = previewBg === 'custom' ? previewBgCustom : (PREVIEW_CAPTION_BG[previewBg] || PREVIEW_CAPTION_BG.paper);
       previewLiveCaption.style.boxShadow = previewBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
       previewLiveCaption.style.padding = previewBg === 'none' ? '0' : '8px 16px';
       previewLiveCaption.style.maxWidth = '82%';
@@ -4231,6 +4251,13 @@ if(isDisplay){
     previewBg = opt.dataset.bg;
     updateLivePreview();
   }));
+  previewBgCustomInput.addEventListener('input', () => {
+    previewBgOpts.forEach(o => o.classList.remove('selected'));
+    previewBgCustomSwatch.classList.add('selected');
+    previewBg = 'custom';
+    previewBgCustom = previewBgCustomInput.value;
+    updateLivePreview();
+  });
   previewDecoOpts.forEach(opt => opt.addEventListener('click', () => {
     previewDecoOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
@@ -4271,7 +4298,7 @@ if(isDisplay){
   previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
   previewModalAdd.addEventListener('click', () => {
     if(!previewCurrentItem) return;
-    const style = { size: previewSize, color: previewColor, bg: previewBg, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
+    const style = { size: previewSize, color: previewColor, bg: previewBg, bgCustom: previewBgCustom, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
     approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style);
     previewModalAdd.disabled = true;
     previewModalAdd.textContent = '✓ 反映済み(操作不要)';
@@ -4502,7 +4529,7 @@ if(isDisplay){
   const tickerSizeOpts = document.querySelectorAll('#ticker-size-row .icon-opt');
   const tickerColorOpts = document.querySelectorAll('#ticker-color-row .color-opt');
   const tickerPosOpts = document.querySelectorAll('#ticker-pos-row .icon-opt');
-  let tickerEditSize = 20, tickerEditColor = '#d4a843', tickerEditPos = 'top';
+  let tickerEditSize = 14, tickerEditColor = '#f5ece0', tickerEditPos = 'bottom';
 
   function setTickerStyleUI(size, color, pos){
     tickerEditSize = size; tickerEditColor = color; tickerEditPos = pos;
