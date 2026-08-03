@@ -922,6 +922,13 @@
           <div class="icon-opt small selected" data-deco="normal">通常</div>
           <div class="icon-opt small" data-deco="outline">袋文字</div>
         </div>
+        <div class="style-row-label" id="preview-outline-color-label" style="display:none;">縁取りの色</div>
+        <div class="icon-row" id="preview-outline-color-row" style="display:none;">
+          <div class="icon-opt small selected" data-outline="auto">自動</div>
+          <div class="color-opt" data-outline="white" style="background:#faf4e8; border-color:rgba(42,23,16,0.3);"></div>
+          <div class="color-opt" data-outline="black" style="background:#140e0a;"></div>
+          <div class="color-opt" data-outline="gold" style="background:#d4a843;"></div>
+        </div>
         <div class="style-row-label">表示位置</div>
         <div class="icon-row" id="preview-pos-row">
           <div class="icon-opt small selected" data-pos="bottom">下</div>
@@ -3486,19 +3493,27 @@ function shuffleArray(arr){
   return a;
 }
 
-// 袋文字(アウトライン)の太さ・色を、文字色に応じて自動計算する
-// (暗い文字色には明るい縁取り、明るい文字色には暗い縁取りを使い、文字とくっついて見えないようにする)
-function getOutlineStyle(fontSizePx, textColorHex){
+// 袋文字(アウトライン)の太さ・色を計算する
+// outlineColorOverride:'auto'(未指定)なら文字色に応じて自動、'white'/'black'/'gold'なら指定色を使う
+function getOutlineStyle(fontSizePx, textColorHex, outlineColorOverride){
   const w = Math.max(1, Math.round(fontSizePx / 16));
-  let strokeRgb = '20,14,10'; // 既定は濃い縁取り
-  try{
-    const hex = (textColorHex || '#2a2118').replace('#', '');
-    const r = parseInt(hex.substr(0,2), 16);
-    const g = parseInt(hex.substr(2,2), 16);
-    const b = parseInt(hex.substr(4,2), 16);
-    const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
-    strokeRgb = luminance < 0.5 ? '250,244,232' : '20,14,10'; // 暗い文字→明るい縁取り、明るい文字→暗い縁取り
-  }catch(err){ /* 解析できない場合は既定値のまま */ }
+  const MANUAL_OUTLINE = { white: '250,244,232', black: '20,14,10', gold: '212,168,67' };
+  let strokeRgb;
+
+  if(outlineColorOverride && outlineColorOverride !== 'auto' && MANUAL_OUTLINE[outlineColorOverride]){
+    strokeRgb = MANUAL_OUTLINE[outlineColorOverride];
+  }else{
+    strokeRgb = '20,14,10'; // 既定は濃い縁取り
+    try{
+      const hex = (textColorHex || '#2a2118').replace('#', '');
+      const r = parseInt(hex.substr(0,2), 16);
+      const g = parseInt(hex.substr(2,2), 16);
+      const b = parseInt(hex.substr(4,2), 16);
+      const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
+      strokeRgb = luminance < 0.5 ? '250,244,232' : '20,14,10'; // 暗い文字→明るい縁取り、明るい文字→暗い縁取り
+    }catch(err){ /* 解析できない場合は既定値のまま */ }
+  }
+
   const alpha = 0.9;
   const stroke = `${w}px rgba(${strokeRgb},${alpha})`;
   const shadow = `-${w}px -${w}px 0 rgba(${strokeRgb},${alpha}), ${w}px -${w}px 0 rgba(${strokeRgb},${alpha}), -${w}px ${w}px 0 rgba(${strokeRgb},${alpha}), ${w}px ${w}px 0 rgba(${strokeRgb},${alpha})`;
@@ -3564,7 +3579,7 @@ if(isDisplay){
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     cap.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
-      const o = getOutlineStyle(st.size, st.color);
+      const o = getOutlineStyle(st.size, st.color, st.outlineColor);
       cap.style.webkitTextStroke = o.stroke;
       cap.style.textShadow = o.shadow;
       cap.style.boxShadow = 'none';
@@ -3600,7 +3615,7 @@ if(isDisplay){
     if(st.font) txt.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     txt.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
-      const o = getOutlineStyle(displaySize, st.color);
+      const o = getOutlineStyle(displaySize, st.color, st.outlineColor);
       txt.style.webkitTextStroke = o.stroke;
       txt.style.textShadow = o.shadow;
     }else{
@@ -3726,7 +3741,7 @@ if(isDisplay){
     paper:   { bg: 'rgba(245,236,224,0.96)', txt: '#2a1710' }
   };
 
-  function showAnnouncement(text, durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap, dimBackground){
+  function showAnnouncement(text, durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap, dimBackground, outlineColor){
     clearTimeout(announceTimer);
     color = color || 'lantern';
     pos = pos || 'top';
@@ -3754,7 +3769,7 @@ if(isDisplay){
     announceBanner.classList.toggle('scroll-mode', motion === 'scroll');
     announceText.classList.toggle('deco-outline', deco === 'outline');
     if(deco === 'outline'){
-      const o = getOutlineStyle(size, finalTextColor);
+      const o = getOutlineStyle(size, finalTextColor, outlineColor);
       announceText.style.webkitTextStroke = o.stroke;
       announceText.style.textShadow = o.shadow;
     }else{
@@ -3905,7 +3920,7 @@ if(isDisplay){
       updateCounter();
     }
     if(msg.type === 'announce'){
-      showAnnouncement(msg.text, msg.duration, msg.color, msg.pos, msg.motion, msg.deco, msg.direction, msg.size, msg.repeat, msg.textColor, msg.speed, msg.gap, msg.dimBackground);
+      showAnnouncement(msg.text, msg.duration, msg.color, msg.pos, msg.motion, msg.deco, msg.direction, msg.size, msg.repeat, msg.textColor, msg.speed, msg.gap, msg.dimBackground, msg.outlineColor);
     }
     if(msg.type === 'requestCurrentAnnounce'){
       if(window.opener){
@@ -4110,11 +4125,20 @@ if(isDisplay){
   const previewColorOpts = document.querySelectorAll('#preview-color-row .color-opt');
   const previewBgOpts = document.querySelectorAll('#preview-bg-row .color-opt');
   const previewDecoOpts = document.querySelectorAll('#preview-deco-row .icon-opt');
+  const previewOutlineColorOpts = document.querySelectorAll('#preview-outline-color-row [data-outline]');
+  const previewOutlineColorLabel = document.getElementById('preview-outline-color-label');
+  const previewOutlineColorRow = document.getElementById('preview-outline-color-row');
   const previewPosOpts = document.querySelectorAll('#preview-pos-row .icon-opt');
   let previewCurrentItem = null;
   let previewCurrentKey = null;
   let previewCurrentListBtn = null;
-  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewDeco = 'normal', previewPos = 'bottom';
+  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewDeco = 'normal', previewOutlineColor = 'auto', previewPos = 'bottom';
+
+  function updateOutlineColorVisibility(){
+    const show = previewDeco === 'outline';
+    previewOutlineColorLabel.style.display = show ? 'block' : 'none';
+    previewOutlineColorRow.style.display = show ? 'flex' : 'none';
+  }
 
   const FONT_STACKS = {
     yomogi: `"Yomogi","Klee One",cursive`,
@@ -4175,7 +4199,7 @@ if(isDisplay){
 
     // 袋文字(アウトライン)装飾:選んだ場合は縁取りを優先して適用(文字サイズに応じた太さ)
     if(previewDeco === 'outline'){
-      const o = getOutlineStyle(liveFontSize, previewColor);
+      const o = getOutlineStyle(liveFontSize, previewColor, previewOutlineColor);
       previewLiveCaption.style.webkitTextStroke = o.stroke;
       previewLiveCaption.style.textShadow = o.shadow;
     }else{
@@ -4211,6 +4235,13 @@ if(isDisplay){
     previewDecoOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     previewDeco = opt.dataset.deco;
+    updateOutlineColorVisibility();
+    updateLivePreview();
+  }));
+  previewOutlineColorOpts.forEach(opt => opt.addEventListener('click', () => {
+    previewOutlineColorOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    previewOutlineColor = opt.dataset.outline;
     updateLivePreview();
   }));
   previewPosOpts.forEach(opt => opt.addEventListener('click', () => {
@@ -4233,13 +4264,14 @@ if(isDisplay){
     previewModalTime.textContent = item.time;
     previewModalAdd.disabled = approvedKeys.has(key);
     previewModalAdd.textContent = approvedKeys.has(key) ? '✓ 反映済み(操作不要)' : '追加する';
+    updateOutlineColorVisibility();
     updateLivePreview();
     previewModal.classList.add('active');
   }
   previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
   previewModalAdd.addEventListener('click', () => {
     if(!previewCurrentItem) return;
-    const style = { size: previewSize, color: previewColor, bg: previewBg, pos: previewPos, font: previewFont, deco: previewDeco };
+    const style = { size: previewSize, color: previewColor, bg: previewBg, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
     approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style);
     previewModalAdd.disabled = true;
     previewModalAdd.textContent = '✓ 反映済み(操作不要)';
