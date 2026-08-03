@@ -205,16 +205,24 @@
     position:absolute;
     left:50%;
     transform:translateX(-50%) rotate(-1.2deg);
-    max-width:80%;
+    max-width:90%;
+    width:max-content;
     padding:14px 26px;
     border-radius:16px;
     box-shadow:0 6px 18px rgba(0,0,0,0.4);
     font-family:"Yomogi","Klee One","UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体",cursive;
     line-height:1.4;
     text-align:center;
-    white-space:pre-wrap;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .slide .caption.corner-square{ border-radius:0; }
+  .slide .caption.shape-glow{
+    padding:34px 46px;
+    box-shadow:none;
+    border-radius:0;
+  }
   .slide .caption.deco-outline,
   .slide.text-slide-card .text-slide-content.deco-outline{
     /* 縁取りの太さ・影の距離は、文字サイズに応じてJS側で動的に設定します */
@@ -755,6 +763,8 @@
     font-size:16px;
   }
   .mini-preview-caption.corner-square{ border-radius:0; }
+  .mini-preview-caption.shape-glow{ padding:24px 34px; box-shadow:none; border-radius:0; }
+  #preview-live-caption.shape-glow{ padding:24px 34px; box-shadow:none !important; border-radius:0; }
   .mini-preview-caption:empty::before{
     content:'(ここにコメントが入ります)';
     opacity:0.4;
@@ -1014,6 +1024,11 @@
             <input type="color" id="preview-bg-custom-input" value="#8a5a12">
           </div>
         </div>
+        <div class="style-row-label">背景の形</div>
+        <div class="icon-row" id="preview-shape-row">
+          <div class="icon-opt small selected" data-shape="box">四角</div>
+          <div class="icon-opt small" data-shape="glow">ぼかし(背景に溶け込む)</div>
+        </div>
         <div class="style-row-label">文字装飾</div>
         <div class="icon-row" id="preview-deco-row">
           <div class="icon-opt small selected" data-deco="normal">通常</div>
@@ -1101,6 +1116,12 @@
       <div class="icon-row" id="restyle-corner-row">
         <div class="icon-opt small selected" data-corner="rounded">丸角</div>
         <div class="icon-opt small" data-corner="square">角ばる</div>
+      </div>
+
+      <div class="style-row-label">背景の形</div>
+      <div class="icon-row" id="restyle-shape-row">
+        <div class="icon-opt small selected" data-shape="box">四角</div>
+        <div class="icon-opt small" data-shape="glow">ぼかし(背景に溶け込む)</div>
       </div>
 
       <div class="style-row-label">文字装飾</div>
@@ -1342,6 +1363,12 @@
       <div class="icon-row" id="corner-row">
         <div class="icon-opt small selected" data-corner="rounded">丸角</div>
         <div class="icon-opt small" data-corner="square">角ばる</div>
+      </div>
+
+      <div class="style-row-label">背景の形</div>
+      <div class="icon-row" id="shape-row">
+        <div class="icon-opt small selected" data-shape="box">四角</div>
+        <div class="icon-opt small" data-shape="glow">ぼかし(背景に溶け込む)</div>
       </div>
 
       <div class="style-row-label">文字装飾</div>
@@ -3782,6 +3809,18 @@ if(isDisplay){
     gothic: `"Hiragino Sans","Yu Gothic","Meiryo",sans-serif`
   };
 
+  // 「ぼかし」形状で使う、境界のない単色(グラデーションのベース色)
+  const GLOW_BASE_COLOR = {
+    paper: '245,236,224', ink: '42,33,24', gold: '212,168,67', lantern: '224,90,45', none: '20,14,10'
+  };
+  function hexToRgbStr(hex){
+    try{
+      const h = hex.replace('#','');
+      const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+      return `${r},${g},${b}`;
+    }catch(err){ return '20,14,10'; }
+  }
+
   function applyCaptionToEl(el, data){
     const existing = el.querySelector('.caption');
     if(existing) existing.remove();
@@ -3793,9 +3832,15 @@ if(isDisplay){
     const st = data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
     cap.style.fontSize = st.size + 'px';
     cap.style.color = st.color === 'custom' ? (st.colorCustom || '#2a2118') : st.color;
-    cap.style.background = st.bg === 'custom' ? (st.bgCustom || '#8a5a12') : (CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper);
     cap.style.letterSpacing = (st.tracking || 0) + 'px';
     cap.classList.toggle('corner-square', st.corner === 'square');
+    cap.classList.toggle('shape-glow', st.shape === 'glow');
+    if(st.shape === 'glow'){
+      const rgb = st.bg === 'custom' ? hexToRgbStr(st.bgCustom || '#8a5a12') : (GLOW_BASE_COLOR[st.bg || 'paper'] || GLOW_BASE_COLOR.paper);
+      cap.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
+    }else{
+      cap.style.background = st.bg === 'custom' ? (st.bgCustom || '#8a5a12') : (CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper);
+    }
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     cap.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
@@ -3805,7 +3850,7 @@ if(isDisplay){
       cap.style.boxShadow = 'none';
     }else{
       cap.style.webkitTextStroke = '';
-      if(st.bg === 'none'){
+      if(st.bg === 'none' || st.shape === 'glow'){
         cap.style.boxShadow = 'none';
         cap.style.textShadow = '0 2px 6px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.5)';
       }else{
@@ -4359,7 +4404,7 @@ if(isDisplay){
   let previewCurrentItem = null;
   let previewCurrentKey = null;
   let previewCurrentListBtn = null;
-  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewBgCustom = '#8a5a12', previewDeco = 'normal', previewOutlineColor = 'auto', previewPos = 'bottom';
+  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewBgCustom = '#8a5a12', previewShape = 'box', previewDeco = 'normal', previewOutlineColor = 'auto', previewPos = 'bottom';
 
   function updateOutlineColorVisibility(){
     const show = previewDeco === 'outline';
@@ -4386,6 +4431,15 @@ if(isDisplay){
     lantern: 'linear-gradient(135deg, #f2825c, #c9401f)',
     none: 'linear-gradient(135deg, #3d241b, #12162c)'
   };
+  const PREVIEW_GLOW_BASE = {
+    paper: '245,236,224', ink: '42,33,24', gold: '212,168,67', lantern: '224,90,45', none: '20,14,10'
+  };
+  function previewHexToRgb(hex){
+    try{
+      const h = hex.replace('#','');
+      return `${parseInt(h.substr(0,2),16)},${parseInt(h.substr(2,2),16)},${parseInt(h.substr(4,2),16)}`;
+    }catch(err){ return '20,14,10'; }
+  }
 
   function updateLivePreview(){
     if(!previewCurrentItem) return;
@@ -4410,13 +4464,21 @@ if(isDisplay){
     }else{
       // 写真つき:写真の上に吹き出しとして重ねる
       previewStage.style.background = 'transparent';
-      previewLiveCaption.style.background = previewBg === 'custom' ? previewBgCustom : (PREVIEW_CAPTION_BG[previewBg] || PREVIEW_CAPTION_BG.paper);
-      previewLiveCaption.style.boxShadow = previewBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
-      previewLiveCaption.style.padding = previewBg === 'none' ? '0' : '8px 16px';
+      previewLiveCaption.classList.toggle('shape-glow', previewShape === 'glow');
+      if(previewShape === 'glow'){
+        const rgb = previewBg === 'custom' ? previewHexToRgb(previewBgCustom) : (PREVIEW_GLOW_BASE[previewBg] || PREVIEW_GLOW_BASE.paper);
+        previewLiveCaption.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
+        previewLiveCaption.style.boxShadow = 'none';
+        previewLiveCaption.style.padding = '20px 30px';
+      }else{
+        previewLiveCaption.style.background = previewBg === 'custom' ? previewBgCustom : (PREVIEW_CAPTION_BG[previewBg] || PREVIEW_CAPTION_BG.paper);
+        previewLiveCaption.style.boxShadow = previewBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
+        previewLiveCaption.style.padding = previewBg === 'none' ? '0' : '8px 16px';
+      }
       previewLiveCaption.style.maxWidth = '82%';
       liveFontSize = previewSize;
       previewLiveCaption.style.fontSize = liveFontSize + 'px';
-      previewLiveCaption.style.textShadow = previewBg === 'none' ? '-1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      previewLiveCaption.style.textShadow = (previewBg === 'none' || previewShape === 'glow') ? '-1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)' : 'none';
     }
 
     if(previewPos === 'top'){ previewLiveCaption.style.top = '8%'; previewLiveCaption.style.bottom = 'auto'; }
@@ -4465,6 +4527,13 @@ if(isDisplay){
     previewBgCustom = previewBgCustomInput.value;
     updateLivePreview();
   });
+  const previewShapeOpts = document.querySelectorAll('#preview-shape-row .icon-opt');
+  previewShapeOpts.forEach(opt => opt.addEventListener('click', () => {
+    previewShapeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    previewShape = opt.dataset.shape;
+    updateLivePreview();
+  }));
   previewDecoOpts.forEach(opt => opt.addEventListener('click', () => {
     previewDecoOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
@@ -4505,7 +4574,7 @@ if(isDisplay){
   previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
   previewModalAdd.addEventListener('click', () => {
     if(!previewCurrentItem) return;
-    const style = { size: previewSize, color: previewColor, bg: previewBg, bgCustom: previewBgCustom, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
+    const style = { size: previewSize, color: previewColor, bg: previewBg, bgCustom: previewBgCustom, shape: previewShape, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
     approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style);
     previewModalAdd.disabled = true;
     previewModalAdd.textContent = '✓ 反映済み(操作不要)';
@@ -4690,12 +4759,13 @@ if(isDisplay){
   const restyleBgCustomInput = document.getElementById('restyle-bg-custom-input');
   const restyleBgCustomSwatch = document.getElementById('restyle-bg-custom-swatch');
   const restyleCornerOpts = document.querySelectorAll('#restyle-corner-row .icon-opt');
+  const restyleShapeOpts = document.querySelectorAll('#restyle-shape-row .icon-opt');
   const restyleDecoOpts = document.querySelectorAll('#restyle-deco-row .icon-opt');
   const restylePosOpts = document.querySelectorAll('#restyle-pos-row .icon-opt');
   let restyleFont = 'yomogi', restyleSize = 20, restyleTracking = 0;
   let restyleColor = '#2a2118', restyleColorCustom = '#2a2118';
   let restyleBg = 'paper', restyleBgCustom = '#8a5a12';
-  let restyleCorner = 'rounded', restyleDeco = 'normal', restylePos = 'bottom';
+  let restyleCorner = 'rounded', restyleShape = 'box', restyleDeco = 'normal', restylePos = 'bottom';
 
   function updateRestylePreview(){
     const text = restyleTextInput.value.trim();
@@ -4705,8 +4775,14 @@ if(isDisplay){
     restylePreviewText.style.letterSpacing = restyleTracking + 'px';
     const txtColor = restyleColor === 'custom' ? restyleColorCustom : restyleColor;
     restylePreviewText.style.color = txtColor;
-    restylePreviewText.style.background = restyleBg === 'custom' ? restyleBgCustom : (MINI_CAPTION_BG[restyleBg] || MINI_CAPTION_BG.paper);
     restylePreviewText.classList.toggle('corner-square', restyleCorner === 'square');
+    restylePreviewText.classList.toggle('shape-glow', restyleShape === 'glow');
+    if(restyleShape === 'glow'){
+      const rgb = restyleBg === 'custom' ? miniHexToRgb(restyleBgCustom) : (MINI_GLOW_BASE[restyleBg] || MINI_GLOW_BASE.paper);
+      restylePreviewText.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
+    }else{
+      restylePreviewText.style.background = restyleBg === 'custom' ? restyleBgCustom : (MINI_CAPTION_BG[restyleBg] || MINI_CAPTION_BG.paper);
+    }
     if(restyleDeco === 'outline'){
       const o = getOutlineStyle(Math.min(restyleSize, 26), txtColor, 'auto');
       restylePreviewText.style.webkitTextStroke = o.stroke;
@@ -4714,15 +4790,21 @@ if(isDisplay){
       restylePreviewText.style.boxShadow = 'none';
     }else{
       restylePreviewText.style.webkitTextStroke = '';
-      restylePreviewText.style.boxShadow = restyleBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
-      restylePreviewText.style.textShadow = restyleBg === 'none' ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      restylePreviewText.style.boxShadow = (restyleBg === 'none' || restyleShape === 'glow') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
+      restylePreviewText.style.textShadow = (restyleBg === 'none' || restyleShape === 'glow') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
     }
   }
+  restyleShapeOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleShapeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleShape = opt.dataset.shape;
+    updateRestylePreview();
+  }));
 
-  function setRestyleUI(size, color, pos, bg, font, tracking, corner, deco, colorCustom, bgCustom){
+  function setRestyleUI(size, color, pos, bg, font, tracking, corner, deco, colorCustom, bgCustom, shape){
     restyleSize = size; restyleColor = color; restylePos = pos; restyleBg = bg || 'paper';
     restyleFont = font || 'yomogi'; restyleTracking = tracking || 0;
-    restyleCorner = corner || 'rounded'; restyleDeco = deco || 'normal';
+    restyleCorner = corner || 'rounded'; restyleShape = shape || 'box'; restyleDeco = deco || 'normal';
     restyleColorCustom = colorCustom || '#2a2118'; restyleBgCustom = bgCustom || '#8a5a12';
     restyleTextCustomInput.value = restyleColorCustom;
     restyleBgCustomInput.value = restyleBgCustom;
@@ -4732,6 +4814,7 @@ if(isDisplay){
     restyleColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === color));
     restyleBgOpts.forEach(o => o.classList.toggle('selected', o.dataset.bg === restyleBg));
     restyleCornerOpts.forEach(o => o.classList.toggle('selected', o.dataset.corner === restyleCorner));
+    restyleShapeOpts.forEach(o => o.classList.toggle('selected', o.dataset.shape === restyleShape));
     restyleDecoOpts.forEach(o => o.classList.toggle('selected', o.dataset.deco === restyleDeco));
     restylePosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === pos));
     updateRestylePreview();
@@ -4814,7 +4897,7 @@ if(isDisplay){
         text: restyleTextInput.value.trim(),
         style: {
           size: restyleSize, color: restyleColor, colorCustom: restyleColorCustom,
-          bg: restyleBg, bgCustom: restyleBgCustom, corner: restyleCorner,
+          bg: restyleBg, bgCustom: restyleBgCustom, corner: restyleCorner, shape: restyleShape,
           deco: restyleDeco, pos: restylePos, font: restyleFont, tracking: restyleTracking
         }
       }, '*');
@@ -4926,7 +5009,7 @@ if(isDisplay){
     if(e.data.type === 'currentCaptionInfo'){
       restyleTextInput.value = e.data.text || '';
       const st = e.data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
-      setRestyleUI(st.size, st.color, st.pos, st.bg, st.font, st.tracking, st.corner, st.deco, st.colorCustom, st.bgCustom);
+      setRestyleUI(st.size, st.color, st.pos, st.bg, st.font, st.tracking, st.corner, st.deco, st.colorCustom, st.bgCustom, st.shape);
     }
     if(e.data.type === 'currentTickerMessages'){
       tickerEditTextarea.value = (e.data.messages || []).join('\n');
@@ -4982,6 +5065,7 @@ if(isDisplay){
   const bgCustomInput = document.getElementById('bg-custom-input');
   const bgCustomSwatch = document.getElementById('bg-custom-swatch');
   const cornerOpts = document.querySelectorAll('#corner-row .icon-opt');
+  const shapeOpts = document.querySelectorAll('#shape-row .icon-opt');
   const decoOpts = document.querySelectorAll('#deco-row .icon-opt');
   const posOpts = document.querySelectorAll('#pos-row .icon-opt');
   let selectedIcon = '';
@@ -4993,6 +5077,7 @@ if(isDisplay){
   let selectedBg = 'paper';
   let selectedBgCustom = '#8a5a12';
   let selectedCorner = 'rounded';
+  let selectedShape = 'box';
   let selectedDeco = 'normal';
   let selectedPos = 'bottom';
 
@@ -5002,6 +5087,15 @@ if(isDisplay){
     lantern: 'linear-gradient(135deg,#f2825c,#c9401f)',
     none: 'transparent'
   };
+  const MINI_GLOW_BASE = {
+    paper: '245,236,224', ink: '42,33,24', gold: '212,168,67', lantern: '224,90,45', none: '20,14,10'
+  };
+  function miniHexToRgb(hex){
+    try{
+      const h = hex.replace('#','');
+      return `${parseInt(h.substr(0,2),16)},${parseInt(h.substr(2,2),16)},${parseInt(h.substr(4,2),16)}`;
+    }catch(err){ return '20,14,10'; }
+  }
 
   function updateCaptionPreview(){
     const iconPrefix = selectedIcon ? selectedIcon + ' ' : '';
@@ -5012,8 +5106,14 @@ if(isDisplay){
     captionPreviewText.style.letterSpacing = selectedTracking + 'px';
     const txtColor = selectedColor === 'custom' ? selectedColorCustom : selectedColor;
     captionPreviewText.style.color = txtColor;
-    captionPreviewText.style.background = selectedBg === 'custom' ? selectedBgCustom : (MINI_CAPTION_BG[selectedBg] || MINI_CAPTION_BG.paper);
     captionPreviewText.classList.toggle('corner-square', selectedCorner === 'square');
+    captionPreviewText.classList.toggle('shape-glow', selectedShape === 'glow');
+    if(selectedShape === 'glow'){
+      const rgb = selectedBg === 'custom' ? miniHexToRgb(selectedBgCustom) : (MINI_GLOW_BASE[selectedBg] || MINI_GLOW_BASE.paper);
+      captionPreviewText.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
+    }else{
+      captionPreviewText.style.background = selectedBg === 'custom' ? selectedBgCustom : (MINI_CAPTION_BG[selectedBg] || MINI_CAPTION_BG.paper);
+    }
     if(pendingPreviewUrl){
       captionPreviewStage.style.backgroundImage = `url("${pendingPreviewUrl}")`;
       captionPreviewStage.style.backgroundSize = 'cover';
@@ -5026,11 +5126,17 @@ if(isDisplay){
       captionPreviewText.style.boxShadow = 'none';
     }else{
       captionPreviewText.style.webkitTextStroke = '';
-      captionPreviewText.style.boxShadow = selectedBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
-      captionPreviewText.style.textShadow = selectedBg === 'none' ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      captionPreviewText.style.boxShadow = (selectedBg === 'none' || selectedShape === 'glow') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
+      captionPreviewText.style.textShadow = (selectedBg === 'none' || selectedShape === 'glow') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
     }
   }
 
+  shapeOpts.forEach(opt => opt.addEventListener('click', () => {
+    shapeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedShape = opt.dataset.shape;
+    updateCaptionPreview();
+  }));
   iconOpts.forEach(opt => opt.addEventListener('click', () => {
     iconOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
@@ -5119,7 +5225,7 @@ if(isDisplay){
     const fullCaption = caption ? iconPrefix + caption : '';
     const style = {
       size: selectedSize, color: selectedColor, colorCustom: selectedColorCustom,
-      bg: selectedBg, bgCustom: selectedBgCustom, corner: selectedCorner,
+      bg: selectedBg, bgCustom: selectedBgCustom, corner: selectedCorner, shape: selectedShape,
       deco: selectedDeco, pos: selectedPos, font: selectedFont, tracking: selectedTracking
     };
 
