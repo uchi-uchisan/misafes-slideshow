@@ -207,13 +207,14 @@
     transform:translateX(-50%) rotate(-1.2deg);
     max-width:80%;
     padding:14px 26px;
-    border-radius:4px;
+    border-radius:16px;
     box-shadow:0 6px 18px rgba(0,0,0,0.4);
     font-family:"Yomogi","Klee One","UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体",cursive;
     line-height:1.4;
     text-align:center;
     white-space:pre-wrap;
   }
+  .slide .caption.corner-square{ border-radius:0; }
   .slide .caption.deco-outline,
   .slide.text-slide-card .text-slide-content.deco-outline{
     /* 縁取りの太さ・影の距離は、文字サイズに応じてJS側で動的に設定します */
@@ -308,7 +309,7 @@
 
   .qr-overlay-box{
     position:fixed;
-    bottom:28px;
+    bottom:var(--qr-bottom-offset, 78px);
     background:rgba(10,13,28,0.72);
     border:1px solid rgba(212,168,67,0.4);
     backdrop-filter:blur(4px);
@@ -320,8 +321,8 @@
     z-index:15;
   }
   .qr-overlay-box.active{ display:flex; }
-  #qr-overlay{ right:28px; }
-  #qr-overlay2{ left:28px; }
+  #qr-overlay{ right:14px; }
+  #qr-overlay2{ left:14px; }
   .qr-overlay-box .qr-box{
     background:var(--paper);
     padding:8px;
@@ -381,15 +382,17 @@
   #announce-banner{
     position:fixed;
     left:50%;
-    max-width:min(760px, 88vw);
+    max-width:94vw;
+    width:max-content;
     background:linear-gradient(135deg, rgba(232,84,42,0.92), rgba(201,64,31,0.92));
     border:1px solid rgba(212,168,67,0.6);
     box-shadow:0 16px 40px rgba(0,0,0,0.45);
     border-radius:16px;
-    padding:20px 52px 20px 28px;
+    padding:20px 28px;
     display:none;
     opacity:0;
     z-index:30;
+    overflow:hidden;
     transition:opacity .35s, transform .35s;
   }
   #announce-banner.pos-top{ top:60px; transform:translate(-50%, -30px); }
@@ -407,17 +410,17 @@
     font-size:22px;
     font-weight:600;
     line-height:1.5;
-    white-space:pre-wrap;
+    white-space:nowrap;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #announce-banner.scroll-mode .txt{
+    text-overflow:clip;
   }
   #announce-banner .close-x{
-    position:absolute;
-    top:10px; right:14px;
-    color:rgba(245,236,224,0.75);
-    font-size:18px;
-    cursor:pointer;
-    line-height:1;
+    display:none;
   }
-  #announce-banner .close-x:hover{ color:var(--paper); }
 
   /* 横に流れるモード:横幅いっぱいの帯にして、中の文字だけ流す */
   #announce-banner.scroll-mode{
@@ -703,6 +706,76 @@
     margin-bottom:16px;
     background:linear-gradient(135deg, #3d241b, #12162c);
   }
+  #announce-preview-stage{
+    position:relative;
+    width:100%;
+    min-height:130px;
+    border-radius:12px;
+    overflow:hidden;
+    margin-bottom:16px;
+    background:linear-gradient(135deg, #12162c, #0a0d1c);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:10px;
+  }
+  #announce-preview-text{
+    max-width:94%;
+    text-align:center;
+    line-height:1.4;
+    font-weight:600;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+  }
+
+  /* 写真コメント・文字編集用の小さなライブプレビュー */
+  .mini-preview-stage{
+    position:relative;
+    width:100%;
+    min-height:130px;
+    border-radius:12px;
+    overflow:hidden;
+    margin-bottom:14px;
+    background:linear-gradient(135deg, #4a3628, #2b1712);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:14px;
+  }
+  .mini-preview-caption{
+    position:relative;
+    max-width:88%;
+    padding:10px 18px;
+    border-radius:4px;
+    text-align:center;
+    line-height:1.4;
+    white-space:pre-wrap;
+    font-size:16px;
+  }
+  .mini-preview-caption.corner-square{ border-radius:0; }
+  .mini-preview-caption:empty::before{
+    content:'(ここにコメントが入ります)';
+    opacity:0.4;
+  }
+  #ticker-preview-stage{
+    position:relative;
+    width:100%;
+    height:44px;
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:14px;
+    background:linear-gradient(135deg, #12162c, #0a0d1c);
+    display:flex;
+    align-items:center;
+  }
+  #ticker-preview-track{
+    white-space:nowrap;
+    font-weight:600;
+    padding-left:12px;
+  }
+
   #preview-modal img{
     width:100%;
     display:block;
@@ -840,6 +913,12 @@
       </div>
       <button type="button" id="add-ticker-btn" class="add-ticker-btn">＋ 文言を追加</button>
       <span class="hint">画面上部に流れる案内文(複数登録すると順番に切り替わります)</span>
+
+      <div class="row" style="margin-top:16px;">
+        <label>QRコードの高さ<span class="hint" id="qr-offset-value">78px</span></label>
+      </div>
+      <input type="range" id="qr-offset-slider" min="20" max="160" value="78">
+      <span class="hint">下の案内文と重ならないよう、QRコードの高さを調整できます</span>
     </div>
 
     <button id="start-btn" disabled>スライドショー開始(別ウィンドウで表示)</button>
@@ -965,20 +1044,47 @@
   <div id="restyle-modal">
     <div class="box">
       <h2>今表示中の写真の文字を編集</h2>
+
+      <div class="mini-preview-stage" id="restyle-preview-stage">
+        <div class="mini-preview-caption" id="restyle-preview-text"></div>
+      </div>
+
       <textarea id="restyle-text-input" placeholder="例:今年も盛り上がりました!(空欄で保存すると文字を消せます)"></textarea>
+
+      <div class="style-row-label">フォント</div>
+      <div class="icon-row" id="restyle-font-row">
+        <div class="icon-opt small selected" data-font="yomogi">手書き(ゆるふわ)</div>
+        <div class="icon-opt small" data-font="klee">手書き(やわらか)</div>
+        <div class="icon-opt small" data-font="textbook">教科書体</div>
+        <div class="icon-opt small" data-font="gothic">ゴシック体</div>
+      </div>
+
       <div class="style-row-label">文字の大きさ</div>
       <div class="icon-row" id="restyle-size-row">
         <div class="icon-opt small selected" data-size="20">小</div>
         <div class="icon-opt small" data-size="28">中</div>
         <div class="icon-opt small" data-size="38">大</div>
+        <div class="icon-opt small" data-size="48">特大</div>
       </div>
+
+      <div class="style-row-label">文字の間隔</div>
+      <div class="icon-row" id="restyle-tracking-row">
+        <div class="icon-opt small" data-tracking="-1">詰める</div>
+        <div class="icon-opt small selected" data-tracking="0">標準</div>
+        <div class="icon-opt small" data-tracking="3">広げる</div>
+      </div>
+
       <div class="style-row-label">文字の色</div>
       <div class="icon-row" id="restyle-color-row">
         <div class="color-opt selected" data-color="#2a2118" style="background:#2a2118;"></div>
         <div class="color-opt" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
         <div class="color-opt" data-color="#c9401f" style="background:#c9401f;"></div>
         <div class="color-opt" data-color="#d4a843" style="background:#d4a843;"></div>
+        <div class="color-opt bg-custom-swatch" id="restyle-text-custom-swatch" data-color="custom" title="自由に選ぶ">
+          <input type="color" id="restyle-text-custom-input" value="#2a2118">
+        </div>
       </div>
+
       <div class="style-row-label">背景の色</div>
       <div class="icon-row" id="restyle-bg-row">
         <div class="color-opt selected" data-bg="paper" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);" title="和紙"></div>
@@ -986,7 +1092,23 @@
         <div class="color-opt" data-bg="gold" style="background:linear-gradient(135deg,#e8c070,#8a5a12);" title="金"></div>
         <div class="color-opt" data-bg="lantern" style="background:linear-gradient(135deg,#f2825c,#c9401f);" title="提灯"></div>
         <div class="color-opt" data-bg="none" style="background:repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50%/10px 10px;" title="背景なし"></div>
+        <div class="color-opt bg-custom-swatch" id="restyle-bg-custom-swatch" data-bg="custom" title="自由に選ぶ">
+          <input type="color" id="restyle-bg-custom-input" value="#8a5a12">
+        </div>
       </div>
+
+      <div class="style-row-label">背景の角</div>
+      <div class="icon-row" id="restyle-corner-row">
+        <div class="icon-opt small selected" data-corner="rounded">丸角</div>
+        <div class="icon-opt small" data-corner="square">角ばる</div>
+      </div>
+
+      <div class="style-row-label">文字装飾</div>
+      <div class="icon-row" id="restyle-deco-row">
+        <div class="icon-opt small selected" data-deco="normal">通常</div>
+        <div class="icon-opt small" data-deco="outline">袋文字</div>
+      </div>
+
       <div class="style-row-label">表示位置</div>
       <div class="icon-row" id="restyle-pos-row">
         <div class="icon-opt small selected" data-pos="bottom">下</div>
@@ -1003,7 +1125,20 @@
   <div id="ticker-modal">
     <div class="box">
       <h2>画面上部の案内文を編集</h2>
+
+      <div id="ticker-preview-stage">
+        <div id="ticker-preview-track"></div>
+      </div>
+
       <textarea id="ticker-edit-textarea" placeholder="1行に1つの案内文を入力してください&#10;複数行あると、順番に切り替わりながら流れます"></textarea>
+
+      <div class="style-row-label">フォント</div>
+      <div class="icon-row" id="ticker-font-row">
+        <div class="icon-opt small selected" data-font="yomogi">手書き(ゆるふわ)</div>
+        <div class="icon-opt small" data-font="klee">手書き(やわらか)</div>
+        <div class="icon-opt small" data-font="textbook">教科書体</div>
+        <div class="icon-opt small" data-font="gothic">ゴシック体</div>
+      </div>
 
       <div class="style-row-label">文字の大きさ</div>
       <div class="icon-row" id="ticker-size-row">
@@ -1011,12 +1146,21 @@
         <div class="icon-opt small" data-size="20">中</div>
         <div class="icon-opt small" data-size="28">大</div>
       </div>
+      <div class="style-row-label">文字の間隔</div>
+      <div class="icon-row" id="ticker-tracking-row">
+        <div class="icon-opt small" data-tracking="-1">詰める</div>
+        <div class="icon-opt small selected" data-tracking="0">標準</div>
+        <div class="icon-opt small" data-tracking="3">広げる</div>
+      </div>
       <div class="style-row-label">文字の色</div>
       <div class="icon-row" id="ticker-color-row">
         <div class="color-opt" data-color="#d4a843" style="background:#d4a843;"></div>
         <div class="color-opt selected" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
         <div class="color-opt" data-color="#e8542a" style="background:#e8542a;"></div>
         <div class="color-opt" data-color="#2a2118" style="background:#2a2118;"></div>
+        <div class="color-opt bg-custom-swatch" id="ticker-color-custom-swatch" data-color="custom" title="自由に選ぶ">
+          <input type="color" id="ticker-color-custom-input" value="#f5ece0">
+        </div>
       </div>
       <div class="style-row-label">表示位置</div>
       <div class="icon-row" id="ticker-pos-row">
@@ -1037,6 +1181,11 @@
   <div id="announce-modal">
     <div class="box">
       <h2>お知らせを表示</h2>
+
+      <div id="announce-preview-stage">
+        <div id="announce-preview-text"></div>
+      </div>
+
       <textarea id="announce-input" placeholder="例:迷子のお子さんをお預かりしています。本部までお越しください"></textarea>
       <div class="dur-row">
         <div class="dur-opt" data-dur="10">10秒</div>
@@ -1050,6 +1199,9 @@
         <div class="color-opt" data-color="gold" style="background:linear-gradient(135deg, #e8c070, #8a5a12);"></div>
         <div class="color-opt" data-color="night" style="background:linear-gradient(135deg, #3d241b, #12162c); border-color:rgba(233,228,216,0.3);"></div>
         <div class="color-opt" data-color="paper" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
+        <div class="color-opt bg-custom-swatch" id="announce-bg-custom-swatch" data-color="custom" title="自由に選ぶ">
+          <input type="color" id="announce-bg-custom-input" value="#8a5a12">
+        </div>
       </div>
       <div class="style-row-label">文字の色</div>
       <div class="icon-row" id="announce-text-color-row">
@@ -1058,6 +1210,9 @@
         <div class="color-opt" data-textcolor="#2a1710" style="background:#2a1710;"></div>
         <div class="color-opt" data-textcolor="#d4a843" style="background:#d4a843;"></div>
         <div class="color-opt" data-textcolor="#e8542a" style="background:#e8542a;"></div>
+        <div class="color-opt bg-custom-swatch" id="announce-text-custom-swatch" data-textcolor="custom" title="自由に選ぶ">
+          <input type="color" id="announce-text-custom-input" value="#f5ece0">
+        </div>
       </div>
       <div class="style-row-label">文字の大きさ</div>
       <div class="icon-row" id="announce-size-row">
@@ -1065,6 +1220,12 @@
         <div class="icon-opt small selected" data-size="22">中</div>
         <div class="icon-opt small" data-size="32">大</div>
         <div class="icon-opt small" data-size="44">特大</div>
+      </div>
+      <div class="style-row-label">文字の間隔</div>
+      <div class="icon-row" id="announce-tracking-row">
+        <div class="icon-opt small" data-tracking="-1">詰める</div>
+        <div class="icon-opt small selected" data-tracking="0">標準</div>
+        <div class="icon-opt small" data-tracking="3">広げる</div>
       </div>
       <div class="style-row-label">表示位置</div>
       <div class="icon-row" id="announce-pos-row">
@@ -1115,6 +1276,11 @@
   <div id="caption-modal">
     <div class="box">
       <h2>コメントを添える(任意)</h2>
+
+      <div class="mini-preview-stage" id="caption-preview-stage">
+        <div class="mini-preview-caption" id="caption-preview-text"></div>
+      </div>
+
       <textarea id="caption-input" placeholder="例:今年も盛り上がりました!"></textarea>
       <div class="icon-row" id="icon-row">
         <div class="icon-opt selected" data-icon="">なし</div>
@@ -1126,11 +1292,27 @@
         <div class="icon-opt" data-icon="✨">✨</div>
       </div>
 
+      <div class="style-row-label">フォント</div>
+      <div class="icon-row" id="font-row">
+        <div class="icon-opt small selected" data-font="yomogi">手書き(ゆるふわ)</div>
+        <div class="icon-opt small" data-font="klee">手書き(やわらか)</div>
+        <div class="icon-opt small" data-font="textbook">教科書体</div>
+        <div class="icon-opt small" data-font="gothic">ゴシック体</div>
+      </div>
+
       <div class="style-row-label">文字の大きさ</div>
       <div class="icon-row" id="size-row">
         <div class="icon-opt small selected" data-size="20">小</div>
         <div class="icon-opt small" data-size="28">中</div>
         <div class="icon-opt small" data-size="38">大</div>
+        <div class="icon-opt small" data-size="48">特大</div>
+      </div>
+
+      <div class="style-row-label">文字の間隔</div>
+      <div class="icon-row" id="tracking-row">
+        <div class="icon-opt small" data-tracking="-1">詰める</div>
+        <div class="icon-opt small selected" data-tracking="0">標準</div>
+        <div class="icon-opt small" data-tracking="3">広げる</div>
       </div>
 
       <div class="style-row-label">文字の色</div>
@@ -1139,6 +1321,9 @@
         <div class="color-opt" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
         <div class="color-opt" data-color="#c9401f" style="background:#c9401f;"></div>
         <div class="color-opt" data-color="#d4a843" style="background:#d4a843;"></div>
+        <div class="color-opt bg-custom-swatch" id="text-custom-swatch" data-color="custom" title="自由に選ぶ">
+          <input type="color" id="text-custom-input" value="#2a2118">
+        </div>
       </div>
 
       <div class="style-row-label">背景の色</div>
@@ -1148,6 +1333,21 @@
         <div class="color-opt" data-bg="gold" style="background:linear-gradient(135deg,#e8c070,#8a5a12);" title="金"></div>
         <div class="color-opt" data-bg="lantern" style="background:linear-gradient(135deg,#f2825c,#c9401f);" title="提灯"></div>
         <div class="color-opt" data-bg="none" style="background:repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50%/10px 10px;" title="背景なし"></div>
+        <div class="color-opt bg-custom-swatch" id="bg-custom-swatch" data-bg="custom" title="自由に選ぶ">
+          <input type="color" id="bg-custom-input" value="#8a5a12">
+        </div>
+      </div>
+
+      <div class="style-row-label">背景の角</div>
+      <div class="icon-row" id="corner-row">
+        <div class="icon-opt small selected" data-corner="rounded">丸角</div>
+        <div class="icon-opt small" data-corner="square">角ばる</div>
+      </div>
+
+      <div class="style-row-label">文字装飾</div>
+      <div class="icon-row" id="deco-row">
+        <div class="icon-opt small selected" data-deco="normal">通常</div>
+        <div class="icon-opt small" data-deco="outline">袋文字</div>
       </div>
 
       <div class="style-row-label">表示位置</div>
@@ -3592,12 +3792,14 @@ if(isDisplay){
     cap.textContent = data.caption;
     const st = data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
     cap.style.fontSize = st.size + 'px';
-    cap.style.color = st.color;
+    cap.style.color = st.color === 'custom' ? (st.colorCustom || '#2a2118') : st.color;
     cap.style.background = st.bg === 'custom' ? (st.bgCustom || '#8a5a12') : (CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper);
+    cap.style.letterSpacing = (st.tracking || 0) + 'px';
+    cap.classList.toggle('corner-square', st.corner === 'square');
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     cap.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
-      const o = getOutlineStyle(st.size, st.color, st.outlineColor);
+      const o = getOutlineStyle(st.size, cap.style.color, st.outlineColor);
       cap.style.webkitTextStroke = o.stroke;
       cap.style.textShadow = o.shadow;
       cap.style.boxShadow = 'none';
@@ -3721,8 +3923,10 @@ if(isDisplay){
   function applyTickerStyle(){
     tickerEl.classList.remove('ticker-pos-top', 'ticker-pos-middle', 'ticker-pos-bottom');
     tickerEl.classList.add('ticker-pos-' + tickerStyle.pos);
-    tickerTrack.style.color = tickerStyle.color;
+    tickerTrack.style.color = tickerStyle.color === 'custom' ? (tickerStyle.colorCustom || '#f5ece0') : tickerStyle.color;
     tickerTrack.style.fontSize = tickerStyle.size + 'px';
+    tickerTrack.style.letterSpacing = (tickerStyle.tracking || 0) + 'px';
+    if(tickerStyle.font) tickerTrack.style.fontFamily = DISPLAY_FONT_STACKS[tickerStyle.font] || DISPLAY_FONT_STACKS.yomogi;
   }
 
   function startTickerRotation(){
@@ -3881,6 +4085,9 @@ if(isDisplay){
     slideEls[0].classList.add('show');
     updateCounter();
 
+    if(settings.qrOffset){
+      document.documentElement.style.setProperty('--qr-bottom-offset', settings.qrOffset + 'px');
+    }
     renderQR(document.getElementById('qr-box'), document.getElementById('qr-overlay'), settings.qrUrl);
     renderQR(document.getElementById('qr-box2'), document.getElementById('qr-overlay2'), settings.qrUrl2);
 
@@ -4370,6 +4577,9 @@ if(isDisplay){
   }
 
   intervalSlider.addEventListener('input', () => { intervalVal.textContent = intervalSlider.value + '秒'; });
+  const qrOffsetSlider = document.getElementById('qr-offset-slider');
+  const qrOffsetValue = document.getElementById('qr-offset-value');
+  qrOffsetSlider.addEventListener('input', () => { qrOffsetValue.textContent = qrOffsetSlider.value + 'px'; });
   shuffleToggle.addEventListener('click', () => { shuffleOn = !shuffleOn; shuffleToggle.classList.toggle('on', shuffleOn); });
   loopToggle.addEventListener('click', () => { loopOn = !loopOn; loopToggle.classList.toggle('on', loopOn); });
 
@@ -4401,6 +4611,7 @@ if(isDisplay){
       loop: loopOn,
       qrUrl: qrUrlInput.value.trim(),
       qrUrl2: document.getElementById('qr-url2').value.trim(),
+      qrOffset: parseInt(qrOffsetSlider.value, 10),
       tickerMessages: Array.from(document.querySelectorAll('.ticker-text-input')).map(el => el.value.trim()).filter(t => t.length > 0)
     };
 
@@ -4467,18 +4678,63 @@ if(isDisplay){
   const restyleTextInput = document.getElementById('restyle-text-input');
   const restyleCancel = document.getElementById('restyle-cancel');
   const restyleApply = document.getElementById('restyle-apply');
+  const restylePreviewStage = document.getElementById('restyle-preview-stage');
+  const restylePreviewText = document.getElementById('restyle-preview-text');
+  const restyleFontOpts = document.querySelectorAll('#restyle-font-row .icon-opt');
   const restyleSizeOpts = document.querySelectorAll('#restyle-size-row .icon-opt');
+  const restyleTrackingOpts = document.querySelectorAll('#restyle-tracking-row .icon-opt');
   const restyleColorOpts = document.querySelectorAll('#restyle-color-row .color-opt');
+  const restyleTextCustomInput = document.getElementById('restyle-text-custom-input');
+  const restyleTextCustomSwatch = document.getElementById('restyle-text-custom-swatch');
   const restyleBgOpts = document.querySelectorAll('#restyle-bg-row .color-opt');
+  const restyleBgCustomInput = document.getElementById('restyle-bg-custom-input');
+  const restyleBgCustomSwatch = document.getElementById('restyle-bg-custom-swatch');
+  const restyleCornerOpts = document.querySelectorAll('#restyle-corner-row .icon-opt');
+  const restyleDecoOpts = document.querySelectorAll('#restyle-deco-row .icon-opt');
   const restylePosOpts = document.querySelectorAll('#restyle-pos-row .icon-opt');
-  let restyleSize = 20, restyleColor = '#2a2118', restyleBg = 'paper', restylePos = 'bottom';
+  let restyleFont = 'yomogi', restyleSize = 20, restyleTracking = 0;
+  let restyleColor = '#2a2118', restyleColorCustom = '#2a2118';
+  let restyleBg = 'paper', restyleBgCustom = '#8a5a12';
+  let restyleCorner = 'rounded', restyleDeco = 'normal', restylePos = 'bottom';
 
-  function setRestyleUI(size, color, pos, bg){
+  function updateRestylePreview(){
+    const text = restyleTextInput.value.trim();
+    restylePreviewText.textContent = text;
+    restylePreviewText.style.fontFamily = FONT_STACKS[restyleFont] || FONT_STACKS.yomogi;
+    restylePreviewText.style.fontSize = Math.min(restyleSize, 26) + 'px';
+    restylePreviewText.style.letterSpacing = restyleTracking + 'px';
+    const txtColor = restyleColor === 'custom' ? restyleColorCustom : restyleColor;
+    restylePreviewText.style.color = txtColor;
+    restylePreviewText.style.background = restyleBg === 'custom' ? restyleBgCustom : (MINI_CAPTION_BG[restyleBg] || MINI_CAPTION_BG.paper);
+    restylePreviewText.classList.toggle('corner-square', restyleCorner === 'square');
+    if(restyleDeco === 'outline'){
+      const o = getOutlineStyle(Math.min(restyleSize, 26), txtColor, 'auto');
+      restylePreviewText.style.webkitTextStroke = o.stroke;
+      restylePreviewText.style.textShadow = o.shadow;
+      restylePreviewText.style.boxShadow = 'none';
+    }else{
+      restylePreviewText.style.webkitTextStroke = '';
+      restylePreviewText.style.boxShadow = restyleBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
+      restylePreviewText.style.textShadow = restyleBg === 'none' ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+    }
+  }
+
+  function setRestyleUI(size, color, pos, bg, font, tracking, corner, deco, colorCustom, bgCustom){
     restyleSize = size; restyleColor = color; restylePos = pos; restyleBg = bg || 'paper';
+    restyleFont = font || 'yomogi'; restyleTracking = tracking || 0;
+    restyleCorner = corner || 'rounded'; restyleDeco = deco || 'normal';
+    restyleColorCustom = colorCustom || '#2a2118'; restyleBgCustom = bgCustom || '#8a5a12';
+    restyleTextCustomInput.value = restyleColorCustom;
+    restyleBgCustomInput.value = restyleBgCustom;
+    restyleFontOpts.forEach(o => o.classList.toggle('selected', o.dataset.font === restyleFont));
     restyleSizeOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.size,10) === size));
+    restyleTrackingOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.tracking,10) === restyleTracking));
     restyleColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === color));
     restyleBgOpts.forEach(o => o.classList.toggle('selected', o.dataset.bg === restyleBg));
+    restyleCornerOpts.forEach(o => o.classList.toggle('selected', o.dataset.corner === restyleCorner));
+    restyleDecoOpts.forEach(o => o.classList.toggle('selected', o.dataset.deco === restyleDeco));
     restylePosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === pos));
+    updateRestylePreview();
   }
 
   restyleBtn.addEventListener('click', () => {
@@ -4489,20 +4745,62 @@ if(isDisplay){
     restyleModal.classList.add('active');
   });
   restyleCancel.addEventListener('click', () => restyleModal.classList.remove('active'));
+  restyleTextInput.addEventListener('input', updateRestylePreview);
+  restyleFontOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleFontOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleFont = opt.dataset.font;
+    updateRestylePreview();
+  }));
   restyleSizeOpts.forEach(opt => opt.addEventListener('click', () => {
     restyleSizeOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     restyleSize = parseInt(opt.dataset.size, 10);
+    updateRestylePreview();
+  }));
+  restyleTrackingOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleTrackingOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleTracking = parseInt(opt.dataset.tracking, 10);
+    updateRestylePreview();
   }));
   restyleColorOpts.forEach(opt => opt.addEventListener('click', () => {
     restyleColorOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     restyleColor = opt.dataset.color;
+    updateRestylePreview();
   }));
+  restyleTextCustomInput.addEventListener('input', () => {
+    restyleColorOpts.forEach(o => o.classList.remove('selected'));
+    restyleTextCustomSwatch.classList.add('selected');
+    restyleColor = 'custom';
+    restyleColorCustom = restyleTextCustomInput.value;
+    updateRestylePreview();
+  });
   restyleBgOpts.forEach(opt => opt.addEventListener('click', () => {
     restyleBgOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     restyleBg = opt.dataset.bg;
+    updateRestylePreview();
+  }));
+  restyleBgCustomInput.addEventListener('input', () => {
+    restyleBgOpts.forEach(o => o.classList.remove('selected'));
+    restyleBgCustomSwatch.classList.add('selected');
+    restyleBg = 'custom';
+    restyleBgCustom = restyleBgCustomInput.value;
+    updateRestylePreview();
+  });
+  restyleCornerOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleCornerOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleCorner = opt.dataset.corner;
+    updateRestylePreview();
+  }));
+  restyleDecoOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleDecoOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleDeco = opt.dataset.deco;
+    updateRestylePreview();
   }));
   restylePosOpts.forEach(opt => opt.addEventListener('click', () => {
     restylePosOpts.forEach(o => o.classList.remove('selected'));
@@ -4514,7 +4812,11 @@ if(isDisplay){
       childWin.postMessage({
         type: 'editCurrentCaption',
         text: restyleTextInput.value.trim(),
-        style: { size: restyleSize, color: restyleColor, bg: restyleBg, pos: restylePos }
+        style: {
+          size: restyleSize, color: restyleColor, colorCustom: restyleColorCustom,
+          bg: restyleBg, bgCustom: restyleBgCustom, corner: restyleCorner,
+          deco: restyleDeco, pos: restylePos, font: restyleFont, tracking: restyleTracking
+        }
       }, '*');
     }
     restyleModal.classList.remove('active');
@@ -4526,27 +4828,69 @@ if(isDisplay){
   const tickerEditTextarea = document.getElementById('ticker-edit-textarea');
   const tickerEditCancel = document.getElementById('ticker-edit-cancel');
   const tickerEditApply = document.getElementById('ticker-edit-apply');
+  const tickerPreviewTrack = document.getElementById('ticker-preview-track');
+  const tickerFontOpts = document.querySelectorAll('#ticker-font-row .icon-opt');
   const tickerSizeOpts = document.querySelectorAll('#ticker-size-row .icon-opt');
+  const tickerTrackingOpts = document.querySelectorAll('#ticker-tracking-row .icon-opt');
   const tickerColorOpts = document.querySelectorAll('#ticker-color-row .color-opt');
+  const tickerColorCustomInput = document.getElementById('ticker-color-custom-input');
+  const tickerColorCustomSwatch = document.getElementById('ticker-color-custom-swatch');
   const tickerPosOpts = document.querySelectorAll('#ticker-pos-row .icon-opt');
-  let tickerEditSize = 14, tickerEditColor = '#f5ece0', tickerEditPos = 'bottom';
+  let tickerEditFont = 'yomogi', tickerEditSize = 14, tickerEditTracking = 0;
+  let tickerEditColor = '#f5ece0', tickerEditColorCustom = '#f5ece0', tickerEditPos = 'bottom';
 
-  function setTickerStyleUI(size, color, pos){
+  function updateTickerPreview(){
+    const firstLine = (tickerEditTextarea.value.split('\n')[0] || '').trim();
+    tickerPreviewTrack.textContent = firstLine || '(ここに案内文が入ります)';
+    tickerPreviewTrack.style.fontFamily = FONT_STACKS[tickerEditFont] || FONT_STACKS.yomogi;
+    tickerPreviewTrack.style.fontSize = Math.min(tickerEditSize, 20) + 'px';
+    tickerPreviewTrack.style.letterSpacing = tickerEditTracking + 'px';
+    tickerPreviewTrack.style.color = tickerEditColor === 'custom' ? tickerEditColorCustom : tickerEditColor;
+  }
+
+  function setTickerStyleUI(size, color, pos, font, tracking, colorCustom){
     tickerEditSize = size; tickerEditColor = color; tickerEditPos = pos;
+    tickerEditFont = font || 'yomogi'; tickerEditTracking = tracking || 0;
+    tickerEditColorCustom = colorCustom || '#f5ece0';
+    tickerColorCustomInput.value = tickerEditColorCustom;
+    tickerFontOpts.forEach(o => o.classList.toggle('selected', o.dataset.font === tickerEditFont));
     tickerSizeOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.size,10) === size));
+    tickerTrackingOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.tracking,10) === tickerEditTracking));
     tickerColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === color));
     tickerPosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === pos));
+    updateTickerPreview();
   }
+  tickerFontOpts.forEach(opt => opt.addEventListener('click', () => {
+    tickerFontOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    tickerEditFont = opt.dataset.font;
+    updateTickerPreview();
+  }));
   tickerSizeOpts.forEach(opt => opt.addEventListener('click', () => {
     tickerSizeOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     tickerEditSize = parseInt(opt.dataset.size, 10);
+    updateTickerPreview();
+  }));
+  tickerTrackingOpts.forEach(opt => opt.addEventListener('click', () => {
+    tickerTrackingOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    tickerEditTracking = parseInt(opt.dataset.tracking, 10);
+    updateTickerPreview();
   }));
   tickerColorOpts.forEach(opt => opt.addEventListener('click', () => {
     tickerColorOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     tickerEditColor = opt.dataset.color;
+    updateTickerPreview();
   }));
+  tickerColorCustomInput.addEventListener('input', () => {
+    tickerColorOpts.forEach(o => o.classList.remove('selected'));
+    tickerColorCustomSwatch.classList.add('selected');
+    tickerEditColor = 'custom';
+    tickerEditColorCustom = tickerColorCustomInput.value;
+    updateTickerPreview();
+  });
   tickerPosOpts.forEach(opt => opt.addEventListener('click', () => {
     tickerPosOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
@@ -4561,13 +4905,17 @@ if(isDisplay){
     tickerModal.classList.add('active');
   });
   tickerEditCancel.addEventListener('click', () => tickerModal.classList.remove('active'));
+  tickerEditTextarea.addEventListener('input', updateTickerPreview);
   tickerEditApply.addEventListener('click', () => {
     const messages = tickerEditTextarea.value.split('\n').map(t => t.trim()).filter(t => t.length > 0);
     if(childWin && !childWin.closed){
       childWin.postMessage({
         type: 'updateTicker',
         messages,
-        style: { size: tickerEditSize, color: tickerEditColor, pos: tickerEditPos }
+        style: {
+          size: tickerEditSize, color: tickerEditColor, colorCustom: tickerEditColorCustom,
+          pos: tickerEditPos, font: tickerEditFont, tracking: tickerEditTracking
+        }
       }, '*');
     }
     tickerModal.classList.remove('active');
@@ -4578,12 +4926,12 @@ if(isDisplay){
     if(e.data.type === 'currentCaptionInfo'){
       restyleTextInput.value = e.data.text || '';
       const st = e.data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
-      setRestyleUI(st.size, st.color, st.pos, st.bg);
+      setRestyleUI(st.size, st.color, st.pos, st.bg, st.font, st.tracking, st.corner, st.deco, st.colorCustom, st.bgCustom);
     }
     if(e.data.type === 'currentTickerMessages'){
       tickerEditTextarea.value = (e.data.messages || []).join('\n');
       const st = e.data.style || { size: 20, color: '#d4a843', pos: 'top' };
-      setTickerStyleUI(st.size, st.color, st.pos);
+      setTickerStyleUI(st.size, st.color, st.pos, st.font, st.tracking, st.colorCustom);
     }
     if(e.data.type === 'currentAnnounceInfo'){
       const a = e.data.announce;
@@ -4616,62 +4964,164 @@ if(isDisplay){
   addBtn.addEventListener('click', () => addInput.click());
 
   let pendingFiles = [];
+  let pendingPreviewUrl = null;
   const captionModal = document.getElementById('caption-modal');
   const captionInput = document.getElementById('caption-input');
   const captionSkip = document.getElementById('caption-skip');
   const captionSubmit = document.getElementById('caption-submit');
+  const captionPreviewStage = document.getElementById('caption-preview-stage');
+  const captionPreviewText = document.getElementById('caption-preview-text');
   const iconOpts = document.querySelectorAll('#icon-row .icon-opt');
+  const fontOpts = document.querySelectorAll('#font-row .icon-opt');
   const sizeOpts = document.querySelectorAll('#size-row .icon-opt');
+  const trackingOpts = document.querySelectorAll('#tracking-row .icon-opt');
   const colorOpts = document.querySelectorAll('#color-row .color-opt');
+  const textCustomInput = document.getElementById('text-custom-input');
+  const textCustomSwatch = document.getElementById('text-custom-swatch');
   const bgOpts = document.querySelectorAll('#bg-row .color-opt');
+  const bgCustomInput = document.getElementById('bg-custom-input');
+  const bgCustomSwatch = document.getElementById('bg-custom-swatch');
+  const cornerOpts = document.querySelectorAll('#corner-row .icon-opt');
+  const decoOpts = document.querySelectorAll('#deco-row .icon-opt');
   const posOpts = document.querySelectorAll('#pos-row .icon-opt');
   let selectedIcon = '';
+  let selectedFont = 'yomogi';
   let selectedSize = 20;
+  let selectedTracking = 0;
   let selectedColor = '#2a2118';
+  let selectedColorCustom = '#2a2118';
   let selectedBg = 'paper';
+  let selectedBgCustom = '#8a5a12';
+  let selectedCorner = 'rounded';
+  let selectedDeco = 'normal';
   let selectedPos = 'bottom';
+
+  const MINI_CAPTION_BG = {
+    paper: '#f5ece0', ink: '#2a2118',
+    gold: 'linear-gradient(135deg,#e8c070,#8a5a12)',
+    lantern: 'linear-gradient(135deg,#f2825c,#c9401f)',
+    none: 'transparent'
+  };
+
+  function updateCaptionPreview(){
+    const iconPrefix = selectedIcon ? selectedIcon + ' ' : '';
+    const text = captionInput.value.trim();
+    captionPreviewText.textContent = text ? (iconPrefix + text) : '';
+    captionPreviewText.style.fontFamily = FONT_STACKS[selectedFont] || FONT_STACKS.yomogi;
+    captionPreviewText.style.fontSize = Math.min(selectedSize, 26) + 'px';
+    captionPreviewText.style.letterSpacing = selectedTracking + 'px';
+    const txtColor = selectedColor === 'custom' ? selectedColorCustom : selectedColor;
+    captionPreviewText.style.color = txtColor;
+    captionPreviewText.style.background = selectedBg === 'custom' ? selectedBgCustom : (MINI_CAPTION_BG[selectedBg] || MINI_CAPTION_BG.paper);
+    captionPreviewText.classList.toggle('corner-square', selectedCorner === 'square');
+    if(pendingPreviewUrl){
+      captionPreviewStage.style.backgroundImage = `url("${pendingPreviewUrl}")`;
+      captionPreviewStage.style.backgroundSize = 'cover';
+      captionPreviewStage.style.backgroundPosition = 'center';
+    }
+    if(selectedDeco === 'outline'){
+      const o = getOutlineStyle(Math.min(selectedSize, 26), txtColor, 'auto');
+      captionPreviewText.style.webkitTextStroke = o.stroke;
+      captionPreviewText.style.textShadow = o.shadow;
+      captionPreviewText.style.boxShadow = 'none';
+    }else{
+      captionPreviewText.style.webkitTextStroke = '';
+      captionPreviewText.style.boxShadow = selectedBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
+      captionPreviewText.style.textShadow = selectedBg === 'none' ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+    }
+  }
 
   iconOpts.forEach(opt => opt.addEventListener('click', () => {
     iconOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedIcon = opt.dataset.icon;
+    updateCaptionPreview();
+  }));
+  fontOpts.forEach(opt => opt.addEventListener('click', () => {
+    fontOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedFont = opt.dataset.font;
+    updateCaptionPreview();
   }));
   sizeOpts.forEach(opt => opt.addEventListener('click', () => {
     sizeOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedSize = parseInt(opt.dataset.size, 10);
+    updateCaptionPreview();
+  }));
+  trackingOpts.forEach(opt => opt.addEventListener('click', () => {
+    trackingOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedTracking = parseInt(opt.dataset.tracking, 10);
+    updateCaptionPreview();
   }));
   colorOpts.forEach(opt => opt.addEventListener('click', () => {
     colorOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedColor = opt.dataset.color;
+    updateCaptionPreview();
   }));
+  textCustomInput.addEventListener('input', () => {
+    colorOpts.forEach(o => o.classList.remove('selected'));
+    textCustomSwatch.classList.add('selected');
+    selectedColor = 'custom';
+    selectedColorCustom = textCustomInput.value;
+    updateCaptionPreview();
+  });
   bgOpts.forEach(opt => opt.addEventListener('click', () => {
     bgOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedBg = opt.dataset.bg;
+    updateCaptionPreview();
+  }));
+  bgCustomInput.addEventListener('input', () => {
+    bgOpts.forEach(o => o.classList.remove('selected'));
+    bgCustomSwatch.classList.add('selected');
+    selectedBg = 'custom';
+    selectedBgCustom = bgCustomInput.value;
+    updateCaptionPreview();
+  });
+  cornerOpts.forEach(opt => opt.addEventListener('click', () => {
+    cornerOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedCorner = opt.dataset.corner;
+    updateCaptionPreview();
+  }));
+  decoOpts.forEach(opt => opt.addEventListener('click', () => {
+    decoOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedDeco = opt.dataset.deco;
+    updateCaptionPreview();
   }));
   posOpts.forEach(opt => opt.addEventListener('click', () => {
     posOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedPos = opt.dataset.pos;
   }));
+  captionInput.addEventListener('input', updateCaptionPreview);
 
   addInput.addEventListener('change', e => {
     const imgs = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
     addInput.value = '';
     if(imgs.length === 0) return;
     pendingFiles = imgs;
+    if(pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    pendingPreviewUrl = URL.createObjectURL(imgs[0]);
     captionInput.value = '';
     captionModal.classList.add('active');
     captionInput.focus();
+    updateCaptionPreview();
   });
 
   function finalizeAddPhotos(caption){
     if(pendingFiles.length === 0) return;
     const iconPrefix = selectedIcon ? selectedIcon + ' ' : '';
     const fullCaption = caption ? iconPrefix + caption : '';
-    const style = { size: selectedSize, color: selectedColor, bg: selectedBg, pos: selectedPos };
+    const style = {
+      size: selectedSize, color: selectedColor, colorCustom: selectedColorCustom,
+      bg: selectedBg, bgCustom: selectedBgCustom, corner: selectedCorner,
+      deco: selectedDeco, pos: selectedPos, font: selectedFont, tracking: selectedTracking
+    };
 
     if(childWin && !childWin.closed){
       childWin.postMessage({
@@ -4693,10 +5143,17 @@ if(isDisplay){
   const announceInput = document.getElementById('announce-input');
   const announceCancel = document.getElementById('announce-cancel');
   const announceSubmit = document.getElementById('announce-submit');
+  const announcePreviewStage = document.getElementById('announce-preview-stage');
+  const announcePreviewText = document.getElementById('announce-preview-text');
   const durOpts = document.querySelectorAll('.dur-opt');
   const announceSizeOpts = document.querySelectorAll('#announce-size-row .icon-opt');
   const announceColorOpts = document.querySelectorAll('#announce-color-row .color-opt');
+  const announceBgCustomInput = document.getElementById('announce-bg-custom-input');
+  const announceBgCustomSwatch = document.getElementById('announce-bg-custom-swatch');
   const announceTextColorOpts = document.querySelectorAll('#announce-text-color-row [data-textcolor]');
+  const announceTextCustomInput = document.getElementById('announce-text-custom-input');
+  const announceTextCustomSwatch = document.getElementById('announce-text-custom-swatch');
+  const announceTrackingOpts = document.querySelectorAll('#announce-tracking-row .icon-opt');
   const announcePosOpts = document.querySelectorAll('#announce-pos-row .icon-opt');
   const announceMotionOpts = document.querySelectorAll('#announce-motion-row .icon-opt');
   const announceDirectionOpts = document.querySelectorAll('#announce-direction-row .icon-opt');
@@ -4715,7 +5172,10 @@ if(isDisplay){
   let selectedDuration = 0;
   let selectedAnnounceSize = 22;
   let selectedAnnounceColor = 'lantern';
+  let selectedAnnounceBgCustom = '#8a5a12';
   let selectedAnnounceTextColor = 'auto';
+  let selectedAnnounceTextCustom = '#f5ece0';
+  let selectedAnnounceTracking = 0;
   let selectedAnnouncePos = 'top';
   let selectedAnnounceMotion = 'static';
   let selectedAnnounceDirection = 'rtl';
@@ -4723,6 +5183,16 @@ if(isDisplay){
   let selectedAnnounceRepeat = 1;
   let selectedAnnounceGap = 8;
   let selectedAnnounceDeco = 'normal';
+
+  const ANNOUNCE_PREVIEW_BG = {
+    lantern: 'linear-gradient(135deg, #f2825c, #c9401f)',
+    gold: 'linear-gradient(135deg, #e8c070, #8a5a12)',
+    night: 'linear-gradient(135deg, #3d241b, #12162c)',
+    paper: '#f5ece0'
+  };
+  const ANNOUNCE_PREVIEW_TXT = {
+    lantern: '#f5ece0', gold: '#2a1710', night: '#f5ece0', paper: '#2a1710'
+  };
 
   function updateScrollOptionsVisibility(){
     const show = selectedAnnounceMotion === 'scroll';
@@ -4737,12 +5207,39 @@ if(isDisplay){
     announceGapRow.style.display = showGap ? 'flex' : 'none';
   }
 
-  function setAnnounceUI(text, duration, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap){
+  function updateAnnouncePreview(){
+    const text = announceInput.value.trim() || '(ここにお知らせの文章が入ります)';
+    const bg = selectedAnnounceColor === 'custom' ? selectedAnnounceBgCustom : (ANNOUNCE_PREVIEW_BG[selectedAnnounceColor] || ANNOUNCE_PREVIEW_BG.lantern);
+    let txtColor;
+    if(selectedAnnounceTextColor === 'custom'){ txtColor = selectedAnnounceTextCustom; }
+    else if(selectedAnnounceTextColor === 'auto'){ txtColor = selectedAnnounceColor === 'custom' ? '#f5ece0' : (ANNOUNCE_PREVIEW_TXT[selectedAnnounceColor] || '#f5ece0'); }
+    else{ txtColor = selectedAnnounceTextColor; }
+
+    announcePreviewStage.style.background = bg;
+    announcePreviewText.textContent = text;
+    announcePreviewText.style.color = txtColor;
+    announcePreviewText.style.fontSize = Math.min(selectedAnnounceSize, 30) + 'px';
+    announcePreviewText.style.letterSpacing = selectedAnnounceTracking + 'px';
+
+    if(selectedAnnounceDeco === 'outline'){
+      const o = getOutlineStyle(Math.min(selectedAnnounceSize, 30), txtColor);
+      announcePreviewText.style.webkitTextStroke = o.stroke;
+      announcePreviewText.style.textShadow = o.shadow;
+    }else{
+      announcePreviewText.style.webkitTextStroke = '';
+      announcePreviewText.style.textShadow = '';
+    }
+  }
+
+  function setAnnounceUI(text, duration, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap, dimBackground, outlineColor, bgCustom, textCustom, tracking){
     announceInput.value = text || '';
     selectedDuration = duration || 0;
     selectedAnnounceSize = size || 22;
     selectedAnnounceColor = color || 'lantern';
+    selectedAnnounceBgCustom = bgCustom || '#8a5a12';
     selectedAnnounceTextColor = textColor || 'auto';
+    selectedAnnounceTextCustom = textCustom || '#f5ece0';
+    selectedAnnounceTracking = tracking || 0;
     selectedAnnouncePos = pos || 'top';
     selectedAnnounceMotion = motion || 'static';
     selectedAnnounceDirection = direction || 'rtl';
@@ -4750,10 +5247,13 @@ if(isDisplay){
     selectedAnnounceRepeat = repeat || 1;
     selectedAnnounceGap = gap || 8;
     selectedAnnounceDeco = deco || 'normal';
+    announceBgCustomInput.value = selectedAnnounceBgCustom;
+    announceTextCustomInput.value = selectedAnnounceTextCustom;
     durOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.dur, 10) === selectedDuration));
     announceSizeOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.size, 10) === selectedAnnounceSize));
     announceColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === selectedAnnounceColor));
     announceTextColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.textcolor === selectedAnnounceTextColor));
+    announceTrackingOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.tracking, 10) === selectedAnnounceTracking));
     announcePosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === selectedAnnouncePos));
     announceMotionOpts.forEach(o => o.classList.toggle('selected', o.dataset.motion === selectedAnnounceMotion));
     announceDirectionOpts.forEach(o => o.classList.toggle('selected', o.dataset.direction === selectedAnnounceDirection));
@@ -4762,6 +5262,7 @@ if(isDisplay){
     announceGapOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.gap, 10) === selectedAnnounceGap));
     announceDecoOpts.forEach(o => o.classList.toggle('selected', o.dataset.deco === selectedAnnounceDeco));
     updateScrollOptionsVisibility();
+    updateAnnouncePreview();
   }
 
   announceBtn.addEventListener('click', () => {
@@ -4770,8 +5271,10 @@ if(isDisplay){
     }
     announceModal.classList.add('active');
     announceInput.focus();
+    updateAnnouncePreview();
   });
   announceCancel.addEventListener('click', () => announceModal.classList.remove('active'));
+  announceInput.addEventListener('input', updateAnnouncePreview);
   durOpts.forEach(opt => opt.addEventListener('click', () => {
     durOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
@@ -4781,16 +5284,39 @@ if(isDisplay){
     announceSizeOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedAnnounceSize = parseInt(opt.dataset.size, 10);
+    updateAnnouncePreview();
   }));
   announceTextColorOpts.forEach(opt => opt.addEventListener('click', () => {
     announceTextColorOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedAnnounceTextColor = opt.dataset.textcolor;
+    updateAnnouncePreview();
   }));
+  announceTextCustomInput.addEventListener('input', () => {
+    announceTextColorOpts.forEach(o => o.classList.remove('selected'));
+    announceTextCustomSwatch.classList.add('selected');
+    selectedAnnounceTextColor = 'custom';
+    selectedAnnounceTextCustom = announceTextCustomInput.value;
+    updateAnnouncePreview();
+  });
   announceColorOpts.forEach(opt => opt.addEventListener('click', () => {
     announceColorOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedAnnounceColor = opt.dataset.color;
+    updateAnnouncePreview();
+  }));
+  announceBgCustomInput.addEventListener('input', () => {
+    announceColorOpts.forEach(o => o.classList.remove('selected'));
+    announceBgCustomSwatch.classList.add('selected');
+    selectedAnnounceColor = 'custom';
+    selectedAnnounceBgCustom = announceBgCustomInput.value;
+    updateAnnouncePreview();
+  });
+  announceTrackingOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceTrackingOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceTracking = parseInt(opt.dataset.tracking, 10);
+    updateAnnouncePreview();
   }));
   announcePosOpts.forEach(opt => opt.addEventListener('click', () => {
     announcePosOpts.forEach(o => o.classList.remove('selected'));
@@ -4828,6 +5354,7 @@ if(isDisplay){
     announceDecoOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     selectedAnnounceDeco = opt.dataset.deco;
+    updateAnnouncePreview();
   }));
   announceSubmit.addEventListener('click', () => {
     const msg = announceInput.value.trim();
@@ -4838,7 +5365,10 @@ if(isDisplay){
         text: msg,
         duration: selectedDuration,
         color: selectedAnnounceColor,
+        bgCustom: selectedAnnounceBgCustom,
         textColor: selectedAnnounceTextColor,
+        textCustom: selectedAnnounceTextCustom,
+        tracking: selectedAnnounceTracking,
         pos: selectedAnnouncePos,
         motion: selectedAnnounceMotion,
         direction: selectedAnnounceDirection,
