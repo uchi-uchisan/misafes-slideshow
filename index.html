@@ -1,0 +1,4327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>町内スライドショー</title>
+<style>
+  :root{
+    --night: #12162c;
+    --night-deep: #0a0d1c;
+    --lantern: #e8542a;
+    --lantern-soft: #f2825c;
+    --gold: #d4a843;
+    --paper: #f5ece0;
+    --ink: #e9e4d8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    height:100%;
+    background:var(--night-deep);
+    font-family:"Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
+    overflow:hidden;
+  }
+
+  /* ---------- 設定画面 ---------- */
+  #setup{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(232,84,42,0.12), transparent 45%),
+      radial-gradient(circle at 80% 75%, rgba(212,168,67,0.10), transparent 45%),
+      var(--night);
+    z-index:10;
+  }
+  .panel{
+    width:min(560px, 92vw);
+    background:rgba(10,13,28,0.55);
+    border:1px solid rgba(212,168,67,0.35);
+    border-radius:18px;
+    padding:40px 36px;
+    backdrop-filter: blur(6px);
+  }
+  .eyebrow{
+    color:var(--gold);
+    letter-spacing:0.35em;
+    font-size:11px;
+    text-align:center;
+    margin-bottom:10px;
+  }
+  h1{
+    color:var(--ink);
+    text-align:center;
+    font-size:26px;
+    font-weight:600;
+    margin-bottom:6px;
+    letter-spacing:0.04em;
+  }
+  .sub{
+    color:rgba(233,228,216,0.55);
+    text-align:center;
+    font-size:13px;
+    margin-bottom:28px;
+  }
+  .drop{
+    border:1.5px dashed rgba(212,168,67,0.5);
+    border-radius:14px;
+    padding:28px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .2s, background .2s;
+    margin-bottom:16px;
+  }
+  .drop:hover, .drop.drag{
+    border-color:var(--lantern);
+    background:rgba(232,84,42,0.06);
+  }
+  .drop .big{ color:var(--lantern-soft); font-size:15px; margin-bottom:4px; }
+  .drop .small{ color:rgba(233,228,216,0.45); font-size:12px; }
+  input[type=file]{display:none;}
+
+  .folder-select-btn{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    background:rgba(233,228,216,0.05);
+    border:1px dashed rgba(233,228,216,0.25);
+    border-radius:10px;
+    color:rgba(233,228,216,0.7);
+    font-size:12.5px;
+    cursor:pointer;
+  }
+  .folder-select-btn:hover{ border-color:var(--gold); color:var(--gold); }
+
+  .count-row{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:12px; color:rgba(233,228,216,0.6); margin-bottom:22px;
+    padding:0 2px;
+  }
+  .count-row b{ color:var(--gold); font-weight:600; }
+
+  .row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px;
+  }
+  .row label{ color:var(--ink); font-size:13px; }
+  .row .hint{ color:rgba(233,228,216,0.4); font-size:11px; display:block; margin-top:2px;}
+
+  input[type=range]{ width:150px; accent-color:var(--lantern); }
+  .num{ color:var(--gold); font-size:12px; min-width:38px; text-align:right; display:inline-block; }
+
+  .toggle{
+    width:42px; height:24px; border-radius:12px;
+    background:rgba(233,228,216,0.15);
+    position:relative; cursor:pointer; flex-shrink:0;
+    transition:background .2s;
+  }
+  .toggle.on{ background:var(--lantern); }
+  .toggle .dot{
+    position:absolute; top:3px; left:3px;
+    width:18px; height:18px; border-radius:50%;
+    background:var(--ink); transition:left .2s;
+  }
+  .toggle.on .dot{ left:21px; }
+
+  #start-btn{
+    width:100%; padding:15px;
+    background:linear-gradient(135deg, var(--lantern), #c9401f);
+    border:none; border-radius:12px;
+    color:var(--paper); font-size:15px; font-weight:600;
+    letter-spacing:0.08em;
+    cursor:pointer;
+    box-shadow:0 8px 24px rgba(232,84,42,0.35);
+    transition:transform .15s, box-shadow .15s;
+  }
+  #start-btn:hover:not(:disabled){ transform:translateY(-1px); box-shadow:0 10px 28px rgba(232,84,42,0.45); }
+  #start-btn:disabled{ opacity:0.35; cursor:not-allowed; box-shadow:none; }
+
+  .after-start-preview{
+    margin-top:18px;
+    padding-top:16px;
+    border-top:1px dashed rgba(233,228,216,0.15);
+  }
+  .after-start-preview .label{
+    color:rgba(233,228,216,0.4);
+    font-size:11px;
+    letter-spacing:0.05em;
+    margin-bottom:10px;
+    text-align:center;
+  }
+  .preview-pill-row{
+    display:flex; flex-wrap:wrap; gap:8px;
+    justify-content:center;
+  }
+  .preview-pill{
+    background:rgba(233,228,216,0.04);
+    border:1px solid rgba(233,228,216,0.12);
+    color:rgba(233,228,216,0.3);
+    padding:9px 14px;
+    border-radius:999px;
+    font-size:12px;
+    cursor:not-allowed;
+    user-select:none;
+  }
+
+  /* ---------- スライドショー画面 ---------- */
+  #show{
+    position:fixed; inset:0;
+    background:#000;
+    display:none;
+  }
+  #show.active{ display:block; }
+  .slide{
+    position:absolute; inset:0;
+    background-size:contain;
+    background-position:center;
+    background-repeat:no-repeat;
+    opacity:0;
+    transition:opacity 1.2s ease;
+  }
+  .slide.show{ opacity:1; }
+
+  /* 写真に重ねる手書き風コメント */
+  .slide .caption{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%) rotate(-1.2deg);
+    max-width:80%;
+    padding:14px 26px;
+    border-radius:4px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.4);
+    font-family:"UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体","Klee One",cursive;
+    line-height:1.4;
+    text-align:center;
+    white-space:pre-wrap;
+  }
+
+  /* 写真なし・文字だけのスライド */
+  .slide.text-slide{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 25% 25%, rgba(232,84,42,0.14), transparent 50%),
+      radial-gradient(circle at 75% 80%, rgba(212,168,67,0.12), transparent 50%),
+      var(--night);
+  }
+  .slide.text-slide .text-slide-inner{
+    max-width:78%;
+    color:var(--paper);
+    font-family:"UDデジタル教科書体N-B","YuKyokasho Yoko","HGP教科書体","Klee One",cursive;
+    font-size:clamp(24px, 4vw, 46px);
+    line-height:1.6;
+    text-align:center;
+    white-space:pre-wrap;
+  }
+  .slide.text-slide .text-slide-icon{
+    font-size:clamp(40px, 6vw, 68px);
+    margin-bottom:18px;
+    text-align:center;
+  }
+
+  #counter{
+    position:fixed; top:18px; right:22px;
+    color:rgba(233,228,216,0.35);
+    font-size:12px; letter-spacing:0.05em;
+    z-index:20;
+  }
+
+  /* ---------- QRコード投稿枠 ---------- */
+  .qr-field{
+    display:none;
+    margin-bottom:16px;
+  }
+  .qr-field.visible{ display:block; }
+  .qr-field input[type=text]{
+    width:100%;
+    padding:10px 12px;
+    background:rgba(233,228,216,0.06);
+    border:1px solid rgba(233,228,216,0.2);
+    border-radius:8px;
+    color:var(--ink);
+    font-size:12px;
+    margin-top:8px;
+  }
+  .qr-field input[type=text]:focus{
+    outline:none;
+    border-color:var(--gold);
+  }
+  .qr-field .hint{ display:block; margin-top:6px; }
+
+  .ticker-item{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .ticker-item input[type=text]{ margin-top:0; flex:1; }
+  .ticker-item .remove-ticker{
+    flex-shrink:0;
+    width:28px; height:28px;
+    border-radius:8px;
+    border:1px solid rgba(233,228,216,0.2);
+    color:rgba(233,228,216,0.5);
+    background:transparent;
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+  }
+  .ticker-item .remove-ticker:hover{ border-color:var(--lantern); color:var(--lantern-soft); }
+  .add-ticker-btn{
+    width:100%;
+    padding:8px;
+    margin-bottom:6px;
+    background:rgba(233,228,216,0.05);
+    border:1px dashed rgba(233,228,216,0.25);
+    border-radius:8px;
+    color:rgba(233,228,216,0.65);
+    font-size:12px;
+    cursor:pointer;
+  }
+  .add-ticker-btn:hover{ border-color:var(--gold); color:var(--gold); }
+
+  .qr-overlay-box{
+    position:fixed;
+    bottom:28px;
+    background:rgba(10,13,28,0.72);
+    border:1px solid rgba(212,168,67,0.4);
+    backdrop-filter:blur(4px);
+    border-radius:14px;
+    padding:14px 14px 12px;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    z-index:15;
+  }
+  .qr-overlay-box.active{ display:flex; }
+  #qr-overlay{ right:28px; }
+  #qr-overlay2{ left:28px; }
+  .qr-overlay-box .qr-box{
+    background:var(--paper);
+    padding:8px;
+    border-radius:8px;
+    line-height:0;
+  }
+  .qr-overlay-box .qr-box svg{ display:block; width:120px; height:120px; }
+  .qr-overlay-box .qr-label{
+    color:var(--gold);
+    font-size:11.5px;
+    letter-spacing:0.03em;
+    margin-top:8px;
+    text-align:center;
+    max-width:120px;
+  }
+
+  /* ---------- 流れる文章(マーキー) ---------- */
+  #ticker{
+    position:fixed;
+    left:0; right:0;
+    height:56px;
+    display:none;
+    align-items:center;
+    overflow:hidden;
+    z-index:16;
+    pointer-events:none;
+  }
+  #ticker.active{ display:flex; }
+  #ticker.ticker-pos-top{ top:0; bottom:auto; background:linear-gradient(180deg, rgba(10,13,28,0.75), rgba(10,13,28,0)); }
+  #ticker.ticker-pos-bottom{ top:auto; bottom:0; background:linear-gradient(0deg, rgba(10,13,28,0.75), rgba(10,13,28,0)); }
+  #ticker.ticker-pos-middle{ top:50%; bottom:auto; transform:translateY(-50%); background:rgba(10,13,28,0.55); }
+  #ticker .ticker-track{
+    white-space:nowrap;
+    color:var(--gold);
+    font-size:14px;
+    letter-spacing:0.04em;
+    position:absolute;
+    left:0;
+    animation: ticker-move linear infinite;
+  }
+  @keyframes ticker-move{
+    from{ transform: translateX(-100%); }
+    to{ transform: translateX(100vw); }
+  }
+
+  /* ---------- お知らせバナー ---------- */
+  #announce-banner{
+    position:fixed;
+    left:50%;
+    max-width:min(760px, 88vw);
+    background:linear-gradient(135deg, rgba(232,84,42,0.92), rgba(201,64,31,0.92));
+    border:1px solid rgba(212,168,67,0.6);
+    box-shadow:0 16px 40px rgba(0,0,0,0.45);
+    border-radius:16px;
+    padding:20px 52px 20px 28px;
+    display:none;
+    opacity:0;
+    z-index:30;
+    transition:opacity .35s, transform .35s;
+  }
+  #announce-banner.pos-top{ top:60px; transform:translate(-50%, -30px); }
+  #announce-banner.pos-top.active{ transform:translate(-50%, 0); }
+  #announce-banner.pos-center{ top:50%; transform:translate(-50%, calc(-50% - 20px)); }
+  #announce-banner.pos-center.active{ transform:translate(-50%, -50%); }
+  #announce-banner.pos-bottom{ top:auto; bottom:60px; transform:translate(-50%, 30px); }
+  #announce-banner.pos-bottom.active{ transform:translate(-50%, 0); }
+  #announce-banner.active{
+    display:block;
+    opacity:1;
+  }
+  #announce-banner .txt{
+    color:var(--paper);
+    font-size:22px;
+    font-weight:600;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
+  #announce-banner .close-x{
+    position:absolute;
+    top:10px; right:14px;
+    color:rgba(245,236,224,0.75);
+    font-size:18px;
+    cursor:pointer;
+    line-height:1;
+  }
+  #announce-banner .close-x:hover{ color:var(--paper); }
+
+  /* 横に流れるモード:横幅いっぱいの帯にして、中の文字だけ流す */
+  #announce-banner.scroll-mode{
+    left:0; right:0; width:100%;
+    max-width:none;
+    height:84px;
+    border-radius:0;
+    border-left:none; border-right:none;
+    padding:0;
+    overflow:hidden;
+  }
+  #announce-banner.scroll-mode.pos-top{ transform:none; top:0; }
+  #announce-banner.scroll-mode.pos-top.active{ transform:none; }
+  #announce-banner.scroll-mode.pos-center{ transform:translateY(-50%); }
+  #announce-banner.scroll-mode.pos-center.active{ transform:translateY(-50%); }
+  #announce-banner.scroll-mode.pos-bottom{ transform:none; bottom:0; }
+  #announce-banner.scroll-mode.pos-bottom.active{ transform:none; }
+  #announce-banner.scroll-mode .close-x{ z-index:2; }
+  #announce-banner.scroll-mode .txt{
+    position:absolute;
+    top:50%;
+    left:0;
+    white-space:nowrap;
+  }
+  @keyframes announce-scroll-rtl{
+    from{ transform: translate(100vw, -50%); }
+    to{ transform: translate(-110%, -50%); }
+  }
+  @keyframes announce-scroll-ltr{
+    from{ transform: translate(-110%, -50%); }
+    to{ transform: translate(100vw, -50%); }
+  }
+
+  /* 袋文字(アウトライン)装飾 */
+  #announce-banner .txt.deco-outline{
+    -webkit-text-stroke: 2px rgba(0,0,0,0.75);
+    text-shadow:
+      -2px -2px 0 rgba(0,0,0,0.75),
+       2px -2px 0 rgba(0,0,0,0.75),
+      -2px  2px 0 rgba(0,0,0,0.75),
+       2px  2px 0 rgba(0,0,0,0.75);
+  }
+
+  /* ---------- モーダル共通(お知らせ/コメント/文字調整) ---------- */
+  #announce-modal, #caption-modal, #restyle-modal, #ticker-modal{
+    position:fixed; inset:0;
+    background:rgba(6,8,18,0.7);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:40;
+  }
+  #announce-modal.active, #caption-modal.active, #restyle-modal.active, #ticker-modal.active{ display:flex; }
+  #announce-modal .box, #caption-modal .box, #restyle-modal .box, #ticker-modal .box{
+    width:min(480px, 90vw);
+    background:var(--night);
+    border:1px solid rgba(212,168,67,0.4);
+    border-radius:16px;
+    padding:26px 26px 22px;
+  }
+  #announce-modal h2, #caption-modal h2, #restyle-modal h2, #ticker-modal h2{
+    color:var(--ink);
+    font-size:16px;
+    margin-bottom:14px;
+  }
+  #announce-modal textarea, #caption-modal textarea, #ticker-modal textarea{
+    width:100%;
+    min-height:90px;
+    background:rgba(233,228,216,0.06);
+    border:1px solid rgba(233,228,216,0.2);
+    border-radius:10px;
+    color:var(--ink);
+    font-size:14px;
+    padding:12px;
+    resize:vertical;
+    font-family:inherit;
+    margin-bottom:14px;
+  }
+  #announce-modal textarea:focus, #caption-modal textarea:focus, #ticker-modal textarea:focus{
+    outline:none; border-color:var(--gold);
+  }
+  #announce-modal .dur-row{
+    display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;
+  }
+  #announce-modal .dur-opt{
+    padding:7px 12px;
+    border-radius:999px;
+    border:1px solid rgba(233,228,216,0.25);
+    color:rgba(233,228,216,0.7);
+    font-size:12px;
+    cursor:pointer;
+  }
+  #announce-modal .dur-opt.selected{
+    border-color:var(--gold);
+    color:var(--gold);
+    background:rgba(212,168,67,0.08);
+  }
+  .icon-row{
+    display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;
+  }
+  .icon-opt{
+    padding:7px 13px;
+    border-radius:999px;
+    border:1px solid rgba(233,228,216,0.25);
+    color:rgba(233,228,216,0.7);
+    font-size:15px;
+    cursor:pointer;
+  }
+  .icon-opt.selected{
+    border-color:var(--gold);
+    background:rgba(212,168,67,0.1);
+  }
+  #announce-modal .btn-row, #caption-modal .btn-row, #restyle-modal .btn-row, #ticker-modal .btn-row{
+    display:flex; gap:10px;
+  }
+  #announce-modal .btn-row button, #caption-modal .btn-row button, #restyle-modal .btn-row button, #ticker-modal .btn-row button{
+    flex:1;
+    padding:11px;
+    border-radius:10px;
+    border:none;
+    font-size:13px;
+    cursor:pointer;
+  }
+  #announce-cancel, #caption-skip, #restyle-cancel, #ticker-edit-cancel{
+    background:rgba(233,228,216,0.08);
+    color:var(--ink);
+  }
+  #announce-submit, #caption-submit, #restyle-apply, #ticker-edit-apply{
+    background:linear-gradient(135deg, var(--lantern), #c9401f);
+    color:var(--paper);
+    font-weight:600;
+  }
+  /* ---------- 操作パネル(親ウィンドウ) ---------- */
+  #control-panel{
+    display:none;
+    min-height:100%;
+    align-items:center;
+    justify-content:center;
+    padding:40px 20px;
+  }
+  #control-panel.active{ display:flex; }
+  .cp-wrap{ width:min(480px, 92vw); }
+  .cp-header{ text-align:center; margin-bottom:22px; }
+  .cp-status{
+    font-size:12.5px;
+    color:rgba(233,228,216,0.6);
+    margin-top:4px;
+  }
+  .cp-counter{
+    text-align:center;
+    font-size:32px;
+    font-weight:700;
+    color:var(--gold);
+    margin-bottom:24px;
+    letter-spacing:0.05em;
+  }
+  .cp-btn-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+  }
+  .cp-btn{
+    padding:16px 8px;
+    background:rgba(233,228,216,0.06);
+    border:1px solid rgba(233,228,216,0.2);
+    border-radius:12px;
+    color:var(--ink);
+    font-size:13.5px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .cp-btn:hover{ border-color:var(--gold); background:rgba(212,168,67,0.08); }
+  .cp-btn.wide{ grid-column:span 3; }
+  .cp-btn.danger{ border-color:rgba(232,84,42,0.4); color:var(--lantern-soft); }
+  .cp-btn.danger:hover{ border-color:var(--lantern); background:rgba(232,84,42,0.1); }
+  .cp-hint{
+    margin-top:22px;
+    font-size:11.5px;
+    line-height:1.7;
+    color:rgba(233,228,216,0.45);
+    text-align:center;
+  }
+
+  .pending-section{
+    margin-top:28px;
+    padding-top:22px;
+    border-top:1px solid rgba(233,228,216,0.12);
+  }
+  .pending-header{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px; color:var(--gold); margin-bottom:12px;
+  }
+  .pending-count{
+    background:rgba(212,168,67,0.12);
+    padding:2px 10px;
+    border-radius:999px;
+    font-size:11.5px;
+  }
+  .pending-list{
+    max-height:340px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .pending-empty{
+    text-align:center;
+    color:rgba(233,228,216,0.35);
+    font-size:12px;
+    padding:18px 0;
+  }
+  .pending-item{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    background:rgba(233,228,216,0.04);
+    border:1px solid rgba(233,228,216,0.12);
+    border-radius:12px;
+    padding:10px 12px;
+  }
+  .pending-thumb{
+    width:52px; height:52px;
+    border-radius:8px;
+    object-fit:cover;
+    flex-shrink:0;
+    background:rgba(233,228,216,0.08);
+  }
+  .pending-thumb.no-photo{
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+  }
+  .pending-body{ flex:1; min-width:0; }
+  .pending-msg{
+    font-size:12.5px; color:var(--ink);
+    overflow:hidden; text-overflow:ellipsis;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  }
+  .pending-time{ font-size:10.5px; color:rgba(233,228,216,0.4); margin-top:2px; }
+  .pending-add-btn{
+    flex-shrink:0;
+    padding:8px 14px;
+    background:linear-gradient(135deg, var(--lantern), #c9401f);
+    color:var(--paper);
+    border:none; border-radius:9px;
+    font-size:12px; font-weight:600;
+    cursor:pointer;
+  }
+  .pending-add-btn:disabled{ opacity:0.4; cursor:default; }
+
+  .style-row-label{
+    font-size:11.5px;
+    color:rgba(233,228,216,0.55);
+    margin:14px 0 8px;
+  }
+  .icon-opt.small{ font-size:12px; padding:7px 14px; }
+  .color-opt{
+    width:34px; height:34px;
+    border-radius:50%;
+    border:2px solid rgba(233,228,216,0.2);
+    cursor:pointer;
+  }
+  .color-opt.selected{ border-color:var(--gold); }
+
+  /* ---------- 表示ウィンドウ開始オーバーレイ ---------- */
+  #start-overlay{
+    position:fixed; inset:0;
+    background:var(--night-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+  }
+  #start-overlay.hidden{ display:none; }
+  .start-overlay-inner{ text-align:center; }
+  .start-overlay-title{ font-size:24px; color:var(--paper); margin-bottom:10px; }
+  .start-overlay-sub{ font-size:13px; color:rgba(233,228,216,0.6); margin-bottom:26px; }
+  #display-start-btn{
+    padding:16px 32px;
+    background:linear-gradient(135deg, var(--lantern), #c9401f);
+    border:none; border-radius:14px;
+    color:var(--paper); font-size:16px; font-weight:600;
+    cursor:pointer;
+    box-shadow:0 10px 26px rgba(232,84,42,0.35);
+  }
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="panel">
+    <div class="eyebrow">町内会 お祭り上映</div>
+    <h1>スライドショー準備</h1>
+    <div class="sub">写真を選ぶだけで、そのまま全画面で流せます</div>
+
+    <div class="drop" id="drop">
+      <div class="big">📷 写真をここにドラッグ、またはクリックして選択</div>
+      <div class="small">複数選択に対応・フォルダごとドラッグしてもOK</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*" multiple>
+
+    <button type="button" id="folder-btn" class="folder-select-btn">📁 フォルダを選択して追加</button>
+    <input type="file" id="folder-input" webkitdirectory style="display:none;">
+
+    <div class="count-row">
+      <span>選択中の写真</span>
+      <b id="photo-count">0枚</b>
+    </div>
+
+    <div class="row">
+      <label>表示間隔<span class="hint">1枚あたりの表示秒数</span></label>
+      <div>
+        <input type="range" id="interval" min="2" max="15" value="5" step="1">
+        <span class="num" id="interval-val">5秒</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>順番をシャッフル</label>
+      <div class="toggle" id="shuffle-toggle"><div class="dot"></div></div>
+    </div>
+
+    <div class="row">
+      <label>ループ再生</label>
+      <div class="toggle on" id="loop-toggle"><div class="dot"></div></div>
+    </div>
+
+    <div class="row">
+      <label>QR・案内文の設定<span class="hint">投稿先URLと画面上部の案内文</span></label>
+    </div>
+    <div class="qr-field visible" id="qr-field">
+      <input type="text" id="qr-url" placeholder="投稿先URL①(例:写真投稿フォームのリンク)">
+      <span class="hint">Googleフォームなど、写真を送ってもらいたいリンクを貼ってください</span>
+
+      <input type="text" id="qr-url2" placeholder="投稿先URL②(例:曲リクエストページのリンク)" style="margin-top:14px;">
+      <span class="hint">曲リクエストなど、2つ目のリンクがあれば貼ってください</span>
+
+      <div id="ticker-list" style="margin-top:14px;">
+        <div class="ticker-item">
+          <input type="text" class="ticker-text-input" value="📷 QRコードから写真・感想やメッセージを送ってください/写真がなくてもOKです/撮影の際は第三者の顔が映り込まないようご配慮ください">
+          <button type="button" class="remove-ticker">✕</button>
+        </div>
+      </div>
+      <button type="button" id="add-ticker-btn" class="add-ticker-btn">＋ 文言を追加</button>
+      <span class="hint">画面上部に流れる案内文(複数登録すると順番に切り替わります)</span>
+    </div>
+
+    <button id="start-btn" disabled>スライドショー開始(別ウィンドウで表示)</button>
+
+    <div class="after-start-preview">
+      <div class="label">開始すると、別ウィンドウに操作パネルが出ます</div>
+      <div class="preview-pill-row">
+        <div class="preview-pill">＋ 写真を追加</div>
+        <div class="preview-pill">📢 お知らせ</div>
+        <div class="preview-pill">◀ 前へ / 次へ ▶</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 操作パネル(この親ウィンドウに残る側) ==================== -->
+<div id="control-panel">
+  <div class="cp-wrap">
+    <div class="cp-header">
+      <div class="eyebrow">みさフェス 操作パネル</div>
+      <h1 style="font-size:19px; margin-bottom:4px;">スライドショー操作中</h1>
+      <div class="cp-status" id="cp-status">🟡 表示ウィンドウに接続しています...</div>
+    </div>
+
+    <div class="cp-counter" id="cp-counter">- / -</div>
+
+    <div class="cp-btn-grid">
+      <button class="cp-btn" id="prev-btn">◀ 前へ</button>
+      <button class="cp-btn" id="pause-btn">一時停止</button>
+      <button class="cp-btn" id="next-btn">次へ ▶</button>
+      <button class="cp-btn wide" id="add-btn">＋ 写真を追加</button>
+      <button class="cp-btn wide" id="announce-btn">📢 お知らせを表示</button>
+      <button class="cp-btn" id="qr1-toggle-btn">📷 QR①表示</button>
+      <button class="cp-btn" id="qr2-toggle-btn">🎵 QR②表示</button>
+      <button class="cp-btn" id="restyle-btn">✏️ 今の写真の文字を編集</button>
+      <button class="cp-btn wide" id="ticker-edit-btn">📝 上部の案内文を編集</button>
+      <button class="cp-btn wide danger" id="exit-btn">終了して設定画面に戻る</button>
+    </div>
+
+    <div class="cp-hint">
+      表示ウィンドウをプロジェクターや外部モニターにドラッグして、そちらでF11キー(全画面表示)を押すと会場向けの表示になります。
+    </div>
+
+    <div class="pending-section">
+      <div class="pending-header">
+        <span>📥 承認待ちの投稿</span>
+        <span class="pending-count" id="pending-count">0件</span>
+      </div>
+      <div id="pending-list" class="pending-list">
+        <div class="pending-empty">今のところ新しい投稿はありません</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="restyle-modal">
+    <div class="box">
+      <h2>今表示中の写真の文字を編集</h2>
+      <textarea id="restyle-text-input" placeholder="例:今年も盛り上がりました!(空欄で保存すると文字を消せます)"></textarea>
+      <div class="style-row-label">文字の大きさ</div>
+      <div class="icon-row" id="restyle-size-row">
+        <div class="icon-opt small selected" data-size="20">小</div>
+        <div class="icon-opt small" data-size="28">中</div>
+        <div class="icon-opt small" data-size="38">大</div>
+      </div>
+      <div class="style-row-label">文字の色</div>
+      <div class="icon-row" id="restyle-color-row">
+        <div class="color-opt selected" data-color="#2a2118" style="background:#f5ece0;"></div>
+        <div class="color-opt" data-color="#f5ece0" style="background:#2a2118;"></div>
+        <div class="color-opt" data-color="#c9401f" style="background:#f5ece0;"></div>
+        <div class="color-opt" data-color="#d4a843" style="background:#2a2118;"></div>
+      </div>
+      <div class="style-row-label">表示位置</div>
+      <div class="icon-row" id="restyle-pos-row">
+        <div class="icon-opt small selected" data-pos="bottom">下</div>
+        <div class="icon-opt small" data-pos="top">上</div>
+        <div class="icon-opt small" data-pos="center">中央</div>
+      </div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="restyle-cancel">キャンセル</button>
+        <button id="restyle-apply">この内容で適用</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ticker-modal">
+    <div class="box">
+      <h2>画面上部の案内文を編集</h2>
+      <textarea id="ticker-edit-textarea" placeholder="1行に1つの案内文を入力してください&#10;複数行あると、順番に切り替わりながら流れます"></textarea>
+
+      <div class="style-row-label">文字の大きさ</div>
+      <div class="icon-row" id="ticker-size-row">
+        <div class="icon-opt small" data-size="14">小</div>
+        <div class="icon-opt small selected" data-size="20">中</div>
+        <div class="icon-opt small" data-size="28">大</div>
+      </div>
+      <div class="style-row-label">文字の色</div>
+      <div class="icon-row" id="ticker-color-row">
+        <div class="color-opt selected" data-color="#d4a843" style="background:#12162c;"></div>
+        <div class="color-opt" data-color="#f5ece0" style="background:#12162c;"></div>
+        <div class="color-opt" data-color="#e8542a" style="background:#12162c;"></div>
+        <div class="color-opt" data-color="#2a2118" style="background:#f5ece0;"></div>
+      </div>
+      <div class="style-row-label">表示位置</div>
+      <div class="icon-row" id="ticker-pos-row">
+        <div class="icon-opt small selected" data-pos="top">上</div>
+        <div class="icon-opt small" data-pos="middle">中央</div>
+        <div class="icon-opt small" data-pos="bottom">下</div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="ticker-edit-cancel">キャンセル</button>
+        <button id="ticker-edit-apply">この内容で適用</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="add-input" accept="image/*" multiple style="display:none;">
+
+  <div id="announce-modal">
+    <div class="box">
+      <h2>お知らせを表示</h2>
+      <textarea id="announce-input" placeholder="例:迷子のお子さんをお預かりしています。本部までお越しください"></textarea>
+      <div class="dur-row">
+        <div class="dur-opt" data-dur="10">10秒</div>
+        <div class="dur-opt" data-dur="30">30秒</div>
+        <div class="dur-opt selected" data-dur="0">手動で閉じるまで</div>
+      </div>
+
+      <div class="style-row-label">背景の色</div>
+      <div class="icon-row" id="announce-color-row">
+        <div class="color-opt selected" data-color="lantern" style="background:linear-gradient(135deg, #f2825c, #c9401f);"></div>
+        <div class="color-opt" data-color="gold" style="background:linear-gradient(135deg, #e8c070, #8a5a12);"></div>
+        <div class="color-opt" data-color="night" style="background:linear-gradient(135deg, #3d241b, #12162c); border-color:rgba(233,228,216,0.3);"></div>
+        <div class="color-opt" data-color="paper" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
+      </div>
+      <div class="style-row-label">文字の色</div>
+      <div class="icon-row" id="announce-text-color-row">
+        <div class="icon-opt small selected" data-textcolor="auto">背景に合わせる</div>
+        <div class="color-opt" data-textcolor="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
+        <div class="color-opt" data-textcolor="#2a1710" style="background:#2a1710;"></div>
+        <div class="color-opt" data-textcolor="#d4a843" style="background:#d4a843;"></div>
+        <div class="color-opt" data-textcolor="#e8542a" style="background:#e8542a;"></div>
+      </div>
+      <div class="style-row-label">文字の大きさ</div>
+      <div class="icon-row" id="announce-size-row">
+        <div class="icon-opt small" data-size="18">小</div>
+        <div class="icon-opt small selected" data-size="22">中</div>
+        <div class="icon-opt small" data-size="32">大</div>
+        <div class="icon-opt small" data-size="44">特大</div>
+      </div>
+      <div class="style-row-label">表示位置</div>
+      <div class="icon-row" id="announce-pos-row">
+        <div class="icon-opt small selected" data-pos="top">上</div>
+        <div class="icon-opt small" data-pos="center">中央</div>
+        <div class="icon-opt small" data-pos="bottom">下</div>
+      </div>
+      <div class="style-row-label">動き</div>
+      <div class="icon-row" id="announce-motion-row">
+        <div class="icon-opt small selected" data-motion="static">固定</div>
+        <div class="icon-opt small" data-motion="scroll">横に流れる</div>
+      </div>
+      <div class="style-row-label" id="announce-direction-label" style="display:none;">流れる向き</div>
+      <div class="icon-row" id="announce-direction-row" style="display:none;">
+        <div class="icon-opt small selected" data-direction="rtl">右→左</div>
+        <div class="icon-opt small" data-direction="ltr">左→右</div>
+      </div>
+      <div class="style-row-label" id="announce-speed-label" style="display:none;">流れる速さ</div>
+      <div class="icon-row" id="announce-speed-row" style="display:none;">
+        <div class="icon-opt small" data-speed="0.5">ゆっくり</div>
+        <div class="icon-opt small selected" data-speed="1">ふつう</div>
+        <div class="icon-opt small" data-speed="1.8">速い</div>
+      </div>
+      <div class="style-row-label" id="announce-repeat-label" style="display:none;">流す回数</div>
+      <div class="icon-row" id="announce-repeat-row" style="display:none;">
+        <div class="icon-opt small selected" data-repeat="1">1つ</div>
+        <div class="icon-opt small" data-repeat="2">同じ文を2つ連続</div>
+      </div>
+      <div class="style-row-label" id="announce-gap-label" style="display:none;">2つの間隔</div>
+      <div class="icon-row" id="announce-gap-row" style="display:none;">
+        <div class="icon-opt small" data-gap="4">狭い</div>
+        <div class="icon-opt small selected" data-gap="8">ふつう</div>
+        <div class="icon-opt small" data-gap="16">広い</div>
+      </div>
+      <div class="style-row-label">文字装飾</div>
+      <div class="icon-row" id="announce-deco-row">
+        <div class="icon-opt small selected" data-deco="normal">通常</div>
+        <div class="icon-opt small" data-deco="outline">袋文字</div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="announce-cancel">キャンセル</button>
+        <button id="announce-submit">表示する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="caption-modal">
+    <div class="box">
+      <h2>コメントを添える(任意)</h2>
+      <textarea id="caption-input" placeholder="例:今年も盛り上がりました!"></textarea>
+      <div class="icon-row" id="icon-row">
+        <div class="icon-opt selected" data-icon="">なし</div>
+        <div class="icon-opt" data-icon="🏮">🏮</div>
+        <div class="icon-opt" data-icon="🎆">🎆</div>
+        <div class="icon-opt" data-icon="🎐">🎐</div>
+        <div class="icon-opt" data-icon="🍧">🍧</div>
+        <div class="icon-opt" data-icon="🎉">🎉</div>
+        <div class="icon-opt" data-icon="✨">✨</div>
+      </div>
+
+      <div class="style-row-label">文字の大きさ</div>
+      <div class="icon-row" id="size-row">
+        <div class="icon-opt small selected" data-size="20">小</div>
+        <div class="icon-opt small" data-size="28">中</div>
+        <div class="icon-opt small" data-size="38">大</div>
+      </div>
+
+      <div class="style-row-label">文字の色</div>
+      <div class="icon-row" id="color-row">
+        <div class="color-opt selected" data-color="#2a2118" style="background:#f5ece0;"></div>
+        <div class="color-opt" data-color="#f5ece0" style="background:#2a2118;"></div>
+        <div class="color-opt" data-color="#c9401f" style="background:#f5ece0;"></div>
+        <div class="color-opt" data-color="#d4a843" style="background:#2a2118;"></div>
+      </div>
+
+      <div class="style-row-label">表示位置</div>
+      <div class="icon-row" id="pos-row">
+        <div class="icon-opt small selected" data-pos="bottom">下</div>
+        <div class="icon-opt small" data-pos="top">上</div>
+        <div class="icon-opt small" data-pos="center">中央</div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="caption-skip">コメントなしで追加</button>
+        <button id="caption-submit">この内容で追加</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 表示ウィンドウ(会場スクリーン側) ==================== -->
+<div id="show">
+  <div id="counter"></div>
+  <div id="ticker"><div class="ticker-track" id="ticker-track"></div></div>
+  <div id="qr-overlay" class="qr-overlay-box">
+    <div class="qr-box" id="qr-box"></div>
+    <div class="qr-label">📷 写真・メッセージを送る</div>
+  </div>
+  <div id="qr-overlay2" class="qr-overlay-box">
+    <div class="qr-box" id="qr-box2"></div>
+    <div class="qr-label">🎵 曲リクエストに投票する</div>
+  </div>
+
+  <div id="announce-banner">
+    <div class="close-x" id="announce-close">✕</div>
+    <div class="txt" id="announce-text"></div>
+  </div>
+
+  <div id="start-overlay">
+    <div class="start-overlay-inner">
+      <div class="start-overlay-title">🏮 みさフェス スライドショー</div>
+      <div class="start-overlay-sub">準備ができました。タップして表示を開始してください</div>
+      <button id="display-start-btn">▶ 表示を開始する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+//---------------------------------------------------------------------
+//
+// QR Code Generator for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//  http://www.opensource.org/licenses/mit-license.php
+//
+// The word 'QR Code' is registered trademark of
+// DENSO WAVE INCORPORATED
+//  http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+
+var qrcode = function() {
+
+  //---------------------------------------------------------------------
+  // qrcode
+  //---------------------------------------------------------------------
+
+  /**
+   * qrcode
+   * @param typeNumber 1 to 40
+   * @param errorCorrectionLevel 'L','M','Q','H'
+   */
+  var qrcode = function(typeNumber, errorCorrectionLevel) {
+
+    var PAD0 = 0xEC;
+    var PAD1 = 0x11;
+
+    var _typeNumber = typeNumber;
+    var _errorCorrectionLevel = QRErrorCorrectionLevel[errorCorrectionLevel];
+    var _modules = null;
+    var _moduleCount = 0;
+    var _dataCache = null;
+    var _dataList = [];
+
+    var _this = {};
+
+    var makeImpl = function(test, maskPattern) {
+
+      _moduleCount = _typeNumber * 4 + 17;
+      _modules = function(moduleCount) {
+        var modules = new Array(moduleCount);
+        for (var row = 0; row < moduleCount; row += 1) {
+          modules[row] = new Array(moduleCount);
+          for (var col = 0; col < moduleCount; col += 1) {
+            modules[row][col] = null;
+          }
+        }
+        return modules;
+      }(_moduleCount);
+
+      setupPositionProbePattern(0, 0);
+      setupPositionProbePattern(_moduleCount - 7, 0);
+      setupPositionProbePattern(0, _moduleCount - 7);
+      setupPositionAdjustPattern();
+      setupTimingPattern();
+      setupTypeInfo(test, maskPattern);
+
+      if (_typeNumber >= 7) {
+        setupTypeNumber(test);
+      }
+
+      if (_dataCache == null) {
+        _dataCache = createData(_typeNumber, _errorCorrectionLevel, _dataList);
+      }
+
+      mapData(_dataCache, maskPattern);
+    };
+
+    var setupPositionProbePattern = function(row, col) {
+
+      for (var r = -1; r <= 7; r += 1) {
+
+        if (row + r <= -1 || _moduleCount <= row + r) continue;
+
+        for (var c = -1; c <= 7; c += 1) {
+
+          if (col + c <= -1 || _moduleCount <= col + c) continue;
+
+          if ( (0 <= r && r <= 6 && (c == 0 || c == 6) )
+              || (0 <= c && c <= 6 && (r == 0 || r == 6) )
+              || (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+            _modules[row + r][col + c] = true;
+          } else {
+            _modules[row + r][col + c] = false;
+          }
+        }
+      }
+    };
+
+    var getBestMaskPattern = function() {
+
+      var minLostPoint = 0;
+      var pattern = 0;
+
+      for (var i = 0; i < 8; i += 1) {
+
+        makeImpl(true, i);
+
+        var lostPoint = QRUtil.getLostPoint(_this);
+
+        if (i == 0 || minLostPoint > lostPoint) {
+          minLostPoint = lostPoint;
+          pattern = i;
+        }
+      }
+
+      return pattern;
+    };
+
+    var setupTimingPattern = function() {
+
+      for (var r = 8; r < _moduleCount - 8; r += 1) {
+        if (_modules[r][6] != null) {
+          continue;
+        }
+        _modules[r][6] = (r % 2 == 0);
+      }
+
+      for (var c = 8; c < _moduleCount - 8; c += 1) {
+        if (_modules[6][c] != null) {
+          continue;
+        }
+        _modules[6][c] = (c % 2 == 0);
+      }
+    };
+
+    var setupPositionAdjustPattern = function() {
+
+      var pos = QRUtil.getPatternPosition(_typeNumber);
+
+      for (var i = 0; i < pos.length; i += 1) {
+
+        for (var j = 0; j < pos.length; j += 1) {
+
+          var row = pos[i];
+          var col = pos[j];
+
+          if (_modules[row][col] != null) {
+            continue;
+          }
+
+          for (var r = -2; r <= 2; r += 1) {
+
+            for (var c = -2; c <= 2; c += 1) {
+
+              if (r == -2 || r == 2 || c == -2 || c == 2
+                  || (r == 0 && c == 0) ) {
+                _modules[row + r][col + c] = true;
+              } else {
+                _modules[row + r][col + c] = false;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    var setupTypeNumber = function(test) {
+
+      var bits = QRUtil.getBCHTypeNumber(_typeNumber);
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[Math.floor(i / 3)][i % 3 + _moduleCount - 8 - 3] = mod;
+      }
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[i % 3 + _moduleCount - 8 - 3][Math.floor(i / 3)] = mod;
+      }
+    };
+
+    var setupTypeInfo = function(test, maskPattern) {
+
+      var data = (_errorCorrectionLevel << 3) | maskPattern;
+      var bits = QRUtil.getBCHTypeInfo(data);
+
+      // vertical
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 6) {
+          _modules[i][8] = mod;
+        } else if (i < 8) {
+          _modules[i + 1][8] = mod;
+        } else {
+          _modules[_moduleCount - 15 + i][8] = mod;
+        }
+      }
+
+      // horizontal
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 8) {
+          _modules[8][_moduleCount - i - 1] = mod;
+        } else if (i < 9) {
+          _modules[8][15 - i - 1 + 1] = mod;
+        } else {
+          _modules[8][15 - i - 1] = mod;
+        }
+      }
+
+      // fixed module
+      _modules[_moduleCount - 8][8] = (!test);
+    };
+
+    var mapData = function(data, maskPattern) {
+
+      var inc = -1;
+      var row = _moduleCount - 1;
+      var bitIndex = 7;
+      var byteIndex = 0;
+      var maskFunc = QRUtil.getMaskFunction(maskPattern);
+
+      for (var col = _moduleCount - 1; col > 0; col -= 2) {
+
+        if (col == 6) col -= 1;
+
+        while (true) {
+
+          for (var c = 0; c < 2; c += 1) {
+
+            if (_modules[row][col - c] == null) {
+
+              var dark = false;
+
+              if (byteIndex < data.length) {
+                dark = ( ( (data[byteIndex] >>> bitIndex) & 1) == 1);
+              }
+
+              var mask = maskFunc(row, col - c);
+
+              if (mask) {
+                dark = !dark;
+              }
+
+              _modules[row][col - c] = dark;
+              bitIndex -= 1;
+
+              if (bitIndex == -1) {
+                byteIndex += 1;
+                bitIndex = 7;
+              }
+            }
+          }
+
+          row += inc;
+
+          if (row < 0 || _moduleCount <= row) {
+            row -= inc;
+            inc = -inc;
+            break;
+          }
+        }
+      }
+    };
+
+    var createBytes = function(buffer, rsBlocks) {
+
+      var offset = 0;
+
+      var maxDcCount = 0;
+      var maxEcCount = 0;
+
+      var dcdata = new Array(rsBlocks.length);
+      var ecdata = new Array(rsBlocks.length);
+
+      for (var r = 0; r < rsBlocks.length; r += 1) {
+
+        var dcCount = rsBlocks[r].dataCount;
+        var ecCount = rsBlocks[r].totalCount - dcCount;
+
+        maxDcCount = Math.max(maxDcCount, dcCount);
+        maxEcCount = Math.max(maxEcCount, ecCount);
+
+        dcdata[r] = new Array(dcCount);
+
+        for (var i = 0; i < dcdata[r].length; i += 1) {
+          dcdata[r][i] = 0xff & buffer.getBuffer()[i + offset];
+        }
+        offset += dcCount;
+
+        var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+        var rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+        var modPoly = rawPoly.mod(rsPoly);
+        ecdata[r] = new Array(rsPoly.getLength() - 1);
+        for (var i = 0; i < ecdata[r].length; i += 1) {
+          var modIndex = i + modPoly.getLength() - ecdata[r].length;
+          ecdata[r][i] = (modIndex >= 0)? modPoly.getAt(modIndex) : 0;
+        }
+      }
+
+      var totalCodeCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalCodeCount += rsBlocks[i].totalCount;
+      }
+
+      var data = new Array(totalCodeCount);
+      var index = 0;
+
+      for (var i = 0; i < maxDcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < dcdata[r].length) {
+            data[index] = dcdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      for (var i = 0; i < maxEcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < ecdata[r].length) {
+            data[index] = ecdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      return data;
+    };
+
+    var createData = function(typeNumber, errorCorrectionLevel, dataList) {
+
+      var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
+
+      var buffer = qrBitBuffer();
+
+      for (var i = 0; i < dataList.length; i += 1) {
+        var data = dataList[i];
+        buffer.put(data.getMode(), 4);
+        buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+        data.write(buffer);
+      }
+
+      // calc num max data.
+      var totalDataCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalDataCount += rsBlocks[i].dataCount;
+      }
+
+      if (buffer.getLengthInBits() > totalDataCount * 8) {
+        throw 'code length overflow. ('
+          + buffer.getLengthInBits()
+          + '>'
+          + totalDataCount * 8
+          + ')';
+      }
+
+      // end code
+      if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+        buffer.put(0, 4);
+      }
+
+      // padding
+      while (buffer.getLengthInBits() % 8 != 0) {
+        buffer.putBit(false);
+      }
+
+      // padding
+      while (true) {
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD0, 8);
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD1, 8);
+      }
+
+      return createBytes(buffer, rsBlocks);
+    };
+
+    _this.addData = function(data, mode) {
+
+      mode = mode || 'Byte';
+
+      var newData = null;
+
+      switch(mode) {
+      case 'Numeric' :
+        newData = qrNumber(data);
+        break;
+      case 'Alphanumeric' :
+        newData = qrAlphaNum(data);
+        break;
+      case 'Byte' :
+        newData = qr8BitByte(data);
+        break;
+      case 'Kanji' :
+        newData = qrKanji(data);
+        break;
+      default :
+        throw 'mode:' + mode;
+      }
+
+      _dataList.push(newData);
+      _dataCache = null;
+    };
+
+    _this.isDark = function(row, col) {
+      if (row < 0 || _moduleCount <= row || col < 0 || _moduleCount <= col) {
+        throw row + ',' + col;
+      }
+      return _modules[row][col];
+    };
+
+    _this.getModuleCount = function() {
+      return _moduleCount;
+    };
+
+    _this.make = function() {
+      if (_typeNumber < 1) {
+        var typeNumber = 1;
+
+        for (; typeNumber < 40; typeNumber++) {
+          var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+          var buffer = qrBitBuffer();
+
+          for (var i = 0; i < _dataList.length; i++) {
+            var data = _dataList[i];
+            buffer.put(data.getMode(), 4);
+            buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+            data.write(buffer);
+          }
+
+          var totalDataCount = 0;
+          for (var i = 0; i < rsBlocks.length; i++) {
+            totalDataCount += rsBlocks[i].dataCount;
+          }
+
+          if (buffer.getLengthInBits() <= totalDataCount * 8) {
+            break;
+          }
+        }
+
+        _typeNumber = typeNumber;
+      }
+
+      makeImpl(false, getBestMaskPattern() );
+    };
+
+    _this.createTableTag = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var qrHtml = '';
+
+      qrHtml += '<table style="';
+      qrHtml += ' border-width: 0px; border-style: none;';
+      qrHtml += ' border-collapse: collapse;';
+      qrHtml += ' padding: 0px; margin: ' + margin + 'px;';
+      qrHtml += '">';
+      qrHtml += '<tbody>';
+
+      for (var r = 0; r < _this.getModuleCount(); r += 1) {
+
+        qrHtml += '<tr>';
+
+        for (var c = 0; c < _this.getModuleCount(); c += 1) {
+          qrHtml += '<td style="';
+          qrHtml += ' border-width: 0px; border-style: none;';
+          qrHtml += ' border-collapse: collapse;';
+          qrHtml += ' padding: 0px; margin: 0px;';
+          qrHtml += ' width: ' + cellSize + 'px;';
+          qrHtml += ' height: ' + cellSize + 'px;';
+          qrHtml += ' background-color: ';
+          qrHtml += _this.isDark(r, c)? '#000000' : '#ffffff';
+          qrHtml += ';';
+          qrHtml += '"/>';
+        }
+
+        qrHtml += '</tr>';
+      }
+
+      qrHtml += '</tbody>';
+      qrHtml += '</table>';
+
+      return qrHtml;
+    };
+
+    _this.createSvgTag = function(cellSize, margin, alt, title) {
+
+      var opts = {};
+      if (typeof arguments[0] == 'object') {
+        // Called by options.
+        opts = arguments[0];
+        // overwrite cellSize and margin.
+        cellSize = opts.cellSize;
+        margin = opts.margin;
+        alt = opts.alt;
+        title = opts.title;
+      }
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      // Compose alt property surrogate
+      alt = (typeof alt === 'string') ? {text: alt} : alt || {};
+      alt.text = alt.text || null;
+      alt.id = (alt.text) ? alt.id || 'qrcode-description' : null;
+
+      // Compose title property surrogate
+      title = (typeof title === 'string') ? {text: title} : title || {};
+      title.text = title.text || null;
+      title.id = (title.text) ? title.id || 'qrcode-title' : null;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var c, mc, r, mr, qrSvg='', rect;
+
+      rect = 'l' + cellSize + ',0 0,' + cellSize +
+        ' -' + cellSize + ',0 0,-' + cellSize + 'z ';
+
+      qrSvg += '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
+      qrSvg += !opts.scalable ? ' width="' + size + 'px" height="' + size + 'px"' : '';
+      qrSvg += ' viewBox="0 0 ' + size + ' ' + size + '" ';
+      qrSvg += ' preserveAspectRatio="xMinYMin meet"';
+      qrSvg += (title.text || alt.text) ? ' role="img" aria-labelledby="' +
+          escapeXml([title.id, alt.id].join(' ').trim() ) + '"' : '';
+      qrSvg += '>';
+      qrSvg += (title.text) ? '<title id="' + escapeXml(title.id) + '">' +
+          escapeXml(title.text) + '</title>' : '';
+      qrSvg += (alt.text) ? '<description id="' + escapeXml(alt.id) + '">' +
+          escapeXml(alt.text) + '</description>' : '';
+      qrSvg += '<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>';
+      qrSvg += '<path d="';
+
+      for (r = 0; r < _this.getModuleCount(); r += 1) {
+        mr = r * cellSize + margin;
+        for (c = 0; c < _this.getModuleCount(); c += 1) {
+          if (_this.isDark(r, c) ) {
+            mc = c*cellSize+margin;
+            qrSvg += 'M' + mc + ',' + mr + rect;
+          }
+        }
+      }
+
+      qrSvg += '" stroke="transparent" fill="black"/>';
+      qrSvg += '</svg>';
+
+      return qrSvg;
+    };
+
+    _this.createDataURL = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      return createDataURL(size, size, function(x, y) {
+        if (min <= x && x < max && min <= y && y < max) {
+          var c = Math.floor( (x - min) / cellSize);
+          var r = Math.floor( (y - min) / cellSize);
+          return _this.isDark(r, c)? 0 : 1;
+        } else {
+          return 1;
+        }
+      } );
+    };
+
+    _this.createImgTag = function(cellSize, margin, alt) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+
+      var img = '';
+      img += '<img';
+      img += '\u0020src="';
+      img += _this.createDataURL(cellSize, margin);
+      img += '"';
+      img += '\u0020width="';
+      img += size;
+      img += '"';
+      img += '\u0020height="';
+      img += size;
+      img += '"';
+      if (alt) {
+        img += '\u0020alt="';
+        img += escapeXml(alt);
+        img += '"';
+      }
+      img += '/>';
+
+      return img;
+    };
+
+    var escapeXml = function(s) {
+      var escaped = '';
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charAt(i);
+        switch(c) {
+        case '<': escaped += '&lt;'; break;
+        case '>': escaped += '&gt;'; break;
+        case '&': escaped += '&amp;'; break;
+        case '"': escaped += '&quot;'; break;
+        default : escaped += c; break;
+        }
+      }
+      return escaped;
+    };
+
+    var _createHalfASCII = function(margin) {
+      var cellSize = 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r1, r2, p;
+
+      var blocks = {
+        '██': '█',
+        '█ ': '▀',
+        ' █': '▄',
+        '  ': ' '
+      };
+
+      var blocksLastLineNoMargin = {
+        '██': '▀',
+        '█ ': '▀',
+        ' █': ' ',
+        '  ': ' '
+      };
+
+      var ascii = '';
+      for (y = 0; y < size; y += 2) {
+        r1 = Math.floor((y - min) / cellSize);
+        r2 = Math.floor((y + 1 - min) / cellSize);
+        for (x = 0; x < size; x += 1) {
+          p = '█';
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r1, Math.floor((x - min) / cellSize))) {
+            p = ' ';
+          }
+
+          if (min <= x && x < max && min <= y+1 && y+1 < max && _this.isDark(r2, Math.floor((x - min) / cellSize))) {
+            p += ' ';
+          }
+          else {
+            p += '█';
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          ascii += (margin < 1 && y+1 >= max) ? blocksLastLineNoMargin[p] : blocks[p];
+        }
+
+        ascii += '\n';
+      }
+
+      if (size % 2 && margin > 0) {
+        return ascii.substring(0, ascii.length - size - 1) + Array(size+1).join('▀');
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.createASCII = function(cellSize, margin) {
+      cellSize = cellSize || 1;
+
+      if (cellSize < 2) {
+        return _createHalfASCII(margin);
+      }
+
+      cellSize -= 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r, p;
+
+      var white = Array(cellSize+1).join('██');
+      var black = Array(cellSize+1).join('  ');
+
+      var ascii = '';
+      var line = '';
+      for (y = 0; y < size; y += 1) {
+        r = Math.floor( (y - min) / cellSize);
+        line = '';
+        for (x = 0; x < size; x += 1) {
+          p = 1;
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r, Math.floor((x - min) / cellSize))) {
+            p = 0;
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          line += p ? white : black;
+        }
+
+        for (r = 0; r < cellSize; r += 1) {
+          ascii += line + '\n';
+        }
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.renderTo2dContext = function(context, cellSize) {
+      cellSize = cellSize || 2;
+      var length = _this.getModuleCount();
+      for (var row = 0; row < length; row++) {
+        for (var col = 0; col < length; col++) {
+          context.fillStyle = _this.isDark(row, col) ? 'black' : 'white';
+          context.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrcode.stringToBytes
+  //---------------------------------------------------------------------
+
+  qrcode.stringToBytesFuncs = {
+    'default' : function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        bytes.push(c & 0xff);
+      }
+      return bytes;
+    }
+  };
+
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['default'];
+
+  //---------------------------------------------------------------------
+  // qrcode.createStringToBytes
+  //---------------------------------------------------------------------
+
+  /**
+   * @param unicodeData base64 string of byte array.
+   * [16bit Unicode],[16bit Bytes], ...
+   * @param numChars
+   */
+  qrcode.createStringToBytes = function(unicodeData, numChars) {
+
+    // create conversion map.
+
+    var unicodeMap = function() {
+
+      var bin = base64DecodeInputStream(unicodeData);
+      var read = function() {
+        var b = bin.read();
+        if (b == -1) throw 'eof';
+        return b;
+      };
+
+      var count = 0;
+      var unicodeMap = {};
+      while (true) {
+        var b0 = bin.read();
+        if (b0 == -1) break;
+        var b1 = read();
+        var b2 = read();
+        var b3 = read();
+        var k = String.fromCharCode( (b0 << 8) | b1);
+        var v = (b2 << 8) | b3;
+        unicodeMap[k] = v;
+        count += 1;
+      }
+      if (count != numChars) {
+        throw count + ' != ' + numChars;
+      }
+
+      return unicodeMap;
+    }();
+
+    var unknownChar = '?'.charCodeAt(0);
+
+    return function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        if (c < 128) {
+          bytes.push(c);
+        } else {
+          var b = unicodeMap[s.charAt(i)];
+          if (typeof b == 'number') {
+            if ( (b & 0xff) == b) {
+              // 1byte
+              bytes.push(b);
+            } else {
+              // 2bytes
+              bytes.push(b >>> 8);
+              bytes.push(b & 0xff);
+            }
+          } else {
+            bytes.push(unknownChar);
+          }
+        }
+      }
+      return bytes;
+    };
+  };
+
+  //---------------------------------------------------------------------
+  // QRMode
+  //---------------------------------------------------------------------
+
+  var QRMode = {
+    MODE_NUMBER :    1 << 0,
+    MODE_ALPHA_NUM : 1 << 1,
+    MODE_8BIT_BYTE : 1 << 2,
+    MODE_KANJI :     1 << 3
+  };
+
+  //---------------------------------------------------------------------
+  // QRErrorCorrectionLevel
+  //---------------------------------------------------------------------
+
+  var QRErrorCorrectionLevel = {
+    L : 1,
+    M : 0,
+    Q : 3,
+    H : 2
+  };
+
+  //---------------------------------------------------------------------
+  // QRMaskPattern
+  //---------------------------------------------------------------------
+
+  var QRMaskPattern = {
+    PATTERN000 : 0,
+    PATTERN001 : 1,
+    PATTERN010 : 2,
+    PATTERN011 : 3,
+    PATTERN100 : 4,
+    PATTERN101 : 5,
+    PATTERN110 : 6,
+    PATTERN111 : 7
+  };
+
+  //---------------------------------------------------------------------
+  // QRUtil
+  //---------------------------------------------------------------------
+
+  var QRUtil = function() {
+
+    var PATTERN_POSITION_TABLE = [
+      [],
+      [6, 18],
+      [6, 22],
+      [6, 26],
+      [6, 30],
+      [6, 34],
+      [6, 22, 38],
+      [6, 24, 42],
+      [6, 26, 46],
+      [6, 28, 50],
+      [6, 30, 54],
+      [6, 32, 58],
+      [6, 34, 62],
+      [6, 26, 46, 66],
+      [6, 26, 48, 70],
+      [6, 26, 50, 74],
+      [6, 30, 54, 78],
+      [6, 30, 56, 82],
+      [6, 30, 58, 86],
+      [6, 34, 62, 90],
+      [6, 28, 50, 72, 94],
+      [6, 26, 50, 74, 98],
+      [6, 30, 54, 78, 102],
+      [6, 28, 54, 80, 106],
+      [6, 32, 58, 84, 110],
+      [6, 30, 58, 86, 114],
+      [6, 34, 62, 90, 118],
+      [6, 26, 50, 74, 98, 122],
+      [6, 30, 54, 78, 102, 126],
+      [6, 26, 52, 78, 104, 130],
+      [6, 30, 56, 82, 108, 134],
+      [6, 34, 60, 86, 112, 138],
+      [6, 30, 58, 86, 114, 142],
+      [6, 34, 62, 90, 118, 146],
+      [6, 30, 54, 78, 102, 126, 150],
+      [6, 24, 50, 76, 102, 128, 154],
+      [6, 28, 54, 80, 106, 132, 158],
+      [6, 32, 58, 84, 110, 136, 162],
+      [6, 26, 54, 82, 110, 138, 166],
+      [6, 30, 58, 86, 114, 142, 170]
+    ];
+    var G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0);
+    var G18 = (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0);
+    var G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
+
+    var _this = {};
+
+    var getBCHDigit = function(data) {
+      var digit = 0;
+      while (data != 0) {
+        digit += 1;
+        data >>>= 1;
+      }
+      return digit;
+    };
+
+    _this.getBCHTypeInfo = function(data) {
+      var d = data << 10;
+      while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
+        d ^= (G15 << (getBCHDigit(d) - getBCHDigit(G15) ) );
+      }
+      return ( (data << 10) | d) ^ G15_MASK;
+    };
+
+    _this.getBCHTypeNumber = function(data) {
+      var d = data << 12;
+      while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
+        d ^= (G18 << (getBCHDigit(d) - getBCHDigit(G18) ) );
+      }
+      return (data << 12) | d;
+    };
+
+    _this.getPatternPosition = function(typeNumber) {
+      return PATTERN_POSITION_TABLE[typeNumber - 1];
+    };
+
+    _this.getMaskFunction = function(maskPattern) {
+
+      switch (maskPattern) {
+
+      case QRMaskPattern.PATTERN000 :
+        return function(i, j) { return (i + j) % 2 == 0; };
+      case QRMaskPattern.PATTERN001 :
+        return function(i, j) { return i % 2 == 0; };
+      case QRMaskPattern.PATTERN010 :
+        return function(i, j) { return j % 3 == 0; };
+      case QRMaskPattern.PATTERN011 :
+        return function(i, j) { return (i + j) % 3 == 0; };
+      case QRMaskPattern.PATTERN100 :
+        return function(i, j) { return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 == 0; };
+      case QRMaskPattern.PATTERN101 :
+        return function(i, j) { return (i * j) % 2 + (i * j) % 3 == 0; };
+      case QRMaskPattern.PATTERN110 :
+        return function(i, j) { return ( (i * j) % 2 + (i * j) % 3) % 2 == 0; };
+      case QRMaskPattern.PATTERN111 :
+        return function(i, j) { return ( (i * j) % 3 + (i + j) % 2) % 2 == 0; };
+
+      default :
+        throw 'bad maskPattern:' + maskPattern;
+      }
+    };
+
+    _this.getErrorCorrectPolynomial = function(errorCorrectLength) {
+      var a = qrPolynomial([1], 0);
+      for (var i = 0; i < errorCorrectLength; i += 1) {
+        a = a.multiply(qrPolynomial([1, QRMath.gexp(i)], 0) );
+      }
+      return a;
+    };
+
+    _this.getLengthInBits = function(mode, type) {
+
+      if (1 <= type && type < 10) {
+
+        // 1 - 9
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 10;
+        case QRMode.MODE_ALPHA_NUM : return 9;
+        case QRMode.MODE_8BIT_BYTE : return 8;
+        case QRMode.MODE_KANJI     : return 8;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 27) {
+
+        // 10 - 26
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 12;
+        case QRMode.MODE_ALPHA_NUM : return 11;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 10;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 41) {
+
+        // 27 - 40
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 14;
+        case QRMode.MODE_ALPHA_NUM : return 13;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 12;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else {
+        throw 'type:' + type;
+      }
+    };
+
+    _this.getLostPoint = function(qrcode) {
+
+      var moduleCount = qrcode.getModuleCount();
+
+      var lostPoint = 0;
+
+      // LEVEL1
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount; col += 1) {
+
+          var sameCount = 0;
+          var dark = qrcode.isDark(row, col);
+
+          for (var r = -1; r <= 1; r += 1) {
+
+            if (row + r < 0 || moduleCount <= row + r) {
+              continue;
+            }
+
+            for (var c = -1; c <= 1; c += 1) {
+
+              if (col + c < 0 || moduleCount <= col + c) {
+                continue;
+              }
+
+              if (r == 0 && c == 0) {
+                continue;
+              }
+
+              if (dark == qrcode.isDark(row + r, col + c) ) {
+                sameCount += 1;
+              }
+            }
+          }
+
+          if (sameCount > 5) {
+            lostPoint += (3 + sameCount - 5);
+          }
+        }
+      };
+
+      // LEVEL2
+
+      for (var row = 0; row < moduleCount - 1; row += 1) {
+        for (var col = 0; col < moduleCount - 1; col += 1) {
+          var count = 0;
+          if (qrcode.isDark(row, col) ) count += 1;
+          if (qrcode.isDark(row + 1, col) ) count += 1;
+          if (qrcode.isDark(row, col + 1) ) count += 1;
+          if (qrcode.isDark(row + 1, col + 1) ) count += 1;
+          if (count == 0 || count == 4) {
+            lostPoint += 3;
+          }
+        }
+      }
+
+      // LEVEL3
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount - 6; col += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row, col + 1)
+              &&  qrcode.isDark(row, col + 2)
+              &&  qrcode.isDark(row, col + 3)
+              &&  qrcode.isDark(row, col + 4)
+              && !qrcode.isDark(row, col + 5)
+              &&  qrcode.isDark(row, col + 6) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount - 6; row += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row + 1, col)
+              &&  qrcode.isDark(row + 2, col)
+              &&  qrcode.isDark(row + 3, col)
+              &&  qrcode.isDark(row + 4, col)
+              && !qrcode.isDark(row + 5, col)
+              &&  qrcode.isDark(row + 6, col) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      // LEVEL4
+
+      var darkCount = 0;
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount; row += 1) {
+          if (qrcode.isDark(row, col) ) {
+            darkCount += 1;
+          }
+        }
+      }
+
+      var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+      lostPoint += ratio * 10;
+
+      return lostPoint;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // QRMath
+  //---------------------------------------------------------------------
+
+  var QRMath = function() {
+
+    var EXP_TABLE = new Array(256);
+    var LOG_TABLE = new Array(256);
+
+    // initialize tables
+    for (var i = 0; i < 8; i += 1) {
+      EXP_TABLE[i] = 1 << i;
+    }
+    for (var i = 8; i < 256; i += 1) {
+      EXP_TABLE[i] = EXP_TABLE[i - 4]
+        ^ EXP_TABLE[i - 5]
+        ^ EXP_TABLE[i - 6]
+        ^ EXP_TABLE[i - 8];
+    }
+    for (var i = 0; i < 255; i += 1) {
+      LOG_TABLE[EXP_TABLE[i] ] = i;
+    }
+
+    var _this = {};
+
+    _this.glog = function(n) {
+
+      if (n < 1) {
+        throw 'glog(' + n + ')';
+      }
+
+      return LOG_TABLE[n];
+    };
+
+    _this.gexp = function(n) {
+
+      while (n < 0) {
+        n += 255;
+      }
+
+      while (n >= 256) {
+        n -= 255;
+      }
+
+      return EXP_TABLE[n];
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrPolynomial
+  //---------------------------------------------------------------------
+
+  function qrPolynomial(num, shift) {
+
+    if (typeof num.length == 'undefined') {
+      throw num.length + '/' + shift;
+    }
+
+    var _num = function() {
+      var offset = 0;
+      while (offset < num.length && num[offset] == 0) {
+        offset += 1;
+      }
+      var _num = new Array(num.length - offset + shift);
+      for (var i = 0; i < num.length - offset; i += 1) {
+        _num[i] = num[i + offset];
+      }
+      return _num;
+    }();
+
+    var _this = {};
+
+    _this.getAt = function(index) {
+      return _num[index];
+    };
+
+    _this.getLength = function() {
+      return _num.length;
+    };
+
+    _this.multiply = function(e) {
+
+      var num = new Array(_this.getLength() + e.getLength() - 1);
+
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        for (var j = 0; j < e.getLength(); j += 1) {
+          num[i + j] ^= QRMath.gexp(QRMath.glog(_this.getAt(i) ) + QRMath.glog(e.getAt(j) ) );
+        }
+      }
+
+      return qrPolynomial(num, 0);
+    };
+
+    _this.mod = function(e) {
+
+      if (_this.getLength() - e.getLength() < 0) {
+        return _this;
+      }
+
+      var ratio = QRMath.glog(_this.getAt(0) ) - QRMath.glog(e.getAt(0) );
+
+      var num = new Array(_this.getLength() );
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        num[i] = _this.getAt(i);
+      }
+
+      for (var i = 0; i < e.getLength(); i += 1) {
+        num[i] ^= QRMath.gexp(QRMath.glog(e.getAt(i) ) + ratio);
+      }
+
+      // recursive call
+      return qrPolynomial(num, 0).mod(e);
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // QRRSBlock
+  //---------------------------------------------------------------------
+
+  var QRRSBlock = function() {
+
+    var RS_BLOCK_TABLE = [
+
+      // L
+      // M
+      // Q
+      // H
+
+      // 1
+      [1, 26, 19],
+      [1, 26, 16],
+      [1, 26, 13],
+      [1, 26, 9],
+
+      // 2
+      [1, 44, 34],
+      [1, 44, 28],
+      [1, 44, 22],
+      [1, 44, 16],
+
+      // 3
+      [1, 70, 55],
+      [1, 70, 44],
+      [2, 35, 17],
+      [2, 35, 13],
+
+      // 4
+      [1, 100, 80],
+      [2, 50, 32],
+      [2, 50, 24],
+      [4, 25, 9],
+
+      // 5
+      [1, 134, 108],
+      [2, 67, 43],
+      [2, 33, 15, 2, 34, 16],
+      [2, 33, 11, 2, 34, 12],
+
+      // 6
+      [2, 86, 68],
+      [4, 43, 27],
+      [4, 43, 19],
+      [4, 43, 15],
+
+      // 7
+      [2, 98, 78],
+      [4, 49, 31],
+      [2, 32, 14, 4, 33, 15],
+      [4, 39, 13, 1, 40, 14],
+
+      // 8
+      [2, 121, 97],
+      [2, 60, 38, 2, 61, 39],
+      [4, 40, 18, 2, 41, 19],
+      [4, 40, 14, 2, 41, 15],
+
+      // 9
+      [2, 146, 116],
+      [3, 58, 36, 2, 59, 37],
+      [4, 36, 16, 4, 37, 17],
+      [4, 36, 12, 4, 37, 13],
+
+      // 10
+      [2, 86, 68, 2, 87, 69],
+      [4, 69, 43, 1, 70, 44],
+      [6, 43, 19, 2, 44, 20],
+      [6, 43, 15, 2, 44, 16],
+
+      // 11
+      [4, 101, 81],
+      [1, 80, 50, 4, 81, 51],
+      [4, 50, 22, 4, 51, 23],
+      [3, 36, 12, 8, 37, 13],
+
+      // 12
+      [2, 116, 92, 2, 117, 93],
+      [6, 58, 36, 2, 59, 37],
+      [4, 46, 20, 6, 47, 21],
+      [7, 42, 14, 4, 43, 15],
+
+      // 13
+      [4, 133, 107],
+      [8, 59, 37, 1, 60, 38],
+      [8, 44, 20, 4, 45, 21],
+      [12, 33, 11, 4, 34, 12],
+
+      // 14
+      [3, 145, 115, 1, 146, 116],
+      [4, 64, 40, 5, 65, 41],
+      [11, 36, 16, 5, 37, 17],
+      [11, 36, 12, 5, 37, 13],
+
+      // 15
+      [5, 109, 87, 1, 110, 88],
+      [5, 65, 41, 5, 66, 42],
+      [5, 54, 24, 7, 55, 25],
+      [11, 36, 12, 7, 37, 13],
+
+      // 16
+      [5, 122, 98, 1, 123, 99],
+      [7, 73, 45, 3, 74, 46],
+      [15, 43, 19, 2, 44, 20],
+      [3, 45, 15, 13, 46, 16],
+
+      // 17
+      [1, 135, 107, 5, 136, 108],
+      [10, 74, 46, 1, 75, 47],
+      [1, 50, 22, 15, 51, 23],
+      [2, 42, 14, 17, 43, 15],
+
+      // 18
+      [5, 150, 120, 1, 151, 121],
+      [9, 69, 43, 4, 70, 44],
+      [17, 50, 22, 1, 51, 23],
+      [2, 42, 14, 19, 43, 15],
+
+      // 19
+      [3, 141, 113, 4, 142, 114],
+      [3, 70, 44, 11, 71, 45],
+      [17, 47, 21, 4, 48, 22],
+      [9, 39, 13, 16, 40, 14],
+
+      // 20
+      [3, 135, 107, 5, 136, 108],
+      [3, 67, 41, 13, 68, 42],
+      [15, 54, 24, 5, 55, 25],
+      [15, 43, 15, 10, 44, 16],
+
+      // 21
+      [4, 144, 116, 4, 145, 117],
+      [17, 68, 42],
+      [17, 50, 22, 6, 51, 23],
+      [19, 46, 16, 6, 47, 17],
+
+      // 22
+      [2, 139, 111, 7, 140, 112],
+      [17, 74, 46],
+      [7, 54, 24, 16, 55, 25],
+      [34, 37, 13],
+
+      // 23
+      [4, 151, 121, 5, 152, 122],
+      [4, 75, 47, 14, 76, 48],
+      [11, 54, 24, 14, 55, 25],
+      [16, 45, 15, 14, 46, 16],
+
+      // 24
+      [6, 147, 117, 4, 148, 118],
+      [6, 73, 45, 14, 74, 46],
+      [11, 54, 24, 16, 55, 25],
+      [30, 46, 16, 2, 47, 17],
+
+      // 25
+      [8, 132, 106, 4, 133, 107],
+      [8, 75, 47, 13, 76, 48],
+      [7, 54, 24, 22, 55, 25],
+      [22, 45, 15, 13, 46, 16],
+
+      // 26
+      [10, 142, 114, 2, 143, 115],
+      [19, 74, 46, 4, 75, 47],
+      [28, 50, 22, 6, 51, 23],
+      [33, 46, 16, 4, 47, 17],
+
+      // 27
+      [8, 152, 122, 4, 153, 123],
+      [22, 73, 45, 3, 74, 46],
+      [8, 53, 23, 26, 54, 24],
+      [12, 45, 15, 28, 46, 16],
+
+      // 28
+      [3, 147, 117, 10, 148, 118],
+      [3, 73, 45, 23, 74, 46],
+      [4, 54, 24, 31, 55, 25],
+      [11, 45, 15, 31, 46, 16],
+
+      // 29
+      [7, 146, 116, 7, 147, 117],
+      [21, 73, 45, 7, 74, 46],
+      [1, 53, 23, 37, 54, 24],
+      [19, 45, 15, 26, 46, 16],
+
+      // 30
+      [5, 145, 115, 10, 146, 116],
+      [19, 75, 47, 10, 76, 48],
+      [15, 54, 24, 25, 55, 25],
+      [23, 45, 15, 25, 46, 16],
+
+      // 31
+      [13, 145, 115, 3, 146, 116],
+      [2, 74, 46, 29, 75, 47],
+      [42, 54, 24, 1, 55, 25],
+      [23, 45, 15, 28, 46, 16],
+
+      // 32
+      [17, 145, 115],
+      [10, 74, 46, 23, 75, 47],
+      [10, 54, 24, 35, 55, 25],
+      [19, 45, 15, 35, 46, 16],
+
+      // 33
+      [17, 145, 115, 1, 146, 116],
+      [14, 74, 46, 21, 75, 47],
+      [29, 54, 24, 19, 55, 25],
+      [11, 45, 15, 46, 46, 16],
+
+      // 34
+      [13, 145, 115, 6, 146, 116],
+      [14, 74, 46, 23, 75, 47],
+      [44, 54, 24, 7, 55, 25],
+      [59, 46, 16, 1, 47, 17],
+
+      // 35
+      [12, 151, 121, 7, 152, 122],
+      [12, 75, 47, 26, 76, 48],
+      [39, 54, 24, 14, 55, 25],
+      [22, 45, 15, 41, 46, 16],
+
+      // 36
+      [6, 151, 121, 14, 152, 122],
+      [6, 75, 47, 34, 76, 48],
+      [46, 54, 24, 10, 55, 25],
+      [2, 45, 15, 64, 46, 16],
+
+      // 37
+      [17, 152, 122, 4, 153, 123],
+      [29, 74, 46, 14, 75, 47],
+      [49, 54, 24, 10, 55, 25],
+      [24, 45, 15, 46, 46, 16],
+
+      // 38
+      [4, 152, 122, 18, 153, 123],
+      [13, 74, 46, 32, 75, 47],
+      [48, 54, 24, 14, 55, 25],
+      [42, 45, 15, 32, 46, 16],
+
+      // 39
+      [20, 147, 117, 4, 148, 118],
+      [40, 75, 47, 7, 76, 48],
+      [43, 54, 24, 22, 55, 25],
+      [10, 45, 15, 67, 46, 16],
+
+      // 40
+      [19, 148, 118, 6, 149, 119],
+      [18, 75, 47, 31, 76, 48],
+      [34, 54, 24, 34, 55, 25],
+      [20, 45, 15, 61, 46, 16]
+    ];
+
+    var qrRSBlock = function(totalCount, dataCount) {
+      var _this = {};
+      _this.totalCount = totalCount;
+      _this.dataCount = dataCount;
+      return _this;
+    };
+
+    var _this = {};
+
+    var getRsBlockTable = function(typeNumber, errorCorrectionLevel) {
+
+      switch(errorCorrectionLevel) {
+      case QRErrorCorrectionLevel.L :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+      case QRErrorCorrectionLevel.M :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+      case QRErrorCorrectionLevel.Q :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+      case QRErrorCorrectionLevel.H :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+      default :
+        return undefined;
+      }
+    };
+
+    _this.getRSBlocks = function(typeNumber, errorCorrectionLevel) {
+
+      var rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
+
+      if (typeof rsBlock == 'undefined') {
+        throw 'bad rs block @ typeNumber:' + typeNumber +
+            '/errorCorrectionLevel:' + errorCorrectionLevel;
+      }
+
+      var length = rsBlock.length / 3;
+
+      var list = [];
+
+      for (var i = 0; i < length; i += 1) {
+
+        var count = rsBlock[i * 3 + 0];
+        var totalCount = rsBlock[i * 3 + 1];
+        var dataCount = rsBlock[i * 3 + 2];
+
+        for (var j = 0; j < count; j += 1) {
+          list.push(qrRSBlock(totalCount, dataCount) );
+        }
+      }
+
+      return list;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrBitBuffer
+  //---------------------------------------------------------------------
+
+  var qrBitBuffer = function() {
+
+    var _buffer = [];
+    var _length = 0;
+
+    var _this = {};
+
+    _this.getBuffer = function() {
+      return _buffer;
+    };
+
+    _this.getAt = function(index) {
+      var bufIndex = Math.floor(index / 8);
+      return ( (_buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+    };
+
+    _this.put = function(num, length) {
+      for (var i = 0; i < length; i += 1) {
+        _this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+      }
+    };
+
+    _this.getLengthInBits = function() {
+      return _length;
+    };
+
+    _this.putBit = function(bit) {
+
+      var bufIndex = Math.floor(_length / 8);
+      if (_buffer.length <= bufIndex) {
+        _buffer.push(0);
+      }
+
+      if (bit) {
+        _buffer[bufIndex] |= (0x80 >>> (_length % 8) );
+      }
+
+      _length += 1;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrNumber
+  //---------------------------------------------------------------------
+
+  var qrNumber = function(data) {
+
+    var _mode = QRMode.MODE_NUMBER;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _data;
+
+      var i = 0;
+
+      while (i + 2 < data.length) {
+        buffer.put(strToNum(data.substring(i, i + 3) ), 10);
+        i += 3;
+      }
+
+      if (i < data.length) {
+        if (data.length - i == 1) {
+          buffer.put(strToNum(data.substring(i, i + 1) ), 4);
+        } else if (data.length - i == 2) {
+          buffer.put(strToNum(data.substring(i, i + 2) ), 7);
+        }
+      }
+    };
+
+    var strToNum = function(s) {
+      var num = 0;
+      for (var i = 0; i < s.length; i += 1) {
+        num = num * 10 + chatToNum(s.charAt(i) );
+      }
+      return num;
+    };
+
+    var chatToNum = function(c) {
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      }
+      throw 'illegal char :' + c;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrAlphaNum
+  //---------------------------------------------------------------------
+
+  var qrAlphaNum = function(data) {
+
+    var _mode = QRMode.MODE_ALPHA_NUM;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var s = _data;
+
+      var i = 0;
+
+      while (i + 1 < s.length) {
+        buffer.put(
+          getCode(s.charAt(i) ) * 45 +
+          getCode(s.charAt(i + 1) ), 11);
+        i += 2;
+      }
+
+      if (i < s.length) {
+        buffer.put(getCode(s.charAt(i) ), 6);
+      }
+    };
+
+    var getCode = function(c) {
+
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      } else if ('A' <= c && c <= 'Z') {
+        return c.charCodeAt(0) - 'A'.charCodeAt(0) + 10;
+      } else {
+        switch (c) {
+        case ' ' : return 36;
+        case '$' : return 37;
+        case '%' : return 38;
+        case '*' : return 39;
+        case '+' : return 40;
+        case '-' : return 41;
+        case '.' : return 42;
+        case '/' : return 43;
+        case ':' : return 44;
+        default :
+          throw 'illegal char :' + c;
+        }
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qr8BitByte
+  //---------------------------------------------------------------------
+
+  var qr8BitByte = function(data) {
+
+    var _mode = QRMode.MODE_8BIT_BYTE;
+    var _data = data;
+    var _bytes = qrcode.stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _bytes.length;
+    };
+
+    _this.write = function(buffer) {
+      for (var i = 0; i < _bytes.length; i += 1) {
+        buffer.put(_bytes[i], 8);
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrKanji
+  //---------------------------------------------------------------------
+
+  var qrKanji = function(data) {
+
+    var _mode = QRMode.MODE_KANJI;
+    var _data = data;
+
+    var stringToBytes = qrcode.stringToBytesFuncs['SJIS'];
+    if (!stringToBytes) {
+      throw 'sjis not supported.';
+    }
+    !function(c, code) {
+      // self test for sjis support.
+      var test = stringToBytes(c);
+      if (test.length != 2 || ( (test[0] << 8) | test[1]) != code) {
+        throw 'sjis not supported.';
+      }
+    }('\u53cb', 0x9746);
+
+    var _bytes = stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return ~~(_bytes.length / 2);
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _bytes;
+
+      var i = 0;
+
+      while (i + 1 < data.length) {
+
+        var c = ( (0xff & data[i]) << 8) | (0xff & data[i + 1]);
+
+        if (0x8140 <= c && c <= 0x9FFC) {
+          c -= 0x8140;
+        } else if (0xE040 <= c && c <= 0xEBBF) {
+          c -= 0xC140;
+        } else {
+          throw 'illegal char at ' + (i + 1) + '/' + c;
+        }
+
+        c = ( (c >>> 8) & 0xff) * 0xC0 + (c & 0xff);
+
+        buffer.put(c, 13);
+
+        i += 2;
+      }
+
+      if (i < data.length) {
+        throw 'illegal char at ' + (i + 1);
+      }
+    };
+
+    return _this;
+  };
+
+  //=====================================================================
+  // GIF Support etc.
+  //
+
+  //---------------------------------------------------------------------
+  // byteArrayOutputStream
+  //---------------------------------------------------------------------
+
+  var byteArrayOutputStream = function() {
+
+    var _bytes = [];
+
+    var _this = {};
+
+    _this.writeByte = function(b) {
+      _bytes.push(b & 0xff);
+    };
+
+    _this.writeShort = function(i) {
+      _this.writeByte(i);
+      _this.writeByte(i >>> 8);
+    };
+
+    _this.writeBytes = function(b, off, len) {
+      off = off || 0;
+      len = len || b.length;
+      for (var i = 0; i < len; i += 1) {
+        _this.writeByte(b[i + off]);
+      }
+    };
+
+    _this.writeString = function(s) {
+      for (var i = 0; i < s.length; i += 1) {
+        _this.writeByte(s.charCodeAt(i) );
+      }
+    };
+
+    _this.toByteArray = function() {
+      return _bytes;
+    };
+
+    _this.toString = function() {
+      var s = '';
+      s += '[';
+      for (var i = 0; i < _bytes.length; i += 1) {
+        if (i > 0) {
+          s += ',';
+        }
+        s += _bytes[i];
+      }
+      s += ']';
+      return s;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64EncodeOutputStream
+  //---------------------------------------------------------------------
+
+  var base64EncodeOutputStream = function() {
+
+    var _buffer = 0;
+    var _buflen = 0;
+    var _length = 0;
+    var _base64 = '';
+
+    var _this = {};
+
+    var writeEncoded = function(b) {
+      _base64 += String.fromCharCode(encode(b & 0x3f) );
+    };
+
+    var encode = function(n) {
+      if (n < 0) {
+        // error.
+      } else if (n < 26) {
+        return 0x41 + n;
+      } else if (n < 52) {
+        return 0x61 + (n - 26);
+      } else if (n < 62) {
+        return 0x30 + (n - 52);
+      } else if (n == 62) {
+        return 0x2b;
+      } else if (n == 63) {
+        return 0x2f;
+      }
+      throw 'n:' + n;
+    };
+
+    _this.writeByte = function(n) {
+
+      _buffer = (_buffer << 8) | (n & 0xff);
+      _buflen += 8;
+      _length += 1;
+
+      while (_buflen >= 6) {
+        writeEncoded(_buffer >>> (_buflen - 6) );
+        _buflen -= 6;
+      }
+    };
+
+    _this.flush = function() {
+
+      if (_buflen > 0) {
+        writeEncoded(_buffer << (6 - _buflen) );
+        _buffer = 0;
+        _buflen = 0;
+      }
+
+      if (_length % 3 != 0) {
+        // padding
+        var padlen = 3 - _length % 3;
+        for (var i = 0; i < padlen; i += 1) {
+          _base64 += '=';
+        }
+      }
+    };
+
+    _this.toString = function() {
+      return _base64;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64DecodeInputStream
+  //---------------------------------------------------------------------
+
+  var base64DecodeInputStream = function(str) {
+
+    var _str = str;
+    var _pos = 0;
+    var _buffer = 0;
+    var _buflen = 0;
+
+    var _this = {};
+
+    _this.read = function() {
+
+      while (_buflen < 8) {
+
+        if (_pos >= _str.length) {
+          if (_buflen == 0) {
+            return -1;
+          }
+          throw 'unexpected end of file./' + _buflen;
+        }
+
+        var c = _str.charAt(_pos);
+        _pos += 1;
+
+        if (c == '=') {
+          _buflen = 0;
+          return -1;
+        } else if (c.match(/^\s$/) ) {
+          // ignore if whitespace.
+          continue;
+        }
+
+        _buffer = (_buffer << 6) | decode(c.charCodeAt(0) );
+        _buflen += 6;
+      }
+
+      var n = (_buffer >>> (_buflen - 8) ) & 0xff;
+      _buflen -= 8;
+      return n;
+    };
+
+    var decode = function(c) {
+      if (0x41 <= c && c <= 0x5a) {
+        return c - 0x41;
+      } else if (0x61 <= c && c <= 0x7a) {
+        return c - 0x61 + 26;
+      } else if (0x30 <= c && c <= 0x39) {
+        return c - 0x30 + 52;
+      } else if (c == 0x2b) {
+        return 62;
+      } else if (c == 0x2f) {
+        return 63;
+      } else {
+        throw 'c:' + c;
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // gifImage (B/W)
+  //---------------------------------------------------------------------
+
+  var gifImage = function(width, height) {
+
+    var _width = width;
+    var _height = height;
+    var _data = new Array(width * height);
+
+    var _this = {};
+
+    _this.setPixel = function(x, y, pixel) {
+      _data[y * _width + x] = pixel;
+    };
+
+    _this.write = function(out) {
+
+      //---------------------------------
+      // GIF Signature
+
+      out.writeString('GIF87a');
+
+      //---------------------------------
+      // Screen Descriptor
+
+      out.writeShort(_width);
+      out.writeShort(_height);
+
+      out.writeByte(0x80); // 2bit
+      out.writeByte(0);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Global Color Map
+
+      // black
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+
+      // white
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+
+      //---------------------------------
+      // Image Descriptor
+
+      out.writeString(',');
+      out.writeShort(0);
+      out.writeShort(0);
+      out.writeShort(_width);
+      out.writeShort(_height);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Local Color Map
+
+      //---------------------------------
+      // Raster Data
+
+      var lzwMinCodeSize = 2;
+      var raster = getLZWRaster(lzwMinCodeSize);
+
+      out.writeByte(lzwMinCodeSize);
+
+      var offset = 0;
+
+      while (raster.length - offset > 255) {
+        out.writeByte(255);
+        out.writeBytes(raster, offset, 255);
+        offset += 255;
+      }
+
+      out.writeByte(raster.length - offset);
+      out.writeBytes(raster, offset, raster.length - offset);
+      out.writeByte(0x00);
+
+      //---------------------------------
+      // GIF Terminator
+      out.writeString(';');
+    };
+
+    var bitOutputStream = function(out) {
+
+      var _out = out;
+      var _bitLength = 0;
+      var _bitBuffer = 0;
+
+      var _this = {};
+
+      _this.write = function(data, length) {
+
+        if ( (data >>> length) != 0) {
+          throw 'length over';
+        }
+
+        while (_bitLength + length >= 8) {
+          _out.writeByte(0xff & ( (data << _bitLength) | _bitBuffer) );
+          length -= (8 - _bitLength);
+          data >>>= (8 - _bitLength);
+          _bitBuffer = 0;
+          _bitLength = 0;
+        }
+
+        _bitBuffer = (data << _bitLength) | _bitBuffer;
+        _bitLength = _bitLength + length;
+      };
+
+      _this.flush = function() {
+        if (_bitLength > 0) {
+          _out.writeByte(_bitBuffer);
+        }
+      };
+
+      return _this;
+    };
+
+    var getLZWRaster = function(lzwMinCodeSize) {
+
+      var clearCode = 1 << lzwMinCodeSize;
+      var endCode = (1 << lzwMinCodeSize) + 1;
+      var bitLength = lzwMinCodeSize + 1;
+
+      // Setup LZWTable
+      var table = lzwTable();
+
+      for (var i = 0; i < clearCode; i += 1) {
+        table.add(String.fromCharCode(i) );
+      }
+      table.add(String.fromCharCode(clearCode) );
+      table.add(String.fromCharCode(endCode) );
+
+      var byteOut = byteArrayOutputStream();
+      var bitOut = bitOutputStream(byteOut);
+
+      // clear code
+      bitOut.write(clearCode, bitLength);
+
+      var dataIndex = 0;
+
+      var s = String.fromCharCode(_data[dataIndex]);
+      dataIndex += 1;
+
+      while (dataIndex < _data.length) {
+
+        var c = String.fromCharCode(_data[dataIndex]);
+        dataIndex += 1;
+
+        if (table.contains(s + c) ) {
+
+          s = s + c;
+
+        } else {
+
+          bitOut.write(table.indexOf(s), bitLength);
+
+          if (table.size() < 0xfff) {
+
+            if (table.size() == (1 << bitLength) ) {
+              bitLength += 1;
+            }
+
+            table.add(s + c);
+          }
+
+          s = c;
+        }
+      }
+
+      bitOut.write(table.indexOf(s), bitLength);
+
+      // end code
+      bitOut.write(endCode, bitLength);
+
+      bitOut.flush();
+
+      return byteOut.toByteArray();
+    };
+
+    var lzwTable = function() {
+
+      var _map = {};
+      var _size = 0;
+
+      var _this = {};
+
+      _this.add = function(key) {
+        if (_this.contains(key) ) {
+          throw 'dup key:' + key;
+        }
+        _map[key] = _size;
+        _size += 1;
+      };
+
+      _this.size = function() {
+        return _size;
+      };
+
+      _this.indexOf = function(key) {
+        return _map[key];
+      };
+
+      _this.contains = function(key) {
+        return typeof _map[key] != 'undefined';
+      };
+
+      return _this;
+    };
+
+    return _this;
+  };
+
+  var createDataURL = function(width, height, getPixel) {
+    var gif = gifImage(width, height);
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        gif.setPixel(x, y, getPixel(x, y) );
+      }
+    }
+
+    var b = byteArrayOutputStream();
+    gif.write(b);
+
+    var base64 = base64EncodeOutputStream();
+    var bytes = b.toByteArray();
+    for (var i = 0; i < bytes.length; i += 1) {
+      base64.writeByte(bytes[i]);
+    }
+    base64.flush();
+
+    return 'data:image/gif;base64,' + base64;
+  };
+
+  //---------------------------------------------------------------------
+  // returns qrcode function.
+
+  return qrcode;
+}();
+
+// multibyte support
+!function() {
+
+  qrcode.stringToBytesFuncs['UTF-8'] = function(s) {
+    // http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
+    function toUTF8Array(str) {
+      var utf8 = [];
+      for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+          utf8.push(0xc0 | (charcode >> 6),
+              0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+          utf8.push(0xe0 | (charcode >> 12),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+          i++;
+          // UTF-16 encodes 0x10000-0x10FFFF by
+          // subtracting 0x10000 and splitting the
+          // 20 bits of 0x0-0xFFFFF into two halves
+          charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+            | (str.charCodeAt(i) & 0x3ff));
+          utf8.push(0xf0 | (charcode >>18),
+              0x80 | ((charcode>>12) & 0x3f),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+      }
+      return utf8;
+    }
+    return toUTF8Array(s);
+  };
+
+}();
+
+(function (factory) {
+  if (typeof define === 'function' && define.amd) {
+      define([], factory);
+  } else if (typeof exports === 'object') {
+      module.exports = factory();
+  }
+}(function () {
+    return qrcode;
+}));
+
+</script>
+<script>
+const params = new URLSearchParams(location.search);
+const isDisplay = params.get('display') === '1';
+
+const setupEl = document.getElementById('setup');
+const controlPanel = document.getElementById('control-panel');
+const showEl = document.getElementById('show');
+
+function shuffleArray(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ==========================================================
+   表示ウィンドウ側(会場スクリーン)
+   ========================================================== */
+if(isDisplay){
+  setupEl.style.display = 'none';
+  controlPanel.classList.remove('active');
+  showEl.classList.add('active');
+
+  let slides = [];
+  let order = [];
+  let stepCount = 0;
+  let timer = null;
+  let paused = false;
+  let loopOn = true;
+  let shuffleOn = false;
+  let slideEls = [null, null];
+  let activeSlide = 0;
+  let pendingInit = null;
+
+  const counterEl = document.getElementById('counter');
+  const startOverlay = document.getElementById('start-overlay');
+  const displayStartBtn = document.getElementById('display-start-btn');
+
+  function applyCaptionToEl(el, data){
+    const existing = el.querySelector('.caption');
+    if(existing) existing.remove();
+    if(!data.caption) return;
+
+    const cap = document.createElement('div');
+    cap.className = 'caption';
+    cap.textContent = data.caption;
+    const st = data.style || { size: 20, color: '#2a2118', pos: 'bottom' };
+    cap.style.fontSize = st.size + 'px';
+    cap.style.color = st.color;
+    cap.style.background = (st.color === '#f5ece0') ? 'rgba(42,33,24,0.92)' : 'rgba(245,236,224,0.94)';
+    if(st.pos === 'top'){ cap.style.top = '7%'; cap.style.bottom = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
+    else if(st.pos === 'center'){ cap.style.top = '50%'; cap.style.bottom = 'auto'; cap.style.transform = 'translate(-50%, -50%) rotate(-1.2deg)'; }
+    else { cap.style.bottom = '9%'; cap.style.top = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
+    el.appendChild(cap);
+  }
+
+  function renderSlide(slideIndex){
+    const target = 1 - activeSlide;
+    const el = slideEls[target];
+    const data = slides[slideIndex];
+
+    el.innerHTML = '';
+    el.classList.remove('text-slide');
+    el.style.backgroundImage = `url("${data.url}")`;
+    applyCaptionToEl(el, data);
+
+    el.classList.add('show');
+    slideEls[activeSlide].classList.remove('show');
+    activeSlide = target;
+  }
+
+  function updateCounter(){
+    const pos = (stepCount % order.length) + 1;
+    counterEl.textContent = `${pos} / ${order.length}`;
+    notifyParentState();
+  }
+
+  function scheduleNext(){
+    clearTimeout(timer);
+    if(paused) return;
+    const secs = window.__interval * 1000;
+    timer = setTimeout(goNext, secs);
+  }
+
+  function goNext(){
+    if(!loopOn && stepCount >= order.length - 1) return;
+    const shown = order.shift();
+    order.push(shown);
+    stepCount++;
+    renderSlide(order[0]);
+    updateCounter();
+    scheduleNext();
+  }
+
+  function goPrev(){
+    const back = order.pop();
+    order.unshift(back);
+    stepCount = Math.max(0, stepCount - 1);
+    renderSlide(order[0]);
+    updateCounter();
+    scheduleNext();
+  }
+
+  function togglePause(){
+    paused = !paused;
+    if(paused){ clearTimeout(timer); } else { scheduleNext(); }
+    notifyParentState();
+  }
+
+  function notifyParentState(){
+    if(window.opener){
+      window.opener.postMessage({
+        type: 'state',
+        paused,
+        position: order.length ? `${(stepCount % order.length) + 1} / ${order.length}` : '- / -'
+      }, '*');
+    }
+  }
+
+  // ---------- ティッカー ----------
+  let tickerMessages = [];
+  let tickerIdx = 0;
+  let tickerRotateTimer = null;
+  let tickerStyle = { size: 20, color: '#d4a843', pos: 'top' };
+  const tickerEl = document.getElementById('ticker');
+  const tickerTrack = document.getElementById('ticker-track');
+
+  function applyTickerStyle(){
+    tickerEl.classList.remove('ticker-pos-top', 'ticker-pos-middle', 'ticker-pos-bottom');
+    tickerEl.classList.add('ticker-pos-' + tickerStyle.pos);
+    tickerTrack.style.color = tickerStyle.color;
+    tickerTrack.style.fontSize = tickerStyle.size + 'px';
+  }
+
+  function startTickerRotation(){
+    tickerIdx = 0;
+    applyTickerStyle();
+    tickerEl.classList.add('active');
+    showTickerMessage();
+  }
+  function showTickerMessage(){
+    if(tickerMessages.length === 0) return;
+    const text = tickerMessages[tickerIdx];
+    tickerTrack.textContent = text;
+    const duration = Math.max(10, text.length * 0.35);
+    tickerTrack.style.animationDuration = duration + 's';
+    clearTimeout(tickerRotateTimer);
+    tickerRotateTimer = setTimeout(() => {
+      tickerIdx = (tickerIdx + 1) % tickerMessages.length;
+      showTickerMessage();
+    }, duration * 1000);
+  }
+  function stopTickerRotation(){ clearTimeout(tickerRotateTimer); }
+
+  // ---------- お知らせバナー ----------
+  const announceBanner = document.getElementById('announce-banner');
+  const announceText = document.getElementById('announce-text');
+  const announceClose = document.getElementById('announce-close');
+  let announceTimer = null;
+  let currentAnnounce = null; // { text, duration, color, pos } または null(非表示中)
+
+  const ANNOUNCE_COLORS = {
+    lantern: { bg: 'linear-gradient(135deg, rgba(242,130,92,0.92), rgba(201,64,31,0.92))', txt: '#f5ece0' },
+    gold:    { bg: 'linear-gradient(135deg, rgba(232,192,112,0.92), rgba(138,90,18,0.92))', txt: '#2a1710' },
+    night:   { bg: 'linear-gradient(135deg, rgba(61,36,27,0.94), rgba(18,22,44,0.94))', txt: '#f5ece0' },
+    paper:   { bg: 'rgba(245,236,224,0.96)', txt: '#2a1710' }
+  };
+
+  function showAnnouncement(text, durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap){
+    clearTimeout(announceTimer);
+    color = color || 'lantern';
+    pos = pos || 'top';
+    motion = motion || 'static';
+    deco = deco || 'normal';
+    direction = direction || 'rtl';
+    size = size || 22;
+    repeat = repeat || 1;
+    textColor = textColor || 'auto';
+    speed = speed || 1;
+    gap = gap || 8;
+    const c = ANNOUNCE_COLORS[color] || ANNOUNCE_COLORS.lantern;
+    const finalTextColor = textColor === 'auto' ? c.txt : textColor;
+
+    // 「同じ文を2つ連続」の場合、指定した間隔(全角スペースの数)を空けてつなげる
+    const displayText = repeat === 2 ? (text + '　'.repeat(gap) + text) : text;
+
+    announceText.textContent = displayText;
+    announceText.style.fontSize = size + 'px';
+    announceBanner.style.background = c.bg;
+    announceText.style.color = finalTextColor;
+    announceClose.style.color = finalTextColor;
+    announceBanner.classList.remove('pos-top', 'pos-center', 'pos-bottom');
+    announceBanner.classList.add('pos-' + pos);
+    announceBanner.classList.toggle('scroll-mode', motion === 'scroll');
+    announceText.classList.toggle('deco-outline', deco === 'outline');
+
+    // 一度アニメーションを解除してから再設定することで、同じ内容を続けて表示しても
+    // 必ずアニメーションが最初から再生されるようにする(ブラウザの仕様への対策)
+    announceText.style.animation = 'none';
+    void announceText.offsetWidth; // 強制的にレイアウトを再計算させる
+
+    if(motion === 'scroll'){
+      const duration = Math.max(4, (displayText.length * 0.3) / speed);
+      const keyframeName = direction === 'ltr' ? 'announce-scroll-ltr' : 'announce-scroll-rtl';
+      announceText.style.animation = `${keyframeName} ${duration}s linear infinite`;
+    }
+
+    announceBanner.classList.add('active');
+
+    currentAnnounce = { text, duration: durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap };
+
+    if(durationSec > 0){
+      announceTimer = setTimeout(() => {
+        announceBanner.classList.remove('active');
+        currentAnnounce = null;
+      }, durationSec * 1000);
+    }
+  }
+  announceClose.addEventListener('click', () => {
+    clearTimeout(announceTimer);
+    announceBanner.classList.remove('active');
+    currentAnnounce = null;
+  });
+
+  // ---------- QRコード ----------
+  function renderQR(boxEl, overlayEl, url){
+    if(!url){ overlayEl.classList.remove('active'); return; }
+    try{
+      const qr = qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      boxEl.innerHTML = qr.createSvgTag(4, 0);
+      overlayEl.classList.add('active');
+    }catch(err){
+      overlayEl.classList.remove('active');
+    }
+  }
+
+  // ---------- 初期化 ----------
+  function initializeFromPayload(payload){
+    const { files, captions, styles, settings } = payload;
+    slides = files.map((f, i) => ({
+      url: URL.createObjectURL(f),
+      caption: captions[i] || '',
+      style: styles[i] || null
+    }));
+
+    window.__interval = settings.interval;
+    loopOn = settings.loop;
+    shuffleOn = settings.shuffle;
+
+    order = shuffleOn ? shuffleArray(slides.map((_, i) => i)) : slides.map((_, i) => i);
+    stepCount = 0;
+    paused = false;
+
+    showEl.querySelectorAll('.slide').forEach(el => el.remove());
+    for(let i = 0; i < 2; i++){
+      const d = document.createElement('div');
+      d.className = 'slide';
+      showEl.insertBefore(d, showEl.firstChild);
+      slideEls[i] = d;
+    }
+    activeSlide = 0;
+    renderSlide(order[0]);
+    slideEls[0].classList.add('show');
+    updateCounter();
+
+    renderQR(document.getElementById('qr-box'), document.getElementById('qr-overlay'), settings.qrUrl);
+    renderQR(document.getElementById('qr-box2'), document.getElementById('qr-overlay2'), settings.qrUrl2);
+
+    tickerMessages = settings.tickerMessages || [];
+    if(tickerMessages.length > 0){
+      startTickerRotation();
+    }
+
+    scheduleNext();
+  }
+
+  displayStartBtn.addEventListener('click', () => {
+    if(!pendingInit) return;
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    startOverlay.classList.add('hidden');
+    initializeFromPayload(pendingInit);
+  });
+
+  window.addEventListener('message', e => {
+    const msg = e.data;
+    if(!msg || !msg.type) return;
+
+    if(msg.type === 'init'){
+      pendingInit = msg;
+      displayStartBtn.disabled = false;
+      displayStartBtn.textContent = '▶ 表示を開始する';
+    }
+    if(msg.type === 'command'){
+      if(msg.action === 'next') goNext();
+      if(msg.action === 'prev') goPrev();
+      if(msg.action === 'togglePause') togglePause();
+    }
+    if(msg.type === 'addPhotos'){
+      const startIndex = slides.length;
+      const newSlides = msg.files.map((f, i) => ({
+        url: URL.createObjectURL(f),
+        caption: msg.caption || '',
+        style: msg.style || null
+      }));
+      slides = slides.concat(newSlides);
+      const newIndices = newSlides.map((_, i) => startIndex + i);
+      order.splice(1, 0, ...(shuffleOn ? shuffleArray(newIndices) : newIndices));
+      updateCounter();
+    }
+    if(msg.type === 'addPhotoByUrl'){
+      const startIndex = slides.length;
+      slides.push({ url: msg.url, caption: msg.caption || '', style: null });
+      order.splice(1, 0, startIndex);
+      updateCounter();
+    }
+    if(msg.type === 'announce'){
+      showAnnouncement(msg.text, msg.duration, msg.color, msg.pos, msg.motion, msg.deco, msg.direction, msg.size, msg.repeat, msg.textColor, msg.speed, msg.gap);
+    }
+    if(msg.type === 'requestCurrentAnnounce'){
+      if(window.opener){
+        window.opener.postMessage({ type: 'currentAnnounceInfo', announce: currentAnnounce }, '*');
+      }
+    }
+    if(msg.type === 'toggleQR'){
+      const overlay = document.getElementById(msg.which === 1 ? 'qr-overlay' : 'qr-overlay2');
+      const box = document.getElementById(msg.which === 1 ? 'qr-box' : 'qr-box2');
+      if(box.innerHTML.trim() === '') return; // URLが設定されていなければ何もしない
+      overlay.classList.toggle('active');
+    }
+    if(msg.type === 'requestCurrentCaption'){
+      if(!order.length || !window.opener) return;
+      const idx = order[0];
+      window.opener.postMessage({
+        type: 'currentCaptionInfo',
+        text: slides[idx].caption || '',
+        style: slides[idx].style || { size: 20, color: '#2a2118', pos: 'bottom' }
+      }, '*');
+    }
+    if(msg.type === 'editCurrentCaption'){
+      if(!order.length) return;
+      const idx = order[0];
+      slides[idx].caption = msg.text || '';
+      slides[idx].style = msg.style;
+      applyCaptionToEl(slideEls[activeSlide], slides[idx]);
+      if(window.opener){
+        window.opener.postMessage({ type: 'restyleResult', applied: true }, '*');
+      }
+    }
+    if(msg.type === 'requestTickerMessages'){
+      if(window.opener){
+        window.opener.postMessage({ type: 'currentTickerMessages', messages: tickerMessages, style: tickerStyle }, '*');
+      }
+    }
+    if(msg.type === 'updateTicker'){
+      tickerMessages = msg.messages || [];
+      if(msg.style) tickerStyle = msg.style;
+      stopTickerRotation();
+      if(tickerMessages.length > 0){
+        startTickerRotation();
+      }else{
+        applyTickerStyle();
+        tickerEl.classList.remove('active');
+      }
+      if(window.opener){
+        window.opener.postMessage({ type: 'restyleResult', applied: true }, '*');
+      }
+    }
+    if(msg.type === 'exit'){
+      window.close();
+    }
+  });
+
+  if(window.opener){
+    window.opener.postMessage({ type: 'ready' }, '*');
+  }
+  displayStartBtn.disabled = true;
+  displayStartBtn.textContent = '読み込み中...';
+
+  document.addEventListener('keydown', e => {
+    if(e.code === 'Space'){ e.preventDefault(); togglePause(); }
+    if(e.code === 'ArrowRight'){ goNext(); }
+    if(e.code === 'ArrowLeft'){ goPrev(); }
+  });
+
+/* ==========================================================
+   操作パネル側(親ウィンドウ)
+   ========================================================== */
+}else{
+
+  let slides = []; // { file, caption }
+  let shuffleOn = false;
+  let loopOn = true;
+  let childWin = null;
+  let childClosedPoll = null;
+
+  // ---------- 承認待ち投稿(写真・メッセージ) ----------
+  const PENDING_CSV_URL = "https://docs.google.com/spreadsheets/d/1m_2r8VBmrFw6aben2TeZN0tP4hzav0F2GjWxRgeL3Fo/gviz/tq?tqx=out:csv";
+  const approvedKeys = new Set();
+  let pendingPollTimer = null;
+
+  function parsePendingCSV(text){
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for(let i = 0; i < text.length; i++){
+      const c = text[i];
+      if(inQuotes){
+        if(c === '"'){
+          if(text[i+1] === '"'){ field += '"'; i++; } else { inQuotes = false; }
+        }else{ field += c; }
+      }else{
+        if(c === '"'){ inQuotes = true; }
+        else if(c === ','){ row.push(field); field = ''; }
+        else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+        else if(c === '\r'){ /* skip */ }
+        else{ field += c; }
+      }
+    }
+    if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  async function fetchPendingSubmissions(){
+    const listEl = document.getElementById('pending-list');
+    const countEl = document.getElementById('pending-count');
+    try{
+      const res = await fetch(PENDING_CSV_URL, { cache: 'no-store' });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const rows = parsePendingCSV(text);
+
+      // ヘッダー行なし想定(1行目からデータ)。[timestamp, message, photoUrl, consent]
+      const items = rows
+        .map(r => ({ time: r[0] || '', message: (r[1] || '').trim(), photoUrl: (r[2] || '').trim() }))
+        .filter(item => (item.message || item.photoUrl) && !approvedKeys.has(item.time + '|' + item.message));
+
+      countEl.textContent = items.length + '件';
+      if(items.length === 0){
+        listEl.innerHTML = '<div class="pending-empty">今のところ新しい投稿はありません</div>';
+        return;
+      }
+
+      listEl.innerHTML = '';
+      items.slice().reverse().forEach(item => {
+        const key = item.time + '|' + item.message;
+        const el = document.createElement('div');
+        el.className = 'pending-item';
+        el.innerHTML = `
+          ${item.photoUrl
+            ? `<img class="pending-thumb" src="${item.photoUrl}" loading="lazy">`
+            : `<div class="pending-thumb no-photo">💬</div>`}
+          <div class="pending-body">
+            <div class="pending-msg">${item.message ? escapeHtmlCP(item.message) : '(メッセージなし)'}</div>
+            <div class="pending-time">${escapeHtmlCP(item.time)}</div>
+          </div>
+          <button class="pending-add-btn">追加</button>
+        `;
+        el.querySelector('.pending-add-btn').addEventListener('click', (e) => {
+          e.target.disabled = true;
+          e.target.textContent = '追加済み';
+          approvedKeys.add(key);
+          if(childWin && !childWin.closed){
+            if(item.photoUrl){
+              childWin.postMessage({ type: 'addPhotoByUrl', url: item.photoUrl, caption: item.message }, '*');
+            }else if(item.message){
+              childWin.postMessage({ type: 'announce', text: item.message, duration: 15, color: 'lantern', pos: 'top', motion: 'static', deco: 'normal' }, '*');
+            }
+          }
+        });
+        listEl.appendChild(el);
+      });
+    }catch(err){
+      listEl.innerHTML = `<div class="pending-empty">読み込みに失敗しました(${err.message})</div>`;
+    }
+  }
+
+  function escapeHtmlCP(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  const dropZone = document.getElementById('drop');
+  const fileInput = document.getElementById('file-input');
+  const folderBtn = document.getElementById('folder-btn');
+  const folderInput = document.getElementById('folder-input');
+  const photoCount = document.getElementById('photo-count');
+  const startBtn = document.getElementById('start-btn');
+  const intervalSlider = document.getElementById('interval');
+  const intervalVal = document.getElementById('interval-val');
+  const shuffleToggle = document.getElementById('shuffle-toggle');
+  const loopToggle = document.getElementById('loop-toggle');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', async e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    if(e.dataTransfer.items && e.dataTransfer.items.length > 0 && e.dataTransfer.items[0].webkitGetAsEntry){
+      const entries = Array.from(e.dataTransfer.items).map(item => item.webkitGetAsEntry()).filter(Boolean);
+      const files = await collectFilesFromEntries(entries);
+      handleFiles(files);
+    }else{
+      handleFiles(e.dataTransfer.files);
+    }
+  });
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+  folderBtn.addEventListener('click', () => folderInput.click());
+  folderInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  function collectFilesFromEntries(entries){
+    const files = [];
+    function readEntry(entry){
+      return new Promise(resolve => {
+        if(entry.isFile){
+          entry.file(file => { files.push(file); resolve(); });
+        }else if(entry.isDirectory){
+          const reader = entry.createReader();
+          const readBatch = () => {
+            reader.readEntries(async batch => {
+              if(batch.length === 0){ resolve(); return; }
+              await Promise.all(batch.map(readEntry));
+              readBatch();
+            });
+          };
+          readBatch();
+        }else{ resolve(); }
+      });
+    }
+    return Promise.all(entries.map(readEntry)).then(() => files);
+  }
+
+  function handleFiles(fileList){
+    const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    slides = imgs.map(f => ({ file: f, caption: '' }));
+    photoCount.textContent = slides.length + '枚';
+    startBtn.disabled = slides.length === 0;
+  }
+
+  intervalSlider.addEventListener('input', () => { intervalVal.textContent = intervalSlider.value + '秒'; });
+  shuffleToggle.addEventListener('click', () => { shuffleOn = !shuffleOn; shuffleToggle.classList.toggle('on', shuffleOn); });
+  loopToggle.addEventListener('click', () => { loopOn = !loopOn; loopToggle.classList.toggle('on', loopOn); });
+
+  const qrUrlInput = document.getElementById('qr-url');
+
+  const tickerList = document.getElementById('ticker-list');
+  const addTickerBtn = document.getElementById('add-ticker-btn');
+  function bindRemoveTicker(btn){
+    btn.addEventListener('click', () => {
+      if(tickerList.children.length <= 1) return;
+      btn.closest('.ticker-item').remove();
+    });
+  }
+  document.querySelectorAll('.remove-ticker').forEach(bindRemoveTicker);
+  addTickerBtn.addEventListener('click', () => {
+    const item = document.createElement('div');
+    item.className = 'ticker-item';
+    item.innerHTML = `<input type="text" class="ticker-text-input" placeholder="例:まもなく抽選会です"><button type="button" class="remove-ticker">✕</button>`;
+    tickerList.appendChild(item);
+    bindRemoveTicker(item.querySelector('.remove-ticker'));
+    item.querySelector('input').focus();
+  });
+
+  // ---------- 開始処理:別ウィンドウを開いてデータを送る ----------
+  startBtn.addEventListener('click', () => {
+    const settings = {
+      interval: parseInt(intervalSlider.value, 10),
+      shuffle: shuffleOn,
+      loop: loopOn,
+      qrUrl: qrUrlInput.value.trim(),
+      qrUrl2: document.getElementById('qr-url2').value.trim(),
+      tickerMessages: Array.from(document.querySelectorAll('.ticker-text-input')).map(el => el.value.trim()).filter(t => t.length > 0)
+    };
+
+    const displayUrl = location.pathname + '?display=1';
+    childWin = window.open(displayUrl, 'misafes_display', 'width=1280,height=720');
+
+    setupEl.style.display = 'none';
+    controlPanel.classList.add('active');
+    document.getElementById('cp-status').textContent = '🟡 表示ウィンドウに接続しています...';
+
+    function onReady(e){
+      if(e.source !== childWin || !e.data || e.data.type !== 'ready') return;
+      window.removeEventListener('message', onReady);
+      childWin.postMessage({
+        type: 'init',
+        files: slides.map(s => s.file),
+        captions: slides.map(s => s.caption),
+        styles: slides.map(s => s.style || null),
+        settings
+      }, '*');
+      document.getElementById('cp-status').textContent = '🟢 表示ウィンドウに接続しました';
+    }
+    window.addEventListener('message', onReady);
+
+    clearInterval(childClosedPoll);
+    childClosedPoll = setInterval(() => {
+      if(childWin && childWin.closed){
+        clearInterval(childClosedPoll);
+        controlPanel.classList.remove('active');
+        setupEl.style.display = 'flex';
+        document.getElementById('cp-status').textContent = '表示ウィンドウが閉じられました';
+      }
+    }, 1000);
+
+    // 承認待ち投稿を定期的に取得(15秒ごと)
+    fetchPendingSubmissions();
+    clearInterval(pendingPollTimer);
+    pendingPollTimer = setInterval(fetchPendingSubmissions, 15000);
+  });
+
+  window.addEventListener('message', e => {
+    if(!e.data || e.data.type !== 'state') return;
+    document.getElementById('cp-counter').textContent = e.data.position;
+    document.getElementById('pause-btn').textContent = e.data.paused ? '再生' : '一時停止';
+  });
+
+  function sendCommand(action){
+    if(childWin && !childWin.closed) childWin.postMessage({ type: 'command', action }, '*');
+  }
+  document.getElementById('next-btn').addEventListener('click', () => sendCommand('next'));
+  document.getElementById('prev-btn').addEventListener('click', () => sendCommand('prev'));
+  document.getElementById('pause-btn').addEventListener('click', () => sendCommand('togglePause'));
+
+  document.getElementById('qr1-toggle-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed) childWin.postMessage({ type: 'toggleQR', which: 1 }, '*');
+  });
+  document.getElementById('qr2-toggle-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed) childWin.postMessage({ type: 'toggleQR', which: 2 }, '*');
+  });
+
+  // ---------- 今表示中の写真の文字を編集 ----------
+  const restyleBtn = document.getElementById('restyle-btn');
+  const restyleModal = document.getElementById('restyle-modal');
+  const restyleTextInput = document.getElementById('restyle-text-input');
+  const restyleCancel = document.getElementById('restyle-cancel');
+  const restyleApply = document.getElementById('restyle-apply');
+  const restyleSizeOpts = document.querySelectorAll('#restyle-size-row .icon-opt');
+  const restyleColorOpts = document.querySelectorAll('#restyle-color-row .color-opt');
+  const restylePosOpts = document.querySelectorAll('#restyle-pos-row .icon-opt');
+  let restyleSize = 20, restyleColor = '#2a2118', restylePos = 'bottom';
+
+  function setRestyleUI(size, color, pos){
+    restyleSize = size; restyleColor = color; restylePos = pos;
+    restyleSizeOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.size,10) === size));
+    restyleColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === color));
+    restylePosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === pos));
+  }
+
+  restyleBtn.addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'requestCurrentCaption' }, '*');
+    }
+    restyleTextInput.value = '読み込み中...';
+    restyleModal.classList.add('active');
+  });
+  restyleCancel.addEventListener('click', () => restyleModal.classList.remove('active'));
+  restyleSizeOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleSizeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleSize = parseInt(opt.dataset.size, 10);
+  }));
+  restyleColorOpts.forEach(opt => opt.addEventListener('click', () => {
+    restyleColorOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restyleColor = opt.dataset.color;
+  }));
+  restylePosOpts.forEach(opt => opt.addEventListener('click', () => {
+    restylePosOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    restylePos = opt.dataset.pos;
+  }));
+  restyleApply.addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({
+        type: 'editCurrentCaption',
+        text: restyleTextInput.value.trim(),
+        style: { size: restyleSize, color: restyleColor, pos: restylePos }
+      }, '*');
+    }
+    restyleModal.classList.remove('active');
+  });
+
+  // ---------- 画面上部の案内文を編集 ----------
+  const tickerEditBtn = document.getElementById('ticker-edit-btn');
+  const tickerModal = document.getElementById('ticker-modal');
+  const tickerEditTextarea = document.getElementById('ticker-edit-textarea');
+  const tickerEditCancel = document.getElementById('ticker-edit-cancel');
+  const tickerEditApply = document.getElementById('ticker-edit-apply');
+  const tickerSizeOpts = document.querySelectorAll('#ticker-size-row .icon-opt');
+  const tickerColorOpts = document.querySelectorAll('#ticker-color-row .color-opt');
+  const tickerPosOpts = document.querySelectorAll('#ticker-pos-row .icon-opt');
+  let tickerEditSize = 20, tickerEditColor = '#d4a843', tickerEditPos = 'top';
+
+  function setTickerStyleUI(size, color, pos){
+    tickerEditSize = size; tickerEditColor = color; tickerEditPos = pos;
+    tickerSizeOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.size,10) === size));
+    tickerColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === color));
+    tickerPosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === pos));
+  }
+  tickerSizeOpts.forEach(opt => opt.addEventListener('click', () => {
+    tickerSizeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    tickerEditSize = parseInt(opt.dataset.size, 10);
+  }));
+  tickerColorOpts.forEach(opt => opt.addEventListener('click', () => {
+    tickerColorOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    tickerEditColor = opt.dataset.color;
+  }));
+  tickerPosOpts.forEach(opt => opt.addEventListener('click', () => {
+    tickerPosOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    tickerEditPos = opt.dataset.pos;
+  }));
+
+  tickerEditBtn.addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'requestTickerMessages' }, '*');
+    }
+    tickerEditTextarea.value = '読み込み中...';
+    tickerModal.classList.add('active');
+  });
+  tickerEditCancel.addEventListener('click', () => tickerModal.classList.remove('active'));
+  tickerEditApply.addEventListener('click', () => {
+    const messages = tickerEditTextarea.value.split('\n').map(t => t.trim()).filter(t => t.length > 0);
+    if(childWin && !childWin.closed){
+      childWin.postMessage({
+        type: 'updateTicker',
+        messages,
+        style: { size: tickerEditSize, color: tickerEditColor, pos: tickerEditPos }
+      }, '*');
+    }
+    tickerModal.classList.remove('active');
+  });
+
+  window.addEventListener('message', e => {
+    if(!e.data) return;
+    if(e.data.type === 'currentCaptionInfo'){
+      restyleTextInput.value = e.data.text || '';
+      const st = e.data.style || { size: 20, color: '#2a2118', pos: 'bottom' };
+      setRestyleUI(st.size, st.color, st.pos);
+    }
+    if(e.data.type === 'currentTickerMessages'){
+      tickerEditTextarea.value = (e.data.messages || []).join('\n');
+      const st = e.data.style || { size: 20, color: '#d4a843', pos: 'top' };
+      setTickerStyleUI(st.size, st.color, st.pos);
+    }
+    if(e.data.type === 'currentAnnounceInfo'){
+      const a = e.data.announce;
+      if(a){
+        setAnnounceUI(a.text, a.duration, a.color, a.pos, a.motion, a.deco, a.direction, a.size, a.repeat, a.textColor, a.speed, a.gap);
+      }else{
+        setAnnounceUI('', 0, 'lantern', 'top', 'static', 'normal', 'rtl', 22, 1, 'auto', 1, 8);
+      }
+    }
+    if(e.data.type === 'restyleResult'){
+      const status = document.getElementById('cp-status');
+      status.textContent = '🟢 反映しました';
+      setTimeout(() => { status.textContent = '🟢 表示ウィンドウに接続しました'; }, 4000);
+    }
+  });
+
+  document.getElementById('exit-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'exit' }, '*');
+    }
+    clearInterval(childClosedPoll);
+    clearInterval(pendingPollTimer);
+    controlPanel.classList.remove('active');
+    setupEl.style.display = 'flex';
+  });
+
+  // ---------- 写真追加(コメント・装飾つき) ----------
+  const addBtn = document.getElementById('add-btn');
+  const addInput = document.getElementById('add-input');
+  addBtn.addEventListener('click', () => addInput.click());
+
+  let pendingFiles = [];
+  const captionModal = document.getElementById('caption-modal');
+  const captionInput = document.getElementById('caption-input');
+  const captionSkip = document.getElementById('caption-skip');
+  const captionSubmit = document.getElementById('caption-submit');
+  const iconOpts = document.querySelectorAll('#icon-row .icon-opt');
+  const sizeOpts = document.querySelectorAll('#size-row .icon-opt');
+  const colorOpts = document.querySelectorAll('#color-row .color-opt');
+  const posOpts = document.querySelectorAll('#pos-row .icon-opt');
+  let selectedIcon = '';
+  let selectedSize = 20;
+  let selectedColor = '#2a2118';
+  let selectedPos = 'bottom';
+
+  iconOpts.forEach(opt => opt.addEventListener('click', () => {
+    iconOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedIcon = opt.dataset.icon;
+  }));
+  sizeOpts.forEach(opt => opt.addEventListener('click', () => {
+    sizeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedSize = parseInt(opt.dataset.size, 10);
+  }));
+  colorOpts.forEach(opt => opt.addEventListener('click', () => {
+    colorOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedColor = opt.dataset.color;
+  }));
+  posOpts.forEach(opt => opt.addEventListener('click', () => {
+    posOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedPos = opt.dataset.pos;
+  }));
+
+  addInput.addEventListener('change', e => {
+    const imgs = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+    addInput.value = '';
+    if(imgs.length === 0) return;
+    pendingFiles = imgs;
+    captionInput.value = '';
+    captionModal.classList.add('active');
+    captionInput.focus();
+  });
+
+  function finalizeAddPhotos(caption){
+    if(pendingFiles.length === 0) return;
+    const iconPrefix = selectedIcon ? selectedIcon + ' ' : '';
+    const fullCaption = caption ? iconPrefix + caption : '';
+    const style = { size: selectedSize, color: selectedColor, pos: selectedPos };
+
+    if(childWin && !childWin.closed){
+      childWin.postMessage({
+        type: 'addPhotos',
+        files: pendingFiles,
+        caption: fullCaption,
+        style
+      }, '*');
+    }
+    pendingFiles = [];
+    captionModal.classList.remove('active');
+  }
+  captionSkip.addEventListener('click', () => finalizeAddPhotos(''));
+  captionSubmit.addEventListener('click', () => finalizeAddPhotos(captionInput.value.trim()));
+
+  // ---------- お知らせ ----------
+  const announceBtn = document.getElementById('announce-btn');
+  const announceModal = document.getElementById('announce-modal');
+  const announceInput = document.getElementById('announce-input');
+  const announceCancel = document.getElementById('announce-cancel');
+  const announceSubmit = document.getElementById('announce-submit');
+  const durOpts = document.querySelectorAll('.dur-opt');
+  const announceSizeOpts = document.querySelectorAll('#announce-size-row .icon-opt');
+  const announceColorOpts = document.querySelectorAll('#announce-color-row .color-opt');
+  const announceTextColorOpts = document.querySelectorAll('#announce-text-color-row [data-textcolor]');
+  const announcePosOpts = document.querySelectorAll('#announce-pos-row .icon-opt');
+  const announceMotionOpts = document.querySelectorAll('#announce-motion-row .icon-opt');
+  const announceDirectionOpts = document.querySelectorAll('#announce-direction-row .icon-opt');
+  const announceDirectionLabel = document.getElementById('announce-direction-label');
+  const announceDirectionRow = document.getElementById('announce-direction-row');
+  const announceSpeedOpts = document.querySelectorAll('#announce-speed-row .icon-opt');
+  const announceSpeedLabel = document.getElementById('announce-speed-label');
+  const announceSpeedRow = document.getElementById('announce-speed-row');
+  const announceRepeatOpts = document.querySelectorAll('#announce-repeat-row .icon-opt');
+  const announceRepeatLabel = document.getElementById('announce-repeat-label');
+  const announceRepeatRow = document.getElementById('announce-repeat-row');
+  const announceGapOpts = document.querySelectorAll('#announce-gap-row .icon-opt');
+  const announceGapLabel = document.getElementById('announce-gap-label');
+  const announceGapRow = document.getElementById('announce-gap-row');
+  const announceDecoOpts = document.querySelectorAll('#announce-deco-row .icon-opt');
+  let selectedDuration = 0;
+  let selectedAnnounceSize = 22;
+  let selectedAnnounceColor = 'lantern';
+  let selectedAnnounceTextColor = 'auto';
+  let selectedAnnouncePos = 'top';
+  let selectedAnnounceMotion = 'static';
+  let selectedAnnounceDirection = 'rtl';
+  let selectedAnnounceSpeed = 1;
+  let selectedAnnounceRepeat = 1;
+  let selectedAnnounceGap = 8;
+  let selectedAnnounceDeco = 'normal';
+
+  function updateScrollOptionsVisibility(){
+    const show = selectedAnnounceMotion === 'scroll';
+    announceDirectionLabel.style.display = show ? 'block' : 'none';
+    announceDirectionRow.style.display = show ? 'flex' : 'none';
+    announceSpeedLabel.style.display = show ? 'block' : 'none';
+    announceSpeedRow.style.display = show ? 'flex' : 'none';
+    announceRepeatLabel.style.display = show ? 'block' : 'none';
+    announceRepeatRow.style.display = show ? 'flex' : 'none';
+    const showGap = show && selectedAnnounceRepeat === 2;
+    announceGapLabel.style.display = showGap ? 'block' : 'none';
+    announceGapRow.style.display = showGap ? 'flex' : 'none';
+  }
+
+  function setAnnounceUI(text, duration, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap){
+    announceInput.value = text || '';
+    selectedDuration = duration || 0;
+    selectedAnnounceSize = size || 22;
+    selectedAnnounceColor = color || 'lantern';
+    selectedAnnounceTextColor = textColor || 'auto';
+    selectedAnnouncePos = pos || 'top';
+    selectedAnnounceMotion = motion || 'static';
+    selectedAnnounceDirection = direction || 'rtl';
+    selectedAnnounceSpeed = speed || 1;
+    selectedAnnounceRepeat = repeat || 1;
+    selectedAnnounceGap = gap || 8;
+    selectedAnnounceDeco = deco || 'normal';
+    durOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.dur, 10) === selectedDuration));
+    announceSizeOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.size, 10) === selectedAnnounceSize));
+    announceColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.color === selectedAnnounceColor));
+    announceTextColorOpts.forEach(o => o.classList.toggle('selected', o.dataset.textcolor === selectedAnnounceTextColor));
+    announcePosOpts.forEach(o => o.classList.toggle('selected', o.dataset.pos === selectedAnnouncePos));
+    announceMotionOpts.forEach(o => o.classList.toggle('selected', o.dataset.motion === selectedAnnounceMotion));
+    announceDirectionOpts.forEach(o => o.classList.toggle('selected', o.dataset.direction === selectedAnnounceDirection));
+    announceSpeedOpts.forEach(o => o.classList.toggle('selected', parseFloat(o.dataset.speed) === selectedAnnounceSpeed));
+    announceRepeatOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.repeat, 10) === selectedAnnounceRepeat));
+    announceGapOpts.forEach(o => o.classList.toggle('selected', parseInt(o.dataset.gap, 10) === selectedAnnounceGap));
+    announceDecoOpts.forEach(o => o.classList.toggle('selected', o.dataset.deco === selectedAnnounceDeco));
+    updateScrollOptionsVisibility();
+  }
+
+  announceBtn.addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'requestCurrentAnnounce' }, '*');
+    }
+    announceModal.classList.add('active');
+    announceInput.focus();
+  });
+  announceCancel.addEventListener('click', () => announceModal.classList.remove('active'));
+  durOpts.forEach(opt => opt.addEventListener('click', () => {
+    durOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedDuration = parseInt(opt.dataset.dur, 10);
+  }));
+  announceSizeOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceSizeOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceSize = parseInt(opt.dataset.size, 10);
+  }));
+  announceTextColorOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceTextColorOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceTextColor = opt.dataset.textcolor;
+  }));
+  announceColorOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceColorOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceColor = opt.dataset.color;
+  }));
+  announcePosOpts.forEach(opt => opt.addEventListener('click', () => {
+    announcePosOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnouncePos = opt.dataset.pos;
+  }));
+  announceMotionOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceMotionOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceMotion = opt.dataset.motion;
+    updateScrollOptionsVisibility();
+  }));
+  announceDirectionOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceDirectionOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceDirection = opt.dataset.direction;
+  }));
+  announceSpeedOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceSpeedOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceSpeed = parseFloat(opt.dataset.speed);
+  }));
+  announceRepeatOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceRepeatOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceRepeat = parseInt(opt.dataset.repeat, 10);
+    updateScrollOptionsVisibility();
+  }));
+  announceGapOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceGapOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceGap = parseInt(opt.dataset.gap, 10);
+  }));
+  announceDecoOpts.forEach(opt => opt.addEventListener('click', () => {
+    announceDecoOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAnnounceDeco = opt.dataset.deco;
+  }));
+  announceSubmit.addEventListener('click', () => {
+    const msg = announceInput.value.trim();
+    if(!msg) return;
+    if(childWin && !childWin.closed){
+      childWin.postMessage({
+        type: 'announce',
+        text: msg,
+        duration: selectedDuration,
+        color: selectedAnnounceColor,
+        textColor: selectedAnnounceTextColor,
+        pos: selectedAnnouncePos,
+        motion: selectedAnnounceMotion,
+        direction: selectedAnnounceDirection,
+        size: selectedAnnounceSize,
+        speed: selectedAnnounceSpeed,
+        repeat: selectedAnnounceRepeat,
+        gap: selectedAnnounceGap,
+        deco: selectedAnnounceDeco
+      }, '*');
+    }
+    announceModal.classList.remove('active');
+  });
+
+  document.addEventListener('keydown', e => {
+    if(!controlPanel.classList.contains('active')) return;
+    const anyModalActive = announceModal.classList.contains('active') || captionModal.classList.contains('active') || restyleModal.classList.contains('active') || tickerModal.classList.contains('active');
+    if(anyModalActive){
+      if(e.code === 'Escape'){
+        announceModal.classList.remove('active');
+        captionModal.classList.remove('active');
+        restyleModal.classList.remove('active');
+        tickerModal.classList.remove('active');
+      }
+      return;
+    }
+    if(e.code === 'Space'){ e.preventDefault(); sendCommand('togglePause'); }
+    if(e.code === 'ArrowRight'){ sendCommand('next'); }
+    if(e.code === 'ArrowLeft'){ sendCommand('prev'); }
+  });
+}
+</script>
+</body>
+</html>
