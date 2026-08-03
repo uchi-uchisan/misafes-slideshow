@@ -22,7 +22,8 @@
     height:100%;
     background:var(--night-deep);
     font-family:"Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
-    overflow:hidden;
+    overflow-x:hidden;
+    overflow-y:auto;
   }
 
   /* ---------- 設定画面 ---------- */
@@ -210,6 +211,15 @@
     line-height:1.4;
     text-align:center;
     white-space:pre-wrap;
+  }
+  .slide .caption.deco-outline,
+  .slide.text-slide-card .text-slide-content.deco-outline{
+    -webkit-text-stroke:2px rgba(0,0,0,0.8);
+    text-shadow:
+      -2px -2px 0 rgba(0,0,0,0.8),
+       2px -2px 0 rgba(0,0,0,0.8),
+      -2px  2px 0 rgba(0,0,0,0.8),
+       2px  2px 0 rgba(0,0,0,0.8);
   }
 
   /* 写真なし・文字だけのスライド */
@@ -898,6 +908,7 @@
           <div class="icon-opt small" data-size="18">小</div>
           <div class="icon-opt small selected" data-size="26">中</div>
           <div class="icon-opt small" data-size="36">大</div>
+          <div class="icon-opt small" data-size="48">特大</div>
         </div>
         <div class="style-row-label">文字の色</div>
         <div class="icon-row" id="preview-color-row">
@@ -913,6 +924,11 @@
           <div class="color-opt" data-bg="gold" style="background:linear-gradient(135deg,#e8c070,#8a5a12);" title="金"></div>
           <div class="color-opt" data-bg="lantern" style="background:linear-gradient(135deg,#f2825c,#c9401f);" title="提灯"></div>
           <div class="color-opt" data-bg="none" style="background:repeating-conic-gradient(#ccc 0% 25%, #eee 0% 50%) 50%/10px 10px;" title="背景なし(文字だけの場合は墨扱い)"></div>
+        </div>
+        <div class="style-row-label">文字装飾</div>
+        <div class="icon-row" id="preview-deco-row">
+          <div class="icon-opt small selected" data-deco="normal">通常</div>
+          <div class="icon-opt small" data-deco="outline">袋文字</div>
         </div>
         <div class="style-row-label">表示位置</div>
         <div class="icon-row" id="preview-pos-row">
@@ -3535,7 +3551,10 @@ if(isDisplay){
     cap.style.color = st.color;
     cap.style.background = CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper;
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
-    if(st.bg === 'none'){
+    cap.classList.toggle('deco-outline', st.deco === 'outline');
+    if(st.deco === 'outline'){
+      cap.style.boxShadow = 'none';
+    }else if(st.bg === 'none'){
       cap.style.boxShadow = 'none';
       cap.style.textShadow = '0 2px 6px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.5)';
     }else{
@@ -3561,6 +3580,7 @@ if(isDisplay){
     txt.style.color = st.color;
     txt.style.fontSize = (st.size * 1.7) + 'px';
     if(st.font) txt.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
+    txt.classList.toggle('deco-outline', st.deco === 'outline');
     el.appendChild(txt);
   }
 
@@ -3931,6 +3951,13 @@ if(isDisplay){
   let childWin = null;
   let childClosedPoll = null;
 
+  // 操作パネル(このウィンドウ)が閉じられたら、表示ウィンドウも一緒に閉じる
+  window.addEventListener('beforeunload', () => {
+    if(childWin && !childWin.closed){
+      childWin.close();
+    }
+  });
+
   // ---------- 承認待ち投稿(写真・メッセージ) ----------
   // Apps Script経由での取得を優先(スプレッドシートへの直接リンクを画面に出さないため)
   const PENDING_APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec?action=getPending";
@@ -4049,11 +4076,12 @@ if(isDisplay){
   const previewSizeOpts = document.querySelectorAll('#preview-size-row .icon-opt');
   const previewColorOpts = document.querySelectorAll('#preview-color-row .color-opt');
   const previewBgOpts = document.querySelectorAll('#preview-bg-row .color-opt');
+  const previewDecoOpts = document.querySelectorAll('#preview-deco-row .icon-opt');
   const previewPosOpts = document.querySelectorAll('#preview-pos-row .icon-opt');
   let previewCurrentItem = null;
   let previewCurrentKey = null;
   let previewCurrentListBtn = null;
-  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewPos = 'bottom';
+  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewDeco = 'normal', previewPos = 'bottom';
 
   const FONT_STACKS = {
     yomogi: `"Yomogi","Klee One",cursive`,
@@ -4108,6 +4136,14 @@ if(isDisplay){
     else if(previewPos === 'center'){ previewLiveCaption.style.top = '50%'; previewLiveCaption.style.bottom = 'auto'; previewLiveCaption.style.transform = 'translate(-50%, -50%)'; }
     else{ previewLiveCaption.style.bottom = '6%'; previewLiveCaption.style.top = 'auto'; }
     if(previewPos !== 'center'){ previewLiveCaption.style.transform = 'translateX(-50%)'; }
+
+    // 袋文字(アウトライン)装飾:選んだ場合は縁取りを優先して適用
+    if(previewDeco === 'outline'){
+      previewLiveCaption.style.webkitTextStroke = '2px rgba(0,0,0,0.8)';
+      previewLiveCaption.style.textShadow = '-2px -2px 0 rgba(0,0,0,0.8), 2px -2px 0 rgba(0,0,0,0.8), -2px 2px 0 rgba(0,0,0,0.8), 2px 2px 0 rgba(0,0,0,0.8)';
+    }else{
+      previewLiveCaption.style.webkitTextStroke = '';
+    }
   }
 
   previewFontOpts.forEach(opt => opt.addEventListener('click', () => {
@@ -4132,6 +4168,12 @@ if(isDisplay){
     previewBgOpts.forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     previewBg = opt.dataset.bg;
+    updateLivePreview();
+  }));
+  previewDecoOpts.forEach(opt => opt.addEventListener('click', () => {
+    previewDecoOpts.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    previewDeco = opt.dataset.deco;
     updateLivePreview();
   }));
   previewPosOpts.forEach(opt => opt.addEventListener('click', () => {
@@ -4160,7 +4202,7 @@ if(isDisplay){
   previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
   previewModalAdd.addEventListener('click', () => {
     if(!previewCurrentItem) return;
-    const style = { size: previewSize, color: previewColor, bg: previewBg, pos: previewPos, font: previewFont };
+    const style = { size: previewSize, color: previewColor, bg: previewBg, pos: previewPos, font: previewFont, deco: previewDeco };
     approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style);
     previewModalAdd.disabled = true;
     previewModalAdd.textContent = '✓ 反映済み(操作不要)';
