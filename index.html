@@ -346,6 +346,16 @@
   }
 
   /* ---------- お知らせバナー ---------- */
+  #announce-backdrop{
+    position:fixed; inset:0;
+    background:var(--night-deep);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .4s;
+    z-index:29;
+  }
+  #announce-backdrop.active{ opacity:0.96; }
+
   #announce-banner{
     position:fixed;
     left:50%;
@@ -1084,6 +1094,8 @@
     <div class="qr-box" id="qr-box2"></div>
     <div class="qr-label">🎵 曲リクエストに投票する</div>
   </div>
+
+  <div id="announce-backdrop"></div>
 
   <div id="announce-banner">
     <div class="close-x" id="announce-close">✕</div>
@@ -3584,7 +3596,7 @@ if(isDisplay){
     paper:   { bg: 'rgba(245,236,224,0.96)', txt: '#2a1710' }
   };
 
-  function showAnnouncement(text, durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap){
+  function showAnnouncement(text, durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap, dimBackground){
     clearTimeout(announceTimer);
     color = color || 'lantern';
     pos = pos || 'top';
@@ -3625,18 +3637,33 @@ if(isDisplay){
 
     announceBanner.classList.add('active');
 
-    currentAnnounce = { text, duration: durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap };
+    // 背景に他の写真が流れないようにする場合:暗転させ、写真送りを一時停止する
+    let wasPausedBeforeAnnounce = paused;
+    if(dimBackground){
+      document.getElementById('announce-backdrop').classList.add('active');
+      if(!paused){ paused = true; clearTimeout(timer); }
+    }
+
+    currentAnnounce = { text, duration: durationSec, color, pos, motion, deco, direction, size, repeat, textColor, speed, gap, dimBackground };
 
     if(durationSec > 0){
       announceTimer = setTimeout(() => {
         announceBanner.classList.remove('active');
         currentAnnounce = null;
+        if(dimBackground){
+          document.getElementById('announce-backdrop').classList.remove('active');
+          if(!wasPausedBeforeAnnounce){ paused = false; scheduleNext(); }
+        }
       }, durationSec * 1000);
     }
   }
   announceClose.addEventListener('click', () => {
     clearTimeout(announceTimer);
     announceBanner.classList.remove('active');
+    if(currentAnnounce && currentAnnounce.dimBackground){
+      document.getElementById('announce-backdrop').classList.remove('active');
+      if(paused){ paused = false; scheduleNext(); }
+    }
     currentAnnounce = null;
   });
 
@@ -3734,7 +3761,7 @@ if(isDisplay){
       updateCounter();
     }
     if(msg.type === 'announce'){
-      showAnnouncement(msg.text, msg.duration, msg.color, msg.pos, msg.motion, msg.deco, msg.direction, msg.size, msg.repeat, msg.textColor, msg.speed, msg.gap);
+      showAnnouncement(msg.text, msg.duration, msg.color, msg.pos, msg.motion, msg.deco, msg.direction, msg.size, msg.repeat, msg.textColor, msg.speed, msg.gap, msg.dimBackground);
     }
     if(msg.type === 'requestCurrentAnnounce'){
       if(window.opener){
@@ -3885,12 +3912,13 @@ if(isDisplay){
             <div class="pending-msg">${item.message ? escapeHtmlCP(item.message) : '(メッセージなし)'}</div>
             <div class="pending-time">${escapeHtmlCP(item.time)}</div>
           </div>
-          <button class="pending-add-btn">追加</button>
+          <button class="pending-add-btn">確認して追加</button>
         `;
         const addBtn = el.querySelector('.pending-add-btn');
+        // 必ずプレビュー(スタイル選択)画面を経由してから追加する
         addBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          approveItem(item, key, addBtn);
+          openPreviewModal(item, key, addBtn);
         });
         el.querySelector('.pending-thumb').addEventListener('click', () => openPreviewModal(item, key, addBtn));
         el.querySelector('.pending-body').addEventListener('click', () => openPreviewModal(item, key, addBtn));
@@ -3922,7 +3950,8 @@ if(isDisplay){
           pos: style.pos,
           size: style.size,
           motion: 'static',
-          deco: 'normal'
+          deco: 'normal',
+          dimBackground: true
         }, '*');
       }
     }
