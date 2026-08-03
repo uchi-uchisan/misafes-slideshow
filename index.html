@@ -634,7 +634,13 @@
     font-size:12px; font-weight:600;
     cursor:pointer;
   }
-  .pending-add-btn:disabled{ opacity:0.4; cursor:default; }
+  .pending-add-btn:disabled{
+    opacity:1;
+    cursor:not-allowed;
+    background:rgba(233,228,216,0.06) !important;
+    color:rgba(233,228,216,0.35) !important;
+    border:1px solid rgba(233,228,216,0.12);
+  }
 
   #preview-modal{
     position:fixed; inset:0;
@@ -3870,7 +3876,7 @@ if(isDisplay){
     approvedKeys.add(key);
     if(listBtnEl){
       listBtnEl.disabled = true;
-      listBtnEl.textContent = '追加済み';
+      listBtnEl.textContent = '✓ 反映済み(操作不要)';
     }
     if(childWin && !childWin.closed){
       if(item.photoUrl){
@@ -3905,7 +3911,7 @@ if(isDisplay){
     previewModalMsg.textContent = item.message || '(メッセージなし)';
     previewModalTime.textContent = item.time;
     previewModalAdd.disabled = approvedKeys.has(key);
-    previewModalAdd.textContent = approvedKeys.has(key) ? '追加済み' : '追加する';
+    previewModalAdd.textContent = approvedKeys.has(key) ? '✓ 反映済み(操作不要)' : '追加する';
     previewModal.classList.add('active');
   }
   previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
@@ -3913,7 +3919,7 @@ if(isDisplay){
     if(!previewCurrentItem) return;
     approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn);
     previewModalAdd.disabled = true;
-    previewModalAdd.textContent = '追加済み';
+    previewModalAdd.textContent = '✓ 反映済み(操作不要)';
     previewModal.classList.remove('active');
   });
 
