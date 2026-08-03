@@ -29,12 +29,14 @@
   /* ---------- 設定画面 ---------- */
   #setup{
     position:fixed; inset:0;
-    display:flex; align-items:center; justify-content:center;
+    display:flex; align-items:flex-start; justify-content:center;
     background:
       radial-gradient(circle at 20% 20%, rgba(232,84,42,0.12), transparent 45%),
       radial-gradient(circle at 80% 75%, rgba(212,168,67,0.10), transparent 45%),
       var(--night);
     z-index:10;
+    overflow-y:auto;
+    padding:24px 0;
   }
   .panel{
     width:min(560px, 92vw);
@@ -3484,12 +3486,22 @@ function shuffleArray(arr){
   return a;
 }
 
-// 袋文字(アウトライン)の太さを、文字サイズに応じて計算する(細い書体でも潰れないように)
-function getOutlineStyle(fontSizePx, alpha){
-  alpha = alpha || 0.8;
+// 袋文字(アウトライン)の太さ・色を、文字色に応じて自動計算する
+// (暗い文字色には明るい縁取り、明るい文字色には暗い縁取りを使い、文字とくっついて見えないようにする)
+function getOutlineStyle(fontSizePx, textColorHex){
   const w = Math.max(1, Math.round(fontSizePx / 16));
-  const stroke = `${w}px rgba(0,0,0,${alpha})`;
-  const shadow = `-${w}px -${w}px 0 rgba(0,0,0,${alpha}), ${w}px -${w}px 0 rgba(0,0,0,${alpha}), -${w}px ${w}px 0 rgba(0,0,0,${alpha}), ${w}px ${w}px 0 rgba(0,0,0,${alpha})`;
+  let strokeRgb = '20,14,10'; // 既定は濃い縁取り
+  try{
+    const hex = (textColorHex || '#2a2118').replace('#', '');
+    const r = parseInt(hex.substr(0,2), 16);
+    const g = parseInt(hex.substr(2,2), 16);
+    const b = parseInt(hex.substr(4,2), 16);
+    const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
+    strokeRgb = luminance < 0.5 ? '250,244,232' : '20,14,10'; // 暗い文字→明るい縁取り、明るい文字→暗い縁取り
+  }catch(err){ /* 解析できない場合は既定値のまま */ }
+  const alpha = 0.9;
+  const stroke = `${w}px rgba(${strokeRgb},${alpha})`;
+  const shadow = `-${w}px -${w}px 0 rgba(${strokeRgb},${alpha}), ${w}px -${w}px 0 rgba(${strokeRgb},${alpha}), -${w}px ${w}px 0 rgba(${strokeRgb},${alpha}), ${w}px ${w}px 0 rgba(${strokeRgb},${alpha})`;
   return { stroke, shadow };
 }
 
@@ -3552,7 +3564,7 @@ if(isDisplay){
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     cap.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
-      const o = getOutlineStyle(st.size, 0.8);
+      const o = getOutlineStyle(st.size, st.color);
       cap.style.webkitTextStroke = o.stroke;
       cap.style.textShadow = o.shadow;
       cap.style.boxShadow = 'none';
@@ -3588,7 +3600,7 @@ if(isDisplay){
     if(st.font) txt.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     txt.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
-      const o = getOutlineStyle(displaySize, 0.8);
+      const o = getOutlineStyle(displaySize, st.color);
       txt.style.webkitTextStroke = o.stroke;
       txt.style.textShadow = o.shadow;
     }else{
@@ -3742,7 +3754,7 @@ if(isDisplay){
     announceBanner.classList.toggle('scroll-mode', motion === 'scroll');
     announceText.classList.toggle('deco-outline', deco === 'outline');
     if(deco === 'outline'){
-      const o = getOutlineStyle(size, 0.75);
+      const o = getOutlineStyle(size, finalTextColor);
       announceText.style.webkitTextStroke = o.stroke;
       announceText.style.textShadow = o.shadow;
     }else{
@@ -4163,7 +4175,7 @@ if(isDisplay){
 
     // 袋文字(アウトライン)装飾:選んだ場合は縁取りを優先して適用(文字サイズに応じた太さ)
     if(previewDeco === 'outline'){
-      const o = getOutlineStyle(liveFontSize, 0.8);
+      const o = getOutlineStyle(liveFontSize, previewColor);
       previewLiveCaption.style.webkitTextStroke = o.stroke;
       previewLiveCaption.style.textShadow = o.shadow;
     }else{
