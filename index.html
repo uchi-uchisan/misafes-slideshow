@@ -546,7 +546,7 @@
     font-size:13px;
     cursor:pointer;
   }
-  #announce-cancel, #caption-skip, #restyle-cancel, #ticker-edit-cancel, #preview-modal-close{
+  #announce-cancel, #caption-skip, #restyle-cancel, #ticker-edit-cancel, #preview-modal-close, #preview-modal-skip{
     background:rgba(233,228,216,0.08);
     color:var(--ink);
   }
@@ -679,6 +679,17 @@
     color:rgba(233,228,216,0.35) !important;
     border:1px solid rgba(233,228,216,0.12);
   }
+  .pending-skip-btn{
+    flex-shrink:0;
+    padding:6px 14px;
+    background:transparent;
+    color:rgba(233,228,216,0.45);
+    border:1px solid rgba(233,228,216,0.18);
+    border-radius:9px;
+    font-size:11px;
+    cursor:pointer;
+  }
+  .pending-skip-btn:hover{ color:rgba(233,228,216,0.75); border-color:rgba(233,228,216,0.35); }
 
   #preview-modal{
     position:fixed; inset:0;
@@ -1057,6 +1068,7 @@
 
       <div class="btn-row">
         <button id="preview-modal-close">閉じる</button>
+        <button id="preview-modal-skip">見送る</button>
         <button id="preview-modal-add">追加する</button>
       </div>
     </div>
@@ -4288,6 +4300,7 @@ if(isDisplay){
   // 上記が通信エラー等で使えない場合の予備(スプレッドシートを直接読む方法)
   const PENDING_CSV_URL = "https://docs.google.com/spreadsheets/d/1m_2r8VBmrFw6aben2TeZN0tP4hzav0F2GjWxRgeL3Fo/gviz/tq?tqx=out:csv";
   const approvedKeys = new Set();
+  const skippedKeys = new Set();
   let pendingPollTimer = null;
 
   function parsePendingCSV(text){
@@ -4333,7 +4346,10 @@ if(isDisplay){
     const countEl = document.getElementById('pending-count');
     try{
       const rawItems = await fetchPendingItems();
-      const items = rawItems.filter(item => (item.message || item.photoUrl) && !approvedKeys.has(item.time + '|' + item.message));
+      const items = rawItems.filter(item => {
+        const key = item.time + '|' + item.message;
+        return (item.message || item.photoUrl) && !approvedKeys.has(key) && !skippedKeys.has(key);
+      });
 
       countEl.textContent = items.length + '件';
       if(items.length === 0){
@@ -4346,21 +4362,33 @@ if(isDisplay){
         const key = item.time + '|' + item.message;
         const el = document.createElement('div');
         el.className = 'pending-item';
+        const msgHtml = item.message
+          ? `<div class="pending-msg">${escapeHtmlCP(item.message)}</div>`
+          : (item.photoUrl ? '' : `<div class="pending-msg">(メッセージなし)</div>`);
         el.innerHTML = `
           ${item.photoUrl
             ? `<img class="pending-thumb" src="${item.photoUrl}" loading="lazy">`
             : `<div class="pending-thumb no-photo">💬</div>`}
           <div class="pending-body">
-            <div class="pending-msg">${item.message ? escapeHtmlCP(item.message) : '(メッセージなし)'}</div>
+            ${msgHtml}
             <div class="pending-time">${escapeHtmlCP(item.time)}</div>
           </div>
-          <button class="pending-add-btn">確認して追加</button>
+          <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+            <button class="pending-add-btn">確認して追加</button>
+            <button class="pending-skip-btn">見送る</button>
+          </div>
         `;
         const addBtn = el.querySelector('.pending-add-btn');
+        const skipBtn = el.querySelector('.pending-skip-btn');
         // 必ずプレビュー(スタイル選択)画面を経由してから追加する
         addBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           openPreviewModal(item, key, addBtn);
+        });
+        skipBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          skippedKeys.add(key);
+          el.remove();
         });
         el.querySelector('.pending-thumb').addEventListener('click', () => openPreviewModal(item, key, addBtn));
         el.querySelector('.pending-body').addEventListener('click', () => openPreviewModal(item, key, addBtn));
@@ -4396,6 +4424,7 @@ if(isDisplay){
   const previewModalTime = document.getElementById('preview-modal-time');
   const previewModalClose = document.getElementById('preview-modal-close');
   const previewModalAdd = document.getElementById('preview-modal-add');
+  const previewModalSkip = document.getElementById('preview-modal-skip');
   const previewFontOpts = document.querySelectorAll('#preview-font-row .icon-opt');
   const previewSizeOpts = document.querySelectorAll('#preview-size-row .icon-opt');
   const previewColorOpts = document.querySelectorAll('#preview-color-row .color-opt');
@@ -4578,6 +4607,14 @@ if(isDisplay){
     previewModal.classList.add('active');
   }
   previewModalClose.addEventListener('click', () => previewModal.classList.remove('active'));
+  previewModalSkip.addEventListener('click', () => {
+    if(previewCurrentKey) skippedKeys.add(previewCurrentKey);
+    if(previewCurrentListBtn){
+      const row = previewCurrentListBtn.closest('.pending-item');
+      if(row) row.remove();
+    }
+    previewModal.classList.remove('active');
+  });
   previewModalAdd.addEventListener('click', () => {
     if(!previewCurrentItem) return;
     const style = { size: previewSize, color: previewColor, bg: previewBg, bgCustom: previewBgCustom, shape: previewShape, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
