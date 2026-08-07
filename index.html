@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>町内スライドショー</title>
+<script src="face-api.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Yomogi&display=swap" rel="stylesheet">
@@ -222,6 +223,34 @@
     padding:34px 46px;
     box-shadow:none;
     border-radius:0;
+  }
+  .slide .caption.shape-frosted{
+    padding:16px 28px;
+    -webkit-backdrop-filter:blur(10px);
+    backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,0.35);
+  }
+  .slide .caption.shape-neon{
+    padding:10px 20px;
+    font-weight:700;
+  }
+  .slide .caption.shape-marker{
+    padding:6px 14px;
+    border-radius:2px;
+    box-shadow:none;
+  }
+  .slide .caption.shape-bubble{
+    padding:14px 22px;
+    border-radius:20px;
+  }
+  .slide .caption.shape-bubble::after{
+    content:'';
+    position:absolute;
+    left:50%;
+    bottom:-14px;
+    transform:translateX(-50%);
+    border:9px solid transparent;
+    border-top-color:var(--bubble-color, #f5ece0);
   }
   .slide .caption.deco-outline,
   .slide.text-slide-card .text-slide-content.deco-outline{
@@ -579,6 +608,19 @@
     margin-bottom:24px;
     letter-spacing:0.05em;
   }
+  .cp-speed-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:rgba(233,228,216,0.06);
+    border:1px solid rgba(212,168,67,0.2);
+    border-radius:10px;
+    padding:10px 14px;
+    margin-bottom:16px;
+    font-size:13px;
+    color:rgba(233,228,216,0.85);
+  }
+  .cp-speed-row span:last-child{ min-width:42px; text-align:right; color:var(--gold); font-weight:700; }
   .cp-btn-grid{
     display:grid;
     grid-template-columns:1fr 1fr 1fr;
@@ -656,6 +698,30 @@
     font-size:18px;
     cursor:default;
   }
+  .pending-thumb-wrap{ position:relative; flex-shrink:0; }
+  .pending-flag-badge{
+    position:absolute; top:-4px; right:-4px;
+    width:18px; height:18px;
+    background:var(--lantern);
+    color:#fff;
+    border-radius:50%;
+    font-size:11px;
+    display:none;
+    align-items:center; justify-content:center;
+    box-shadow:0 0 0 2px var(--night-deep);
+  }
+  .pending-thumb-wrap.has-flag .pending-flag-badge{ display:flex; }
+  .preview-flag-banner{
+    display:none;
+    background:rgba(201,64,31,0.15);
+    border:1px solid rgba(201,64,31,0.5);
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:12px;
+    color:#ff8a6b;
+    margin-bottom:10px;
+  }
+  .preview-flag-banner.show{ display:block; }
   .pending-body{ flex:1; min-width:0; cursor:pointer; }
   .pending-msg{
     font-size:12.5px; color:var(--ink);
@@ -725,6 +791,14 @@
     margin-bottom:16px;
     background:linear-gradient(135deg, #3d241b, #12162c);
   }
+  .face-box{
+    position:absolute;
+    border:3px solid #ff3b3b;
+    box-shadow:0 0 0 1px rgba(0,0,0,0.5);
+    border-radius:4px;
+    pointer-events:none;
+    z-index:5;
+  }
   #announce-preview-stage{
     position:relative;
     width:100%;
@@ -779,6 +853,12 @@
   .mini-preview-caption.corner-square{ border-radius:0; }
   .mini-preview-caption.shape-glow{ padding:24px 34px; box-shadow:none; border-radius:0; }
   #preview-live-caption.shape-glow{ padding:24px 34px; box-shadow:none !important; border-radius:0; }
+  .mini-preview-caption.shape-frosted,
+  #preview-live-caption.shape-frosted{ padding:14px 22px; box-shadow:none !important; }
+  .mini-preview-caption.shape-neon,
+  #preview-live-caption.shape-neon{ padding:8px 16px; box-shadow:none !important; font-weight:700; }
+  .mini-preview-caption.shape-marker,
+  #preview-live-caption.shape-marker{ padding:4px 10px; box-shadow:none !important; border-radius:2px; }
   .mini-preview-caption:empty::before{
     content:'(ここにコメントが入ります)';
     opacity:0.4;
@@ -946,6 +1026,12 @@
       </div>
       <input type="range" id="qr-offset-slider" min="20" max="160" value="78">
       <span class="hint">下の案内文と重ならないよう、QRコードの高さを調整できます</span>
+
+      <div class="row" style="margin-top:16px;">
+        <label>承認した写真を何枚後に表示するか<span class="hint" id="insert-offset-value">1枚後</span></label>
+      </div>
+      <input type="range" id="insert-offset-slider" min="1" max="10" value="1">
+      <span class="hint">「1枚後」だと、承認した瞬間ほぼすぐ表示されます。数字を大きくすると、今流れている写真がしばらく続いてから登場します</span>
     </div>
 
     <button id="start-btn" disabled>スライドショー開始(別ウィンドウで表示)</button>
@@ -971,6 +1057,26 @@
     </div>
 
     <div class="cp-counter" id="cp-counter">- / -</div>
+
+    <div class="cp-speed-row">
+      <span>🐢 表示間隔</span>
+      <input type="range" id="cp-speed-slider" min="2" max="30" value="5" style="flex:1;">
+      <span id="cp-speed-value">5秒</span>
+    </div>
+
+    <div class="cp-speed-row">
+      <span>📍 承認後</span>
+      <input type="range" id="cp-insert-offset-slider" min="1" max="10" value="1" style="flex:1;">
+      <span id="cp-insert-offset-value">1枚後</span>
+    </div>
+
+    <div class="cp-speed-row" id="delayed-queue-row">
+      <span>⏳ 時間差待ち</span>
+      <span id="delayed-queue-count" style="flex:1; color:rgba(233,228,216,0.7); text-align:left; font-weight:400;">0件</span>
+      <span>間隔</span>
+      <input type="range" id="delay-interval-slider" min="1" max="10" value="3" style="width:70px;">
+      <span id="delay-interval-value">3分</span>
+    </div>
 
     <div class="cp-btn-grid">
       <button class="cp-btn" id="prev-btn">◀ 前へ</button>
@@ -1008,6 +1114,7 @@
           <div class="preview-live-caption" id="preview-live-caption"></div>
         </div>
         <div class="preview-time" id="preview-modal-time"></div>
+        <div class="preview-flag-banner" id="preview-flag-banner"></div>
 
         <div class="style-row-label">フォント</div>
         <div class="icon-row" id="preview-font-row">
@@ -1044,11 +1151,19 @@
         <div class="style-row-label">背景の形</div>
         <div class="icon-row" id="preview-shape-row">
           <div class="icon-opt small selected" data-shape="box">四角</div>
-          <div class="icon-opt small" data-shape="glow">ぼかし(背景に溶け込む)</div>
+          <div class="icon-opt small" data-shape="glow">ぼかし</div>
+          <div class="icon-opt small" data-shape="frosted">すりガラス</div>
+          <div class="icon-opt small" data-shape="neon">ネオン</div>
+          <div class="icon-opt small" data-shape="marker">マーカー</div>
+          <div class="icon-opt small" data-shape="bubble">吹き出し</div>
         </div>
         <div class="style-row-label">文字装飾</div>
         <div class="icon-row" id="preview-deco-row">
           <div class="icon-opt small selected" data-deco="normal">通常</div>
+          <div class="icon-opt small" data-deco="shadow">ドロップシャドウ</div>
+          <div class="icon-opt small" data-deco="gradient">グラデーション</div>
+          <div class="icon-opt small" data-deco="pop">ポップ</div>
+          <div class="icon-opt small" data-deco="rainbow">虹色</div>
           <div class="icon-opt small" data-deco="outline">袋文字</div>
         </div>
         <div class="style-row-label" id="preview-outline-color-label" style="display:none;">縁取りの色</div>
@@ -1064,12 +1179,16 @@
           <div class="icon-opt small" data-pos="top">上</div>
           <div class="icon-opt small" data-pos="center">中央</div>
         </div>
+
+        <button type="button" id="ai-style-btn" style="width:100%; margin-top:10px; padding:10px; background:rgba(212,168,67,0.12); border:1px solid rgba(212,168,67,0.4); color:var(--gold); border-radius:8px; font-size:13px; cursor:pointer;">✨ AIにスタイルをおまかせ</button>
+        <div id="ai-style-status" style="font-size:11px; color:rgba(233,228,216,0.6); text-align:center; margin-top:4px; min-height:14px;"></div>
       </div>
 
       <div class="btn-row">
         <button id="preview-modal-close">閉じる</button>
         <button id="preview-modal-skip">見送る</button>
-        <button id="preview-modal-add">追加する</button>
+        <button id="preview-modal-delay">⏳ 時間差で表示</button>
+        <button id="preview-modal-add">今すぐ表示</button>
       </div>
     </div>
   </div>
@@ -1139,12 +1258,20 @@
       <div class="style-row-label">背景の形</div>
       <div class="icon-row" id="restyle-shape-row">
         <div class="icon-opt small selected" data-shape="box">四角</div>
-        <div class="icon-opt small" data-shape="glow">ぼかし(背景に溶け込む)</div>
+        <div class="icon-opt small" data-shape="glow">ぼかし</div>
+        <div class="icon-opt small" data-shape="frosted">すりガラス</div>
+        <div class="icon-opt small" data-shape="neon">ネオン</div>
+        <div class="icon-opt small" data-shape="marker">マーカー</div>
+          <div class="icon-opt small" data-shape="bubble">吹き出し</div>
       </div>
 
       <div class="style-row-label">文字装飾</div>
       <div class="icon-row" id="restyle-deco-row">
         <div class="icon-opt small selected" data-deco="normal">通常</div>
+        <div class="icon-opt small" data-deco="shadow">ドロップシャドウ</div>
+        <div class="icon-opt small" data-deco="gradient">グラデーション</div>
+        <div class="icon-opt small" data-deco="pop">ポップ</div>
+          <div class="icon-opt small" data-deco="rainbow">虹色</div>
         <div class="icon-opt small" data-deco="outline">袋文字</div>
       </div>
 
@@ -1386,12 +1513,20 @@
       <div class="style-row-label">背景の形</div>
       <div class="icon-row" id="shape-row">
         <div class="icon-opt small selected" data-shape="box">四角</div>
-        <div class="icon-opt small" data-shape="glow">ぼかし(背景に溶け込む)</div>
+        <div class="icon-opt small" data-shape="glow">ぼかし</div>
+        <div class="icon-opt small" data-shape="frosted">すりガラス</div>
+        <div class="icon-opt small" data-shape="neon">ネオン</div>
+        <div class="icon-opt small" data-shape="marker">マーカー</div>
+          <div class="icon-opt small" data-shape="bubble">吹き出し</div>
       </div>
 
       <div class="style-row-label">文字装飾</div>
       <div class="icon-row" id="deco-row">
         <div class="icon-opt small selected" data-deco="normal">通常</div>
+        <div class="icon-opt small" data-deco="shadow">ドロップシャドウ</div>
+        <div class="icon-opt small" data-deco="gradient">グラデーション</div>
+        <div class="icon-opt small" data-deco="pop">ポップ</div>
+          <div class="icon-opt small" data-deco="rainbow">虹色</div>
         <div class="icon-opt small" data-deco="outline">袋文字</div>
       </div>
 
@@ -3831,6 +3966,10 @@ if(isDisplay){
   const GLOW_BASE_COLOR = {
     paper: '245,236,224', ink: '42,33,24', gold: '212,168,67', lantern: '224,90,45', none: '20,14,10'
   };
+  // 「吹き出し」形状で使う、しっぽの三角と合わせるための単色(グラデーションは使えないため)
+  const BUBBLE_FLAT_COLOR = {
+    paper: '#f5ece0', ink: '#2a2118', gold: '#c9a227', lantern: '#c9401f', none: '#f5ece0'
+  };
   function hexToRgbStr(hex){
     try{
       const h = hex.replace('#','');
@@ -3846,34 +3985,77 @@ if(isDisplay){
 
     const cap = document.createElement('div');
     cap.className = 'caption';
-    cap.textContent = data.caption;
+    const textSpan = document.createElement('span');
+    textSpan.className = 'caption-text';
+    textSpan.textContent = data.caption;
+    cap.appendChild(textSpan);
     const st = data.style || { size: 20, color: '#2a2118', pos: 'bottom', bg: 'paper' };
     cap.style.fontSize = st.size + 'px';
-    cap.style.color = st.color === 'custom' ? (st.colorCustom || '#2a2118') : st.color;
+    const txtColor = st.color === 'custom' ? (st.colorCustom || '#2a2118') : st.color;
+    cap.style.color = txtColor;
     cap.style.letterSpacing = (st.tracking || 0) + 'px';
     cap.classList.toggle('corner-square', st.corner === 'square');
-    cap.classList.toggle('shape-glow', st.shape === 'glow');
+    cap.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
+
+    const bgRgb = st.bg === 'custom' ? hexToRgbStr(st.bgCustom || '#8a5a12') : (GLOW_BASE_COLOR[st.bg || 'paper'] || GLOW_BASE_COLOR.paper);
     if(st.shape === 'glow'){
-      const rgb = st.bg === 'custom' ? hexToRgbStr(st.bgCustom || '#8a5a12') : (GLOW_BASE_COLOR[st.bg || 'paper'] || GLOW_BASE_COLOR.paper);
-      cap.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
+      cap.classList.add('shape-glow');
+      cap.style.background = `radial-gradient(ellipse at center, rgba(${bgRgb},0.92) 0%, rgba(${bgRgb},0.65) 45%, rgba(${bgRgb},0) 78%)`;
+    }else if(st.shape === 'frosted'){
+      cap.classList.add('shape-frosted');
+      cap.style.background = `rgba(${bgRgb},0.28)`;
+    }else if(st.shape === 'neon'){
+      cap.classList.add('shape-neon');
+      cap.style.background = 'transparent';
+      textSpan.style.textShadow = `0 0 6px ${txtColor}, 0 0 14px ${txtColor}, 0 0 26px ${txtColor}`;
+    }else if(st.shape === 'marker'){
+      cap.classList.add('shape-marker');
+      cap.style.background = `rgba(${bgRgb},0.75)`;
+    }else if(st.shape === 'bubble'){
+      cap.classList.add('shape-bubble');
+      const flatColor = st.bg === 'custom' ? (st.bgCustom || '#8a5a12') : (BUBBLE_FLAT_COLOR[st.bg || 'paper'] || BUBBLE_FLAT_COLOR.paper);
+      cap.style.background = flatColor;
+      cap.style.setProperty('--bubble-color', flatColor);
     }else{
       cap.style.background = st.bg === 'custom' ? (st.bgCustom || '#8a5a12') : (CAPTION_BG[st.bg || 'paper'] || CAPTION_BG.paper);
     }
     if(st.font) cap.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
-    cap.classList.toggle('deco-outline', st.deco === 'outline');
+    cap.classList.remove('deco-outline', 'deco-shadow', 'deco-gradient', 'deco-pop', 'deco-rainbow');
     if(st.deco === 'outline'){
-      const o = getOutlineStyle(st.size, cap.style.color, st.outlineColor);
-      cap.style.webkitTextStroke = o.stroke;
-      cap.style.textShadow = o.shadow;
+      cap.classList.add('deco-outline');
+      const o = getOutlineStyle(st.size, txtColor, st.outlineColor);
+      textSpan.style.webkitTextStroke = o.stroke;
+      if(st.shape !== 'neon') textSpan.style.textShadow = o.shadow;
+      cap.style.boxShadow = 'none';
+    }else if(st.deco === 'shadow'){
+      cap.classList.add('deco-shadow');
+      const d = Math.max(2, Math.round(st.size / 10));
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
+    }else if(st.deco === 'gradient'){
+      cap.classList.add('deco-gradient');
+      textSpan.style.backgroundImage = `linear-gradient(135deg, ${txtColor}, var(--gold, #d4a843))`;
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
+    }else if(st.deco === 'rainbow'){
+      cap.classList.add('deco-rainbow');
+      textSpan.style.backgroundImage = 'linear-gradient(90deg, #ff4d4d, #ffb14d, #ffe14d, #4dff88, #4dc9ff, #a24dff, #ff4dd2)';
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
+    }else if(st.deco === 'pop'){
+      cap.classList.add('deco-pop');
+      const o = getOutlineStyle(st.size, txtColor, st.outlineColor);
+      textSpan.style.webkitTextStroke = o.stroke;
+      const d = Math.max(2, Math.round(st.size / 9));
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
       cap.style.boxShadow = 'none';
     }else{
-      cap.style.webkitTextStroke = '';
-      if(st.bg === 'none' || st.shape === 'glow'){
+      if(st.bg === 'none' || st.shape === 'glow' || st.shape === 'frosted' || st.shape === 'marker'){
         cap.style.boxShadow = 'none';
-        cap.style.textShadow = '0 2px 6px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.5)';
-      }else{
+        if(st.shape !== 'neon') textSpan.style.textShadow = '0 2px 6px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.5)';
+      }else if(st.shape !== 'neon'){
         cap.style.boxShadow = '';
-        cap.style.textShadow = '';
       }
     }
     if(st.pos === 'top'){ cap.style.top = '7%'; cap.style.bottom = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
@@ -3933,6 +4115,12 @@ if(isDisplay){
     notifyParentState();
   }
 
+  function insertPos(){
+    // 「何枚後に表示するか」の設定値。order配列の長さを超えないよう安全にする
+    const offset = window.__insertOffset || 1;
+    return Math.min(offset, order.length);
+  }
+
   function scheduleNext(){
     clearTimeout(timer);
     if(paused) return;
@@ -3942,8 +4130,20 @@ if(isDisplay){
 
   function goNext(){
     if(!loopOn && stepCount >= order.length - 1) return;
-    const shown = order.shift();
-    order.push(shown);
+    const shownIdx = order.shift();
+    const shownSlide = slides[shownIdx];
+
+    if(shownSlide && shownSlide.isText){
+      // 文字だけのスライドは、1回表示したら列に戻さず終わり
+    }else if(shownSlide && shownSlide.isApproved){
+      // 承認した写真は、子供会の写真より早いタイミングで再登場するよう、
+      // 列の最後尾ではなく、少し手前(全体の1/3あたり)に戻す
+      const reinsertPos = Math.min(Math.max(3, Math.floor(order.length / 3)), order.length);
+      order.splice(reinsertPos, 0, shownIdx);
+    }else{
+      order.push(shownIdx);
+    }
+
     stepCount++;
     renderSlide(order[0]);
     updateCounter();
@@ -4129,6 +4329,7 @@ if(isDisplay){
     }));
 
     window.__interval = settings.interval;
+    window.__insertOffset = settings.insertOffset || 1;
     loopOn = settings.loop;
     shuffleOn = settings.shuffle;
 
@@ -4183,28 +4384,36 @@ if(isDisplay){
       if(msg.action === 'prev') goPrev();
       if(msg.action === 'togglePause') togglePause();
     }
+    if(msg.type === 'updateInterval'){
+      window.__interval = msg.interval;
+      scheduleNext(); // 今のカウントダウンを、新しい速度でやり直す
+    }
+    if(msg.type === 'updateInsertOffset'){
+      window.__insertOffset = msg.offset;
+    }
     if(msg.type === 'addPhotos'){
       const startIndex = slides.length;
       const newSlides = msg.files.map((f, i) => ({
         url: URL.createObjectURL(f),
         caption: msg.caption || '',
-        style: msg.style || null
+        style: msg.style || null,
+        isApproved: true
       }));
       slides = slides.concat(newSlides);
       const newIndices = newSlides.map((_, i) => startIndex + i);
-      order.splice(1, 0, ...(shuffleOn ? shuffleArray(newIndices) : newIndices));
+      order.splice(insertPos(), 0, ...(shuffleOn ? shuffleArray(newIndices) : newIndices));
       updateCounter();
     }
     if(msg.type === 'addPhotoByUrl'){
       const startIndex = slides.length;
-      slides.push({ url: msg.url, caption: msg.caption || '', style: msg.style || null });
-      order.splice(1, 0, startIndex);
+      slides.push({ url: msg.url, caption: msg.caption || '', style: msg.style || null, isApproved: true });
+      order.splice(insertPos(), 0, startIndex);
       updateCounter();
     }
     if(msg.type === 'addTextSlide'){
       const startIndex = slides.length;
       slides.push({ isText: true, caption: msg.text || '', style: msg.style || null });
-      order.splice(1, 0, startIndex);
+      order.splice(insertPos(), 0, startIndex);
       updateCounter();
     }
     if(msg.type === 'announce'){
@@ -4303,6 +4512,172 @@ if(isDisplay){
   const skippedKeys = new Set();
   let pendingPollTimer = null;
 
+  // ---------- 承認待ち投稿の自動チェック(顔検出・NGワード) ----------
+  // ▼ NGワード一覧(ここに追加・編集してください。差別語・スラング等は、コミュニティに合わせてご自身で追加するのが確実です) ▼
+  const NG_WORDS = [
+    // 誹謗中傷・攻撃的表現
+    "死ね", "しね", "殺す", "ころす", "消えろ", "きえろ", "カス", "クズ", "ゴミ", "気持ち悪い", "きもい", "うざい", "ばか", "バカ", "アホ", "あほ",
+    // 犯罪・危険行為を連想させる言葉
+    "覚醒剤", "大麻", "麻薬", "爆弾", "テロ", "殺害予告",
+    // 性的な表現(代表的なもののみ)
+    "エロ", "アダルト",
+    // スパム的な言い回し
+    "副業", "稼げる", "必ず儲かる", "フォローお願いします", "相互フォロー"
+  ];
+
+  // ▼ 個人情報・URL・記号の連打などは、単語ではなく「パターン」で検出します ▼
+  const NG_PATTERNS = [
+    { label: "電話番号らしき数字の並び", re: /0\d{1,4}[-‐ー\s]?\d{1,4}[-‐ー\s]?\d{3,4}/ },
+    { label: "メールアドレス", re: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/ },
+    { label: "URL", re: /(https?:\/\/|www\.)\S+/i },
+    { label: "LINE IDらしき記述", re: /line\s*id/i },
+    { label: "SNSアカウントらしき記述(@から始まる)", re: /@[a-zA-Z0-9_]{3,}/ },
+    { label: "同じ文字の連続", re: /(.)\1{7,}/ },
+    { label: "絵文字の連続", re: /(?:[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]){10,}/u }
+  ];
+
+  const flagResults = new Map(); // key -> { hasFace, ngWords }
+
+  let faceModelReady = false;
+  (async function loadFaceModel(){
+    try{
+      await faceapi.nets.tinyFaceDetector.loadFromUri('./face-models');
+      faceModelReady = true;
+    }catch(err){
+      console.warn('顔検出モデルの読み込みに失敗しました。顔検出は無効のまま進みます。', err);
+    }
+  })();
+
+  function checkNgWords(message){
+    if(!message) return [];
+    const wordHits = NG_WORDS.filter(w => message.includes(w));
+    const patternHits = NG_PATTERNS.filter(p => p.re.test(message)).map(p => p.label);
+    return wordHits.concat(patternHits);
+  }
+
+  // ▼ Geminiでの文章チェック・スタイル提案は、キーを安全に守るためApps Script経由で行います ▼
+  // (キーはこのファイルには一切含まれません。Apps Script側にのみ保管されています)
+
+  async function checkMessageWithGemini(message){
+    if(!message) return null;
+    try{
+      const res = await fetch(PENDING_APPSCRIPT_URL.split('?')[0], {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'geminiCheck', message })
+      });
+      if(!res.ok) return null; // 無料枠を超えた場合などは、静かに諦める(エラー扱いにしない)
+      const data = await res.json();
+      const answer = (data.text || '').trim();
+      if(!answer) return null; // APIキー未設定・失敗時は「判定なし」扱い
+      return answer.includes('NG');
+    }catch(err){
+      return null; // 通信エラー等も、同じく静かに諦める
+    }
+  }
+
+  // ▼ Geminiに、文章の雰囲気に合うスタイル(色・形・フォント・位置)を提案してもらう ▼
+  async function suggestStyleWithGemini(message){
+    try{
+      const res = await fetch(PENDING_APPSCRIPT_URL.split('?')[0], {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'geminiStyle', message: message || '' })
+      });
+      if(!res.ok) return null;
+      const data = await res.json();
+      let answer = (data.text || '').trim();
+      if(!answer) return null;
+      // ```json のようなコードブロック記法が付いていたら取り除く
+      answer = answer.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+      const parsed = JSON.parse(answer);
+      const validShapes = ['box','glow','frosted','neon','marker','bubble'];
+      const validDecos = ['normal','outline','shadow','gradient','rainbow','pop'];
+      const validFonts = ['yomogi','klee','textbook','gothic'];
+      const validPos = ['top','center','bottom'];
+      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.colorCustom || '')) return null;
+      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.bgCustom || '')) return null;
+      if(!validShapes.includes(parsed.shape)) return null;
+      if(!validDecos.includes(parsed.deco)) return null;
+      if(!validFonts.includes(parsed.font)) return null;
+      if(!validPos.includes(parsed.pos)) return null;
+      return parsed;
+    }catch(err){
+      return null;
+    }
+  }
+
+  async function checkFaceSize(imgEl){
+    if(!faceModelReady) return { hasMidOrBigFace: null, boxes: [] };
+    try{
+      const detections = await faceapi.detectAllFaces(imgEl, new faceapi.TinyFaceDetectorOptions());
+      if(!detections || detections.length === 0) return { hasMidOrBigFace: false, boxes: [] };
+      const imgArea = imgEl.naturalWidth * imgEl.naturalHeight;
+      const bigDetections = detections.filter(d => (d.box.width * d.box.height) / imgArea >= 0.03);
+      return { hasMidOrBigFace: bigDetections.length > 0, boxes: bigDetections.map(d => d.box) };
+    }catch(err){
+      return { hasMidOrBigFace: null, boxes: [] };
+    }
+  }
+
+  // 検出した顔の位置に、赤い枠を写真の上に重ねて表示する
+  function drawFaceBoxes(imgEl, wrapEl, boxes){
+    wrapEl.querySelectorAll('.face-box').forEach(el => el.remove());
+    // wrapEl(枠の基準)と画像の、実際の描画上の位置・サイズのズレを吸収して計算する
+    const wrapRect = wrapEl.getBoundingClientRect();
+    const imgRect = imgEl.getBoundingClientRect();
+    const offsetLeft = imgRect.left - wrapRect.left;
+    const offsetTop = imgRect.top - wrapRect.top;
+    const scaleX = imgRect.width / imgEl.naturalWidth;
+    const scaleY = imgRect.height / imgEl.naturalHeight;
+
+    boxes.forEach(box => {
+      const marker = document.createElement('div');
+      marker.className = 'face-box';
+      marker.style.left = (offsetLeft + box.x * scaleX) + 'px';
+      marker.style.top = (offsetTop + box.y * scaleY) + 'px';
+      marker.style.width = (box.width * scaleX) + 'px';
+      marker.style.height = (box.height * scaleY) + 'px';
+      wrapEl.appendChild(marker);
+    });
+  }
+
+  // サムネイル表示の時点で、裏側で先にチェックを済ませておく(拡大時に待たせないため)
+  function runBackgroundCheck(item, key, thumbWrapEl){
+    const ngWords = checkNgWords(item.message);
+    flagResults.set(key, { hasFace: null, geminiPending: !!item.message, ngWords });
+    if(ngWords.length > 0 && thumbWrapEl){
+      thumbWrapEl.classList.add('has-flag');
+    }
+
+    // Gemini判定(メッセージがある場合のみ。APIキー未設定時はApps Script側が空回答を返す)
+    if(item.message){
+      checkMessageWithGemini(item.message).then(isNg => {
+        const existing = flagResults.get(key) || { ngWords: [] };
+        flagResults.set(key, { ...existing, geminiPending: false, geminiFlag: isNg });
+        if(isNg === true && thumbWrapEl){
+          thumbWrapEl.classList.add('has-flag');
+        }
+      });
+    }
+
+    if(!item.photoUrl) return;
+
+    const imgEl = thumbWrapEl ? thumbWrapEl.querySelector('img') : null;
+    if(!imgEl) return;
+    const runCheck = () => {
+      checkFaceSize(imgEl).then(result => {
+        const existing = flagResults.get(key) || { ngWords: [] };
+        flagResults.set(key, { ...existing, hasFace: result.hasMidOrBigFace, boxes: result.boxes });
+        if(result.hasMidOrBigFace === true && thumbWrapEl){
+          thumbWrapEl.classList.add('has-flag');
+        }
+      });
+    };
+    if(imgEl.complete) runCheck();
+    else imgEl.addEventListener('load', runCheck);
+  }
+
   function parsePendingCSV(text){
     const rows = [];
     let row = [], field = '', inQuotes = false;
@@ -4367,8 +4742,8 @@ if(isDisplay){
           : (item.photoUrl ? '' : `<div class="pending-msg">(メッセージなし)</div>`);
         el.innerHTML = `
           ${item.photoUrl
-            ? `<img class="pending-thumb" src="${item.photoUrl}" loading="lazy">`
-            : `<div class="pending-thumb no-photo">💬</div>`}
+            ? `<div class="pending-thumb-wrap"><img class="pending-thumb" src="${item.photoUrl}" crossorigin="anonymous" loading="lazy"><div class="pending-flag-badge">⚠️</div></div>`
+            : `<div class="pending-thumb-wrap"><div class="pending-thumb no-photo">💬</div><div class="pending-flag-badge">⚠️</div></div>`}
           <div class="pending-body">
             ${msgHtml}
             <div class="pending-time">${escapeHtmlCP(item.time)}</div>
@@ -4390,22 +4765,38 @@ if(isDisplay){
           skippedKeys.add(key);
           el.remove();
         });
-        el.querySelector('.pending-thumb').addEventListener('click', () => openPreviewModal(item, key, addBtn));
+        el.querySelector('.pending-thumb-wrap').addEventListener('click', () => openPreviewModal(item, key, addBtn));
         el.querySelector('.pending-body').addEventListener('click', () => openPreviewModal(item, key, addBtn));
         listEl.appendChild(el);
+
+        // サムネイル表示のこの時点で、裏側で先にチェックを開始しておく
+        runBackgroundCheck(item, key, el.querySelector('.pending-thumb-wrap'));
       });
     }catch(err){
       listEl.innerHTML = `<div class="pending-empty">読み込みに失敗しました(${err.message})</div>`;
     }
   }
 
-  function approveItem(item, key, listBtnEl, style){
+  const delayedQueue = []; // 時間差で表示するために、順番待ちしている投稿
+  let delayIntervalMinutes = 3; // 何分おきに1件ずつ出すか
+
+  function approveItem(item, key, listBtnEl, style, delayed){
     approvedKeys.add(key);
     if(listBtnEl){
       listBtnEl.disabled = true;
-      listBtnEl.textContent = '✓ 反映済み(操作不要)';
+      listBtnEl.textContent = delayed ? '✓ 時間差で表示予定' : '✓ 反映済み(操作不要)';
     }
     style = style || { size: 26, color: '#2a2118', bg: 'paper', pos: 'bottom' };
+
+    if(delayed){
+      delayedQueue.push({ item, style });
+      updateDelayedQueueUI();
+      return;
+    }
+    sendApprovedToDisplay(item, style);
+  }
+
+  function sendApprovedToDisplay(item, style){
     if(childWin && !childWin.closed){
       if(item.photoUrl){
         childWin.postMessage({ type: 'addPhotoByUrl', url: item.photoUrl, caption: item.message, style }, '*');
@@ -4415,6 +4806,29 @@ if(isDisplay){
       }
     }
   }
+
+  function updateDelayedQueueUI(){
+    const el = document.getElementById('delayed-queue-count');
+    if(el) el.textContent = delayedQueue.length + '件';
+  }
+
+  function releaseNextDelayedItem(){
+    if(delayedQueue.length === 0) return;
+    const next = delayedQueue.shift();
+    sendApprovedToDisplay(next.item, next.style);
+    updateDelayedQueueUI();
+  }
+
+  // 設定した間隔ごとに、時間差キューから1件ずつ自動で表示していく(間隔変更にもすぐ対応できる形)
+  let delayReleaseTimer = null;
+  function scheduleDelayRelease(){
+    clearTimeout(delayReleaseTimer);
+    delayReleaseTimer = setTimeout(() => {
+      if(delayedQueue.length > 0) releaseNextDelayedItem();
+      scheduleDelayRelease();
+    }, delayIntervalMinutes * 60 * 1000);
+  }
+  scheduleDelayRelease();
 
   // ---------- 承認待ちのプレビュー拡大表示(プライバシー確認用) ----------
   const previewModal = document.getElementById('preview-modal');
@@ -4499,21 +4913,47 @@ if(isDisplay){
     }else{
       // 写真つき:写真の上に吹き出しとして重ねる
       previewStage.style.background = 'transparent';
-      previewLiveCaption.classList.toggle('shape-glow', previewShape === 'glow');
+      previewLiveCaption.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker');
+      const rgb = previewBg === 'custom' ? previewHexToRgb(previewBgCustom) : (PREVIEW_GLOW_BASE[previewBg] || PREVIEW_GLOW_BASE.paper);
       if(previewShape === 'glow'){
-        const rgb = previewBg === 'custom' ? previewHexToRgb(previewBgCustom) : (PREVIEW_GLOW_BASE[previewBg] || PREVIEW_GLOW_BASE.paper);
+        previewLiveCaption.classList.add('shape-glow');
         previewLiveCaption.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
         previewLiveCaption.style.boxShadow = 'none';
         previewLiveCaption.style.padding = '20px 30px';
+      }else if(previewShape === 'frosted'){
+        previewLiveCaption.classList.add('shape-frosted');
+        previewLiveCaption.style.background = `rgba(${rgb},0.28)`;
+        previewLiveCaption.style.boxShadow = 'none';
+        previewLiveCaption.style.padding = '12px 20px';
+        previewLiveCaption.style.backdropFilter = 'blur(10px)';
+        previewLiveCaption.style.webkitBackdropFilter = 'blur(10px)';
+        previewLiveCaption.style.border = '1px solid rgba(255,255,255,0.35)';
+      }else if(previewShape === 'neon'){
+        previewLiveCaption.classList.add('shape-neon');
+        previewLiveCaption.style.background = 'transparent';
+        previewLiveCaption.style.boxShadow = 'none';
+        previewLiveCaption.style.padding = '8px 16px';
+      }else if(previewShape === 'marker'){
+        previewLiveCaption.classList.add('shape-marker');
+        previewLiveCaption.style.background = `rgba(${rgb},0.75)`;
+        previewLiveCaption.style.boxShadow = 'none';
+        previewLiveCaption.style.padding = '4px 10px';
       }else{
         previewLiveCaption.style.background = previewBg === 'custom' ? previewBgCustom : (PREVIEW_CAPTION_BG[previewBg] || PREVIEW_CAPTION_BG.paper);
         previewLiveCaption.style.boxShadow = previewBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
         previewLiveCaption.style.padding = previewBg === 'none' ? '0' : '8px 16px';
+        previewLiveCaption.style.backdropFilter = '';
+        previewLiveCaption.style.webkitBackdropFilter = '';
+        previewLiveCaption.style.border = '';
       }
       previewLiveCaption.style.maxWidth = '82%';
       liveFontSize = previewSize;
       previewLiveCaption.style.fontSize = liveFontSize + 'px';
-      previewLiveCaption.style.textShadow = (previewBg === 'none' || previewShape === 'glow') ? '-1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      if(previewShape === 'neon'){
+        previewLiveCaption.style.textShadow = `0 0 6px ${previewColor}, 0 0 14px ${previewColor}, 0 0 26px ${previewColor}`;
+      }else{
+        previewLiveCaption.style.textShadow = (previewBg === 'none' || previewShape === 'glow' || previewShape === 'frosted' || previewShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      }
     }
 
     if(previewPos === 'top'){ previewLiveCaption.style.top = '8%'; previewLiveCaption.style.bottom = 'auto'; }
@@ -4521,11 +4961,31 @@ if(isDisplay){
     else{ previewLiveCaption.style.bottom = '6%'; previewLiveCaption.style.top = 'auto'; }
     if(previewPos !== 'center'){ previewLiveCaption.style.transform = 'translateX(-50%)'; }
 
-    // 袋文字(アウトライン)装飾:選んだ場合は縁取りを優先して適用(文字サイズに応じた太さ)
+    // 文字装飾:選んだ場合は縁取り・影・グラデーションなどを適用(文字サイズに応じた太さ)
+    previewLiveCaption.style.backgroundImage = '';
+    previewLiveCaption.style.webkitBackgroundClip = '';
+    previewLiveCaption.style.backgroundClip = '';
+    previewLiveCaption.style.webkitTextFillColor = '';
     if(previewDeco === 'outline'){
       const o = getOutlineStyle(liveFontSize, previewColor, previewOutlineColor);
       previewLiveCaption.style.webkitTextStroke = o.stroke;
       previewLiveCaption.style.textShadow = o.shadow;
+    }else if(previewDeco === 'shadow'){
+      previewLiveCaption.style.webkitTextStroke = '';
+      const d = Math.max(2, Math.round(liveFontSize / 10));
+      previewLiveCaption.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
+    }else if(previewDeco === 'gradient'){
+      previewLiveCaption.style.webkitTextStroke = '';
+      previewLiveCaption.style.textShadow = 'none';
+      previewLiveCaption.style.backgroundImage = `linear-gradient(135deg, ${previewColor}, #d4a843)`;
+      previewLiveCaption.style.webkitBackgroundClip = 'text';
+      previewLiveCaption.style.backgroundClip = 'text';
+      previewLiveCaption.style.webkitTextFillColor = 'transparent';
+    }else if(previewDeco === 'pop'){
+      const o = getOutlineStyle(liveFontSize, previewColor, previewOutlineColor);
+      previewLiveCaption.style.webkitTextStroke = o.stroke;
+      const d = Math.max(2, Math.round(liveFontSize / 9));
+      previewLiveCaption.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
     }else{
       previewLiveCaption.style.webkitTextStroke = '';
     }
@@ -4589,10 +5049,49 @@ if(isDisplay){
     updateLivePreview();
   }));
 
+  // ---------- AIにスタイルをおまかせ ----------
+  const aiStyleBtn = document.getElementById('ai-style-btn');
+  const aiStyleStatus = document.getElementById('ai-style-status');
+  aiStyleBtn.addEventListener('click', async () => {
+    aiStyleBtn.disabled = true;
+    aiStyleStatus.textContent = '✨ AIが考え中です...';
+    const suggestion = await suggestStyleWithGemini(previewCurrentItem ? previewCurrentItem.message : '');
+    aiStyleBtn.disabled = false;
+    if(!suggestion){
+      aiStyleStatus.textContent = 'うまく提案できませんでした。もう一度試すか、手動で選んでください';
+      return;
+    }
+    aiStyleStatus.textContent = '';
+
+    // 文字色を反映(直接#RRGGBBを使う方式)
+    previewColorOpts.forEach(o => o.classList.remove('selected'));
+    previewColor = suggestion.colorCustom;
+
+    // 背景色を反映(custom方式)
+    previewBgOpts.forEach(o => o.classList.remove('selected'));
+    previewBg = 'custom';
+    previewBgCustom = suggestion.bgCustom;
+    previewBgCustomInput.value = suggestion.bgCustom;
+
+    // 形・装飾・フォント・位置を反映
+    previewShapeOpts.forEach(o => { o.classList.toggle('selected', o.dataset.shape === suggestion.shape); });
+    previewShape = suggestion.shape;
+    previewDecoOpts.forEach(o => { o.classList.toggle('selected', o.dataset.deco === suggestion.deco); });
+    previewDeco = suggestion.deco;
+    previewFontOpts.forEach(o => { o.classList.toggle('selected', o.dataset.font === suggestion.font); });
+    previewFont = suggestion.font;
+    previewPosOpts.forEach(o => { o.classList.toggle('selected', o.dataset.pos === suggestion.pos); });
+    previewPos = suggestion.pos;
+
+    updateOutlineColorVisibility();
+    updateLivePreview();
+  });
+
   function openPreviewModal(item, key, listBtnEl){
     previewCurrentItem = item;
     previewCurrentKey = key;
     previewCurrentListBtn = listBtnEl;
+    aiStyleStatus.textContent = '';
     if(item.photoUrl){
       previewModalImg.src = item.photoUrl;
       previewModalImg.style.display = 'block';
@@ -4602,6 +5101,35 @@ if(isDisplay){
     previewModalTime.textContent = item.time;
     previewModalAdd.disabled = approvedKeys.has(key);
     previewModalAdd.textContent = approvedKeys.has(key) ? '✓ 反映済み(操作不要)' : '追加する';
+
+    // サムネイル表示の時点ですでに計算済みの結果を、待たせずそのまま表示する
+    const flagBanner = document.getElementById('preview-flag-banner');
+    const result = flagResults.get(key);
+    const messages = [];
+    if(result){
+      if(result.hasFace === true) messages.push('⚠️ ある程度の大きさの顔が検出されました(赤い枠の位置です)');
+      if(result.hasFace === null && item.photoUrl) messages.push('⏳ 顔の自動チェックがまだ終わっていません(少し待つか、そのままご自身の目で確認してください)');
+      if(result.ngWords && result.ngWords.length > 0) messages.push(`⚠️ 文章に気になる言葉が含まれています(${result.ngWords.join('、')})`);
+      if(result.geminiFlag === true) messages.push('⚠️ AIが、文章に不適切な可能性があると判定しました');
+      if(result.geminiPending) messages.push('⏳ AIによる文章チェックがまだ終わっていません(少し待つか、そのままご自身の目で確認してください)');
+    }
+    if(messages.length > 0){
+      flagBanner.innerHTML = messages.join('<br>');
+      flagBanner.classList.add('show');
+    }else{
+      flagBanner.classList.remove('show');
+    }
+
+    // 顔の枠を描画(サムネイル時点で計算済みならすぐ、まだなら画像読み込み後に)
+    previewStage.querySelectorAll('.face-box').forEach(el => el.remove());
+    if(result && result.boxes && result.boxes.length > 0){
+      if(previewModalImg.complete){
+        drawFaceBoxes(previewModalImg, previewStage, result.boxes);
+      }else{
+        previewModalImg.addEventListener('load', () => drawFaceBoxes(previewModalImg, previewStage, result.boxes), { once: true });
+      }
+    }
+
     updateOutlineColorVisibility();
     updateLivePreview();
     previewModal.classList.add('active');
@@ -4618,9 +5146,19 @@ if(isDisplay){
   previewModalAdd.addEventListener('click', () => {
     if(!previewCurrentItem) return;
     const style = { size: previewSize, color: previewColor, bg: previewBg, bgCustom: previewBgCustom, shape: previewShape, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
-    approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style);
+    approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style, false);
     previewModalAdd.disabled = true;
     previewModalAdd.textContent = '✓ 反映済み(操作不要)';
+    previewModal.classList.remove('active');
+  });
+  const previewModalDelay = document.getElementById('preview-modal-delay');
+  previewModalDelay.addEventListener('click', () => {
+    if(!previewCurrentItem) return;
+    const style = { size: previewSize, color: previewColor, bg: previewBg, bgCustom: previewBgCustom, shape: previewShape, pos: previewPos, font: previewFont, deco: previewDeco, outlineColor: previewOutlineColor };
+    approveItem(previewCurrentItem, previewCurrentKey, previewCurrentListBtn, style, true);
+    previewModalAdd.disabled = true;
+    previewModalDelay.disabled = true;
+    previewModalAdd.textContent = '✓ 時間差で表示予定';
     previewModal.classList.remove('active');
   });
 
@@ -4692,6 +5230,9 @@ if(isDisplay){
   const qrOffsetSlider = document.getElementById('qr-offset-slider');
   const qrOffsetValue = document.getElementById('qr-offset-value');
   qrOffsetSlider.addEventListener('input', () => { qrOffsetValue.textContent = qrOffsetSlider.value + 'px'; });
+  const insertOffsetSlider = document.getElementById('insert-offset-slider');
+  const insertOffsetValue = document.getElementById('insert-offset-value');
+  insertOffsetSlider.addEventListener('input', () => { insertOffsetValue.textContent = insertOffsetSlider.value + '枚後'; });
   shuffleToggle.addEventListener('click', () => { shuffleOn = !shuffleOn; shuffleToggle.classList.toggle('on', shuffleOn); });
   loopToggle.addEventListener('click', () => { loopOn = !loopOn; loopToggle.classList.toggle('on', loopOn); });
 
@@ -4724,6 +5265,7 @@ if(isDisplay){
       qrUrl: qrUrlInput.value.trim(),
       qrUrl2: document.getElementById('qr-url2').value.trim(),
       qrOffset: parseInt(qrOffsetSlider.value, 10),
+      insertOffset: parseInt(insertOffsetSlider.value, 10),
       tickerMessages: Array.from(document.querySelectorAll('.ticker-text-input')).map(el => el.value.trim()).filter(t => t.length > 0)
     };
 
@@ -4733,6 +5275,10 @@ if(isDisplay){
     setupEl.style.display = 'none';
     controlPanel.classList.add('active');
     document.getElementById('cp-status').textContent = '🟡 表示ウィンドウに接続しています...';
+    cpSpeedSlider.value = settings.interval;
+    cpSpeedValue.textContent = settings.interval + '秒';
+    cpInsertOffsetSlider.value = settings.insertOffset;
+    cpInsertOffsetValue.textContent = settings.insertOffset + '枚後';
 
     function onReady(e){
       if(e.source !== childWin || !e.data || e.data.type !== 'ready') return;
@@ -4777,6 +5323,35 @@ if(isDisplay){
   document.getElementById('prev-btn').addEventListener('click', () => sendCommand('prev'));
   document.getElementById('pause-btn').addEventListener('click', () => sendCommand('togglePause'));
 
+  // ---------- 再生中の表示速度変更 ----------
+  const cpSpeedSlider = document.getElementById('cp-speed-slider');
+  const cpSpeedValue = document.getElementById('cp-speed-value');
+  cpSpeedSlider.addEventListener('input', () => {
+    cpSpeedValue.textContent = cpSpeedSlider.value + '秒';
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'updateInterval', interval: parseInt(cpSpeedSlider.value, 10) }, '*');
+    }
+  });
+
+  // ---------- 承認した写真を何枚後に表示するか ----------
+  const cpInsertOffsetSlider = document.getElementById('cp-insert-offset-slider');
+  const cpInsertOffsetValue = document.getElementById('cp-insert-offset-value');
+  cpInsertOffsetSlider.addEventListener('input', () => {
+    cpInsertOffsetValue.textContent = cpInsertOffsetSlider.value + '枚後';
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'updateInsertOffset', offset: parseInt(cpInsertOffsetSlider.value, 10) }, '*');
+    }
+  });
+
+  // ---------- 時間差表示の間隔調整 ----------
+  const delayIntervalSlider = document.getElementById('delay-interval-slider');
+  const delayIntervalValue = document.getElementById('delay-interval-value');
+  delayIntervalSlider.addEventListener('input', () => {
+    delayIntervalMinutes = parseInt(delayIntervalSlider.value, 10);
+    delayIntervalValue.textContent = delayIntervalMinutes + '分';
+    scheduleDelayRelease(); // 新しい間隔で、次の自動表示までの待ち時間を数え直す
+  });
+
   document.getElementById('qr1-toggle-btn').addEventListener('click', () => {
     if(childWin && !childWin.closed) childWin.postMessage({ type: 'toggleQR', which: 1 }, '*');
   });
@@ -4819,22 +5394,62 @@ if(isDisplay){
     const txtColor = restyleColor === 'custom' ? restyleColorCustom : restyleColor;
     restylePreviewText.style.color = txtColor;
     restylePreviewText.classList.toggle('corner-square', restyleCorner === 'square');
-    restylePreviewText.classList.toggle('shape-glow', restyleShape === 'glow');
+    restylePreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker');
+    const rRgb = restyleBg === 'custom' ? miniHexToRgb(restyleBgCustom) : (MINI_GLOW_BASE[restyleBg] || MINI_GLOW_BASE.paper);
     if(restyleShape === 'glow'){
-      const rgb = restyleBg === 'custom' ? miniHexToRgb(restyleBgCustom) : (MINI_GLOW_BASE[restyleBg] || MINI_GLOW_BASE.paper);
-      restylePreviewText.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
+      restylePreviewText.classList.add('shape-glow');
+      restylePreviewText.style.background = `radial-gradient(ellipse at center, rgba(${rRgb},0.92) 0%, rgba(${rRgb},0.65) 45%, rgba(${rRgb},0) 78%)`;
+    }else if(restyleShape === 'frosted'){
+      restylePreviewText.classList.add('shape-frosted');
+      restylePreviewText.style.background = `rgba(${rRgb},0.28)`;
+      restylePreviewText.style.backdropFilter = 'blur(10px)';
+      restylePreviewText.style.webkitBackdropFilter = 'blur(10px)';
+      restylePreviewText.style.border = '1px solid rgba(255,255,255,0.35)';
+    }else if(restyleShape === 'neon'){
+      restylePreviewText.classList.add('shape-neon');
+      restylePreviewText.style.background = 'transparent';
+    }else if(restyleShape === 'marker'){
+      restylePreviewText.classList.add('shape-marker');
+      restylePreviewText.style.background = `rgba(${rRgb},0.75)`;
     }else{
       restylePreviewText.style.background = restyleBg === 'custom' ? restyleBgCustom : (MINI_CAPTION_BG[restyleBg] || MINI_CAPTION_BG.paper);
+      restylePreviewText.style.backdropFilter = '';
+      restylePreviewText.style.webkitBackdropFilter = '';
+      restylePreviewText.style.border = '';
     }
+    restylePreviewText.style.backgroundImage = '';
+    restylePreviewText.style.webkitBackgroundClip = '';
+    restylePreviewText.style.backgroundClip = '';
+    restylePreviewText.style.webkitTextFillColor = '';
     if(restyleDeco === 'outline'){
       const o = getOutlineStyle(Math.min(restyleSize, 26), txtColor, 'auto');
       restylePreviewText.style.webkitTextStroke = o.stroke;
       restylePreviewText.style.textShadow = o.shadow;
       restylePreviewText.style.boxShadow = 'none';
+    }else if(restyleDeco === 'shadow'){
+      restylePreviewText.style.webkitTextStroke = '';
+      const d = Math.max(2, Math.round(Math.min(restyleSize, 26) / 10));
+      restylePreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
+    }else if(restyleDeco === 'gradient'){
+      restylePreviewText.style.webkitTextStroke = '';
+      restylePreviewText.style.textShadow = 'none';
+      restylePreviewText.style.backgroundImage = `linear-gradient(135deg, ${txtColor}, #d4a843)`;
+      restylePreviewText.style.webkitBackgroundClip = 'text';
+      restylePreviewText.style.backgroundClip = 'text';
+      restylePreviewText.style.webkitTextFillColor = 'transparent';
+    }else if(restyleDeco === 'pop'){
+      const o = getOutlineStyle(Math.min(restyleSize, 26), txtColor, 'auto');
+      restylePreviewText.style.webkitTextStroke = o.stroke;
+      const d = Math.max(2, Math.round(Math.min(restyleSize, 26) / 9));
+      restylePreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
     }else{
       restylePreviewText.style.webkitTextStroke = '';
-      restylePreviewText.style.boxShadow = (restyleBg === 'none' || restyleShape === 'glow') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
-      restylePreviewText.style.textShadow = (restyleBg === 'none' || restyleShape === 'glow') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      restylePreviewText.style.boxShadow = (restyleBg === 'none' || restyleShape === 'glow' || restyleShape === 'frosted' || restyleShape === 'marker') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
+      if(restyleShape === 'neon'){
+        restylePreviewText.style.textShadow = `0 0 6px ${txtColor}, 0 0 14px ${txtColor}, 0 0 26px ${txtColor}`;
+      }else{
+        restylePreviewText.style.textShadow = (restyleBg === 'none' || restyleShape === 'glow' || restyleShape === 'frosted' || restyleShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      }
     }
   }
   restyleShapeOpts.forEach(opt => opt.addEventListener('click', () => {
@@ -5150,27 +5765,67 @@ if(isDisplay){
     const txtColor = selectedColor === 'custom' ? selectedColorCustom : selectedColor;
     captionPreviewText.style.color = txtColor;
     captionPreviewText.classList.toggle('corner-square', selectedCorner === 'square');
-    captionPreviewText.classList.toggle('shape-glow', selectedShape === 'glow');
+    captionPreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker');
+    const cRgb = selectedBg === 'custom' ? miniHexToRgb(selectedBgCustom) : (MINI_GLOW_BASE[selectedBg] || MINI_GLOW_BASE.paper);
     if(selectedShape === 'glow'){
-      const rgb = selectedBg === 'custom' ? miniHexToRgb(selectedBgCustom) : (MINI_GLOW_BASE[selectedBg] || MINI_GLOW_BASE.paper);
-      captionPreviewText.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
+      captionPreviewText.classList.add('shape-glow');
+      captionPreviewText.style.background = `radial-gradient(ellipse at center, rgba(${cRgb},0.92) 0%, rgba(${cRgb},0.65) 45%, rgba(${cRgb},0) 78%)`;
+    }else if(selectedShape === 'frosted'){
+      captionPreviewText.classList.add('shape-frosted');
+      captionPreviewText.style.background = `rgba(${cRgb},0.28)`;
+      captionPreviewText.style.backdropFilter = 'blur(10px)';
+      captionPreviewText.style.webkitBackdropFilter = 'blur(10px)';
+      captionPreviewText.style.border = '1px solid rgba(255,255,255,0.35)';
+    }else if(selectedShape === 'neon'){
+      captionPreviewText.classList.add('shape-neon');
+      captionPreviewText.style.background = 'transparent';
+    }else if(selectedShape === 'marker'){
+      captionPreviewText.classList.add('shape-marker');
+      captionPreviewText.style.background = `rgba(${cRgb},0.75)`;
     }else{
       captionPreviewText.style.background = selectedBg === 'custom' ? selectedBgCustom : (MINI_CAPTION_BG[selectedBg] || MINI_CAPTION_BG.paper);
+      captionPreviewText.style.backdropFilter = '';
+      captionPreviewText.style.webkitBackdropFilter = '';
+      captionPreviewText.style.border = '';
     }
     if(pendingPreviewUrl){
       captionPreviewStage.style.backgroundImage = `url("${pendingPreviewUrl}")`;
       captionPreviewStage.style.backgroundSize = 'cover';
       captionPreviewStage.style.backgroundPosition = 'center';
     }
+    captionPreviewText.style.backgroundImage = captionPreviewText.style.backgroundImage; // (下で上書き)
+    captionPreviewText.style.webkitBackgroundClip = '';
+    captionPreviewText.style.backgroundClip = '';
+    captionPreviewText.style.webkitTextFillColor = '';
     if(selectedDeco === 'outline'){
       const o = getOutlineStyle(Math.min(selectedSize, 26), txtColor, 'auto');
       captionPreviewText.style.webkitTextStroke = o.stroke;
       captionPreviewText.style.textShadow = o.shadow;
       captionPreviewText.style.boxShadow = 'none';
+    }else if(selectedDeco === 'shadow'){
+      captionPreviewText.style.webkitTextStroke = '';
+      const d = Math.max(2, Math.round(Math.min(selectedSize, 26) / 10));
+      captionPreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
+    }else if(selectedDeco === 'gradient'){
+      captionPreviewText.style.webkitTextStroke = '';
+      captionPreviewText.style.textShadow = 'none';
+      captionPreviewText.style.backgroundImage = `linear-gradient(135deg, ${txtColor}, #d4a843)`;
+      captionPreviewText.style.webkitBackgroundClip = 'text';
+      captionPreviewText.style.backgroundClip = 'text';
+      captionPreviewText.style.webkitTextFillColor = 'transparent';
+    }else if(selectedDeco === 'pop'){
+      const o = getOutlineStyle(Math.min(selectedSize, 26), txtColor, 'auto');
+      captionPreviewText.style.webkitTextStroke = o.stroke;
+      const d = Math.max(2, Math.round(Math.min(selectedSize, 26) / 9));
+      captionPreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
     }else{
       captionPreviewText.style.webkitTextStroke = '';
-      captionPreviewText.style.boxShadow = (selectedBg === 'none' || selectedShape === 'glow') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
-      captionPreviewText.style.textShadow = (selectedBg === 'none' || selectedShape === 'glow') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      captionPreviewText.style.boxShadow = (selectedBg === 'none' || selectedShape === 'glow' || selectedShape === 'frosted' || selectedShape === 'marker') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
+      if(selectedShape === 'neon'){
+        captionPreviewText.style.textShadow = `0 0 6px ${txtColor}, 0 0 14px ${txtColor}, 0 0 26px ${txtColor}`;
+      }else{
+        captionPreviewText.style.textShadow = (selectedBg === 'none' || selectedShape === 'glow' || selectedShape === 'frosted' || selectedShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+      }
     }
   }
 
