@@ -711,6 +711,18 @@
     box-shadow:0 0 0 2px var(--night-deep);
   }
   .pending-thumb-wrap.has-flag .pending-flag-badge{ display:flex; }
+  .pending-checking-badge{ display:none; }
+  .pending-thumb-wrap.checking .pending-checking-badge{ display:block; }
+  .pending-checking-badge{
+    position:absolute; bottom:-4px; right:-4px;
+    width:16px; height:16px;
+    border:2px solid rgba(212,168,67,0.3);
+    border-top-color:var(--gold);
+    border-radius:50%;
+    animation:pending-check-spin 0.8s linear infinite;
+    box-shadow:0 0 0 2px var(--night-deep);
+  }
+  @keyframes pending-check-spin{ to{ transform:rotate(360deg); } }
   .preview-flag-banner{
     display:none;
     background:rgba(201,64,31,0.15);
@@ -4650,6 +4662,18 @@ if(isDisplay){
       thumbWrapEl.classList.add('has-flag');
     }
 
+    // 「メッセージのGemini判定」「写真の顔検出」の両方が終わったら、チェック中の表示を消す
+    let pendingChecks = (item.message ? 1 : 0) + (item.photoUrl ? 1 : 0);
+    const finishOneCheck = () => {
+      pendingChecks--;
+      if(pendingChecks <= 0 && thumbWrapEl){
+        thumbWrapEl.classList.remove('checking');
+      }
+    };
+    if(pendingChecks === 0 && thumbWrapEl){
+      thumbWrapEl.classList.remove('checking'); // 写真もメッセージもない(通常起こらないが念のため)
+    }
+
     // Gemini判定(メッセージがある場合のみ。APIキー未設定時はApps Script側が空回答を返す)
     if(item.message){
       checkMessageWithGemini(item.message).then(isNg => {
@@ -4658,13 +4682,14 @@ if(isDisplay){
         if(isNg === true && thumbWrapEl){
           thumbWrapEl.classList.add('has-flag');
         }
+        finishOneCheck();
       });
     }
 
     if(!item.photoUrl) return;
 
     const imgEl = thumbWrapEl ? thumbWrapEl.querySelector('img') : null;
-    if(!imgEl) return;
+    if(!imgEl){ finishOneCheck(); return; }
     const runCheck = () => {
       checkFaceSize(imgEl).then(result => {
         const existing = flagResults.get(key) || { ngWords: [] };
@@ -4672,6 +4697,7 @@ if(isDisplay){
         if(result.hasMidOrBigFace === true && thumbWrapEl){
           thumbWrapEl.classList.add('has-flag');
         }
+        finishOneCheck();
       });
     };
     if(imgEl.complete) runCheck();
@@ -4742,8 +4768,8 @@ if(isDisplay){
           : (item.photoUrl ? '' : `<div class="pending-msg">(メッセージなし)</div>`);
         el.innerHTML = `
           ${item.photoUrl
-            ? `<div class="pending-thumb-wrap"><img class="pending-thumb" src="${item.photoUrl}" crossorigin="anonymous" loading="lazy"><div class="pending-flag-badge">⚠️</div></div>`
-            : `<div class="pending-thumb-wrap"><div class="pending-thumb no-photo">💬</div><div class="pending-flag-badge">⚠️</div></div>`}
+            ? `<div class="pending-thumb-wrap checking"><img class="pending-thumb" src="${item.photoUrl}" crossorigin="anonymous" loading="lazy"><div class="pending-flag-badge">⚠️</div><div class="pending-checking-badge"></div></div>`
+            : `<div class="pending-thumb-wrap checking"><div class="pending-thumb no-photo">💬</div><div class="pending-flag-badge">⚠️</div><div class="pending-checking-badge"></div></div>`}
           <div class="pending-body">
             ${msgHtml}
             <div class="pending-time">${escapeHtmlCP(item.time)}</div>
