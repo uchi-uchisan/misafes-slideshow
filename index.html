@@ -4619,10 +4619,24 @@ if(isDisplay){
     }
   }
 
+  function withTimeout_(promise, ms){
+    return Promise.race([
+      promise,
+      new Promise(resolve => setTimeout(() => resolve({ hasMidOrBigFace: null, boxes: [], timedOut: true }), ms))
+    ]);
+  }
+
   async function checkFaceSize(imgEl){
     if(!faceModelReady) return { hasMidOrBigFace: null, boxes: [] };
     try{
-      const detections = await faceapi.detectAllFaces(imgEl, new faceapi.TinyFaceDetectorOptions());
+      // Googleドライブの画像はブラウザのセキュリティ制約(CORS)により、
+      // 顔検出の内部処理が固まってしまうこと(応答しなくなること)があるため、
+      // 5秒たっても終わらなければ「判定できなかった」扱いにして必ず先へ進む
+      const detections = await withTimeout_(
+        faceapi.detectAllFaces(imgEl, new faceapi.TinyFaceDetectorOptions()),
+        5000
+      );
+      if(detections && detections.timedOut) return { hasMidOrBigFace: null, boxes: [] };
       if(!detections || detections.length === 0) return { hasMidOrBigFace: false, boxes: [] };
       const imgArea = imgEl.naturalWidth * imgEl.naturalHeight;
       const bigDetections = detections.filter(d => (d.box.width * d.box.height) / imgArea >= 0.03);
