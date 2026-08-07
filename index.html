@@ -4717,7 +4717,10 @@ if(isDisplay){
       });
     };
     if(imgEl.complete) runCheck();
-    else imgEl.addEventListener('load', runCheck);
+    else{
+      imgEl.addEventListener('load', runCheck);
+      imgEl.addEventListener('error', finishOneCheck); // 画像が読み込めなかった場合も、くるくるが残り続けないようにする
+    }
   }
 
   function parsePendingCSV(text){
@@ -4784,7 +4787,7 @@ if(isDisplay){
           : (item.photoUrl ? '' : `<div class="pending-msg">(メッセージなし)</div>`);
         el.innerHTML = `
           ${item.photoUrl
-            ? `<div class="pending-thumb-wrap checking"><img class="pending-thumb" src="${item.photoUrl}" crossorigin="anonymous" loading="lazy"><div class="pending-flag-badge">⚠️</div><div class="pending-checking-badge"></div></div>`
+            ? `<div class="pending-thumb-wrap checking"><img class="pending-thumb" src="${item.photoUrl}" loading="lazy"><div class="pending-flag-badge">⚠️</div><div class="pending-checking-badge"></div></div>`
             : `<div class="pending-thumb-wrap checking"><div class="pending-thumb no-photo">💬</div><div class="pending-flag-badge">⚠️</div><div class="pending-checking-badge"></div></div>`}
           <div class="pending-body">
             ${msgHtml}
