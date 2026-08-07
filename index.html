@@ -4575,6 +4575,7 @@ if(isDisplay){
   // ▼ Geminiでの文章チェック・スタイル提案は、キーを安全に守るためApps Script経由で行います ▼
   // (キーはこのファイルには一切含まれません。Apps Script側にのみ保管されています)
 
+  // 戻り値: 'ng' | 'caution' | 'ok' | null(判定不能)
   async function checkMessageWithGemini(message){
     if(!message) return null;
     try{
@@ -4587,7 +4588,10 @@ if(isDisplay){
       const data = await res.json();
       const answer = (data.text || '').trim();
       if(!answer) return null; // APIキー未設定・失敗時は「判定なし」扱い
-      return answer.includes('NG');
+      if(answer.includes('NG')) return 'ng';
+      if(answer.includes('CAUTION')) return 'caution';
+      if(answer.includes('OK')) return 'ok';
+      return null;
     }catch(err){
       return null; // 通信エラー等も、同じく静かに諦める
     }
@@ -4601,25 +4605,30 @@ if(isDisplay){
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'geminiStyle', message: message || '' })
       });
+      console.log('[AIスタイル診断] HTTPステータス:', res.status, res.ok);
       if(!res.ok) return null;
       const data = await res.json();
+      console.log('[AIスタイル診断] Apps Scriptからの生データ:', data);
       let answer = (data.text || '').trim();
-      if(!answer) return null;
+      if(!answer){ console.log('[AIスタイル診断] textが空でした'); return null; }
       // ```json のようなコードブロック記法が付いていたら取り除く
       answer = answer.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+      console.log('[AIスタイル診断] 整形後のテキスト:', answer);
       const parsed = JSON.parse(answer);
+      console.log('[AIスタイル診断] JSON解析結果:', parsed);
       const validShapes = ['box','glow','frosted','neon','marker','bubble'];
       const validDecos = ['normal','outline','shadow','gradient','rainbow','pop'];
       const validFonts = ['yomogi','klee','textbook','gothic'];
       const validPos = ['top','center','bottom'];
-      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.colorCustom || '')) return null;
-      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.bgCustom || '')) return null;
-      if(!validShapes.includes(parsed.shape)) return null;
-      if(!validDecos.includes(parsed.deco)) return null;
-      if(!validFonts.includes(parsed.font)) return null;
-      if(!validPos.includes(parsed.pos)) return null;
+      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.colorCustom || '')){ console.log('[AIスタイル診断] colorCustomが不正:', parsed.colorCustom); return null; }
+      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.bgCustom || '')){ console.log('[AIスタイル診断] bgCustomが不正:', parsed.bgCustom); return null; }
+      if(!validShapes.includes(parsed.shape)){ console.log('[AIスタイル診断] shapeが不正:', parsed.shape); return null; }
+      if(!validDecos.includes(parsed.deco)){ console.log('[AIスタイル診断] decoが不正:', parsed.deco); return null; }
+      if(!validFonts.includes(parsed.font)){ console.log('[AIスタイル診断] fontが不正:', parsed.font); return null; }
+      if(!validPos.includes(parsed.pos)){ console.log('[AIスタイル診断] posが不正:', parsed.pos); return null; }
       return parsed;
     }catch(err){
+      console.log('[AIスタイル診断] 例外が発生しました:', err);
       return null;
     }
   }
@@ -4684,7 +4693,7 @@ if(isDisplay){
     if(cached && cached.checked){
       if(thumbWrapEl){
         thumbWrapEl.classList.remove('checking');
-        if((cached.ngWords && cached.ngWords.length > 0) || cached.geminiFlag === true || cached.hasFace === true){
+        if((cached.ngWords && cached.ngWords.length > 0) || cached.geminiResult === 'ng' || cached.geminiResult === 'caution' || cached.hasFace === true){
           thumbWrapEl.classList.add('has-flag');
         }
       }
@@ -4716,10 +4725,10 @@ if(isDisplay){
 
     // Gemini判定(メッセージがある場合のみ。APIキー未設定時はApps Script側が空回答を返す)
     if(item.message){
-      checkMessageWithGemini(item.message).then(isNg => {
+      checkMessageWithGemini(item.message).then(geminiResult => {
         const existing = flagResults.get(key) || { ngWords: [] };
-        flagResults.set(key, { ...existing, geminiPending: false, geminiFlag: isNg });
-        if(isNg === true && thumbWrapEl){
+        flagResults.set(key, { ...existing, geminiPending: false, geminiResult });
+        if((geminiResult === 'ng' || geminiResult === 'caution') && thumbWrapEl){
           thumbWrapEl.classList.add('has-flag');
         }
         finishOneCheck();
@@ -5178,7 +5187,8 @@ if(isDisplay){
     if(result){
       if(result.hasFace === true) messages.push('⚠️ ある程度の大きさの顔が検出されました(赤い枠の位置です)');
       if(result.ngWords && result.ngWords.length > 0) messages.push(`⚠️ 文章に気になる言葉が含まれています(${result.ngWords.join('、')})`);
-      if(result.geminiFlag === true) messages.push('⚠️ AIが、文章に不適切な可能性があると判定しました');
+      if(result.geminiResult === 'ng') messages.push('⚠️ AIが、文章に不適切な可能性があると判定しました');
+      if(result.geminiResult === 'caution') messages.push('🤔 AIが、ネガティブな内容を含む可能性があると判定しました(画面に映すか、内容をご確認ください)');
       if(result.geminiPending) messages.push('⏳ AIによる文章チェックがまだ終わっていません(少し待つか、そのままご自身の目で確認してください)');
     }
     if(messages.length > 0){
