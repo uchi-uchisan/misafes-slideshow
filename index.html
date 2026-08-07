@@ -4584,18 +4584,15 @@ if(isDisplay){
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'geminiCheck', message })
       });
-      if(!res.ok){ console.log('[文章判定診断] HTTPエラー:', res.status); return null; }
+      if(!res.ok) return null; // 無料枠を超えた場合などは、静かに諦める(エラー扱いにしない)
       const data = await res.json();
       const answer = (data.text || '').trim();
-      console.log('[文章判定診断] メッセージ:', message, ' / dataの中身全体:', JSON.stringify(data));
       if(!answer) return null; // APIキー未設定・失敗時は「判定なし」扱い
       if(answer.includes('NG')) return 'ng';
       if(answer.includes('CAUTION')) return 'caution';
       if(answer.includes('OK')) return 'ok';
-      console.log('[文章判定診断] どのキーワードにも一致しませんでした');
       return null;
     }catch(err){
-      console.log('[文章判定診断] 例外:', err);
       return null; // 通信エラー等も、同じく静かに諦める
     }
   }
@@ -4608,30 +4605,25 @@ if(isDisplay){
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'geminiStyle', message: message || '' })
       });
-      console.log('[AIスタイル診断] HTTPステータス:', res.status, res.ok);
       if(!res.ok) return null;
       const data = await res.json();
-      console.log('[AIスタイル診断] Apps Scriptからの生データ:', data);
       let answer = (data.text || '').trim();
-      if(!answer){ console.log('[AIスタイル診断] textが空でした'); return null; }
+      if(!answer) return null;
       // ```json のようなコードブロック記法が付いていたら取り除く
       answer = answer.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-      console.log('[AIスタイル診断] 整形後のテキスト:', answer);
       const parsed = JSON.parse(answer);
-      console.log('[AIスタイル診断] JSON解析結果:', parsed);
       const validShapes = ['box','glow','frosted','neon','marker','bubble'];
       const validDecos = ['normal','outline','shadow','gradient','rainbow','pop'];
       const validFonts = ['yomogi','klee','textbook','gothic'];
       const validPos = ['top','center','bottom'];
-      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.colorCustom || '')){ console.log('[AIスタイル診断] colorCustomが不正:', parsed.colorCustom); return null; }
-      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.bgCustom || '')){ console.log('[AIスタイル診断] bgCustomが不正:', parsed.bgCustom); return null; }
-      if(!validShapes.includes(parsed.shape)){ console.log('[AIスタイル診断] shapeが不正:', parsed.shape); return null; }
-      if(!validDecos.includes(parsed.deco)){ console.log('[AIスタイル診断] decoが不正:', parsed.deco); return null; }
-      if(!validFonts.includes(parsed.font)){ console.log('[AIスタイル診断] fontが不正:', parsed.font); return null; }
-      if(!validPos.includes(parsed.pos)){ console.log('[AIスタイル診断] posが不正:', parsed.pos); return null; }
+      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.colorCustom || '')) return null;
+      if(!/^#[0-9a-fA-F]{6}$/.test(parsed.bgCustom || '')) return null;
+      if(!validShapes.includes(parsed.shape)) return null;
+      if(!validDecos.includes(parsed.deco)) return null;
+      if(!validFonts.includes(parsed.font)) return null;
+      if(!validPos.includes(parsed.pos)) return null;
       return parsed;
     }catch(err){
-      console.log('[AIスタイル診断] 例外が発生しました:', err);
       return null;
     }
   }
