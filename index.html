@@ -4584,15 +4584,18 @@ if(isDisplay){
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'geminiCheck', message })
       });
-      if(!res.ok) return null; // 無料枠を超えた場合などは、静かに諦める(エラー扱いにしない)
+      if(!res.ok){ console.log('[文章判定診断] HTTPエラー:', res.status); return null; }
       const data = await res.json();
       const answer = (data.text || '').trim();
+      console.log('[文章判定診断] メッセージ:', message, ' / Geminiの返答:', JSON.stringify(answer));
       if(!answer) return null; // APIキー未設定・失敗時は「判定なし」扱い
       if(answer.includes('NG')) return 'ng';
       if(answer.includes('CAUTION')) return 'caution';
       if(answer.includes('OK')) return 'ok';
+      console.log('[文章判定診断] どのキーワードにも一致しませんでした');
       return null;
     }catch(err){
+      console.log('[文章判定診断] 例外:', err);
       return null; // 通信エラー等も、同じく静かに諦める
     }
   }
