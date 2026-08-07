@@ -795,13 +795,16 @@
     min-height:0;
   }
   #preview-stage{
-    position:relative;
+    position:sticky;
+    top:0;
+    z-index:10;
     width:100%;
     min-height:180px;
     border-radius:12px;
     overflow:hidden;
     margin-bottom:16px;
     background:linear-gradient(135deg, #3d241b, #12162c);
+    box-shadow:0 8px 16px -8px rgba(0,0,0,0.6);
   }
   .face-box{
     position:absolute;
@@ -894,6 +897,8 @@
 
   #preview-modal img{
     width:100%;
+    max-height:38vh;
+    object-fit:contain;
     display:block;
   }
   #preview-live-caption{
@@ -4669,6 +4674,10 @@ if(isDisplay){
   }
 
   // サムネイル表示の時点で、裏側で先にチェックを済ませておく(拡大時に待たせないため)
+  // Googleドライブの画像はCORS制約で顔検出が実質機能しないため、当面は無効化しておく
+  // (trueに戻せば、また有効になります。NGワード・Gemini(文章)チェックには影響しません)
+  const FACE_DETECTION_ENABLED = false;
+
   function runBackgroundCheck(item, key, thumbWrapEl){
     // すでにチェック済みなら、再度Gemini/顔検出を呼ばず、結果をそのまま反映するだけにする
     const cached = flagResults.get(key);
@@ -4688,8 +4697,9 @@ if(isDisplay){
       thumbWrapEl.classList.add('has-flag');
     }
 
-    // 「メッセージのGemini判定」「写真の顔検出」の両方が終わったら、チェック中の表示を消す
-    let pendingChecks = (item.message ? 1 : 0) + (item.photoUrl ? 1 : 0);
+    // 「メッセージのGemini判定」「写真の顔検出(有効時のみ)」が終わったら、チェック中の表示を消す
+    const willCheckPhoto = FACE_DETECTION_ENABLED && !!item.photoUrl;
+    let pendingChecks = (item.message ? 1 : 0) + (willCheckPhoto ? 1 : 0);
     const finishOneCheck = () => {
       pendingChecks--;
       if(pendingChecks <= 0){
@@ -4716,7 +4726,7 @@ if(isDisplay){
       });
     }
 
-    if(!item.photoUrl) return;
+    if(!willCheckPhoto) return;
 
     const imgEl = thumbWrapEl ? thumbWrapEl.querySelector('img') : null;
     if(!imgEl){ finishOneCheck(); return; }
@@ -5167,7 +5177,6 @@ if(isDisplay){
     const messages = [];
     if(result){
       if(result.hasFace === true) messages.push('⚠️ ある程度の大きさの顔が検出されました(赤い枠の位置です)');
-      if(result.hasFace === null && item.photoUrl) messages.push('⏳ 顔の自動チェックがまだ終わっていません(少し待つか、そのままご自身の目で確認してください)');
       if(result.ngWords && result.ngWords.length > 0) messages.push(`⚠️ 文章に気になる言葉が含まれています(${result.ngWords.join('、')})`);
       if(result.geminiFlag === true) messages.push('⚠️ AIが、文章に不適切な可能性があると判定しました');
       if(result.geminiPending) messages.push('⏳ AIによる文章チェックがまだ終わっていません(少し待つか、そのままご自身の目で確認してください)');
