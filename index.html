@@ -4656,8 +4656,20 @@ if(isDisplay){
 
   // サムネイル表示の時点で、裏側で先にチェックを済ませておく(拡大時に待たせないため)
   function runBackgroundCheck(item, key, thumbWrapEl){
+    // すでにチェック済みなら、再度Gemini/顔検出を呼ばず、結果をそのまま反映するだけにする
+    const cached = flagResults.get(key);
+    if(cached && cached.checked){
+      if(thumbWrapEl){
+        thumbWrapEl.classList.remove('checking');
+        if((cached.ngWords && cached.ngWords.length > 0) || cached.geminiFlag === true || cached.hasFace === true){
+          thumbWrapEl.classList.add('has-flag');
+        }
+      }
+      return;
+    }
+
     const ngWords = checkNgWords(item.message);
-    flagResults.set(key, { hasFace: null, geminiPending: !!item.message, ngWords });
+    flagResults.set(key, { hasFace: null, geminiPending: !!item.message, ngWords, checked: false });
     if(ngWords.length > 0 && thumbWrapEl){
       thumbWrapEl.classList.add('has-flag');
     }
@@ -4666,12 +4678,16 @@ if(isDisplay){
     let pendingChecks = (item.message ? 1 : 0) + (item.photoUrl ? 1 : 0);
     const finishOneCheck = () => {
       pendingChecks--;
-      if(pendingChecks <= 0 && thumbWrapEl){
-        thumbWrapEl.classList.remove('checking');
+      if(pendingChecks <= 0){
+        const existing = flagResults.get(key) || { ngWords: [] };
+        flagResults.set(key, { ...existing, checked: true });
+        if(thumbWrapEl) thumbWrapEl.classList.remove('checking');
       }
     };
-    if(pendingChecks === 0 && thumbWrapEl){
-      thumbWrapEl.classList.remove('checking'); // 写真もメッセージもない(通常起こらないが念のため)
+    if(pendingChecks === 0){
+      const existing = flagResults.get(key) || { ngWords: [] };
+      flagResults.set(key, { ...existing, checked: true });
+      if(thumbWrapEl) thumbWrapEl.classList.remove('checking'); // 写真もメッセージもない(通常起こらないが念のため)
     }
 
     // Gemini判定(メッセージがある場合のみ。APIキー未設定時はApps Script側が空回答を返す)
@@ -4759,7 +4775,7 @@ if(isDisplay){
       }
 
       listEl.innerHTML = '';
-      items.slice().reverse().forEach(item => {
+      items.forEach(item => {
         const key = item.time + '|' + item.message;
         const el = document.createElement('div');
         el.className = 'pending-item';
