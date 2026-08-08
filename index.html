@@ -4700,6 +4700,7 @@ if(isDisplay){
     try{
       await fetch(LIVE_APPSCRIPT_BASE_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(Object.assign({ action }, extra))
       });
