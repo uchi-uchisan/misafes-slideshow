@@ -1158,7 +1158,12 @@
       <span id="delay-interval-value">3分</span>
     </div>
 
-    <div id="sponsor-play-row" style="display:none; margin-bottom:16px;"></div>
+    <div id="sponsor-play-row" style="display:none; margin-bottom:8px;"></div>
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+      <button type="button" id="cp-sponsor-add-file-btn" class="add-ticker-btn" style="flex:1; font-size:11.5px;">＋ 動画を追加</button>
+      <button type="button" id="cp-sponsor-add-youtube-btn" class="add-ticker-btn" style="flex:1; font-size:11.5px;">＋ YouTube追加</button>
+    </div>
+    <input type="file" id="cp-sponsor-file-input" accept="video/*" style="display:none;">
 
     <div class="cp-btn-grid">
       <button class="cp-btn" id="prev-btn">◀ 前へ</button>
@@ -1232,8 +1237,8 @@
         </div>
         <div class="style-row-label">背景の形</div>
         <div class="icon-row" id="preview-shape-row">
-          <div class="icon-opt small selected" data-shape="box">四角</div>
-          <div class="icon-opt small" data-shape="glow">ぼかし</div>
+          <div class="icon-opt small" data-shape="box">四角</div>
+          <div class="icon-opt small selected" data-shape="glow">ぼかし</div>
           <div class="icon-opt small" data-shape="frosted">すりガラス</div>
           <div class="icon-opt small" data-shape="neon">ネオン</div>
           <div class="icon-opt small" data-shape="marker">マーカー</div>
@@ -1339,8 +1344,8 @@
 
       <div class="style-row-label">背景の形</div>
       <div class="icon-row" id="restyle-shape-row">
-        <div class="icon-opt small selected" data-shape="box">四角</div>
-        <div class="icon-opt small" data-shape="glow">ぼかし</div>
+        <div class="icon-opt small" data-shape="box">四角</div>
+        <div class="icon-opt small selected" data-shape="glow">ぼかし</div>
         <div class="icon-opt small" data-shape="frosted">すりガラス</div>
         <div class="icon-opt small" data-shape="neon">ネオン</div>
         <div class="icon-opt small" data-shape="marker">マーカー</div>
@@ -1594,8 +1599,8 @@
 
       <div class="style-row-label">背景の形</div>
       <div class="icon-row" id="shape-row">
-        <div class="icon-opt small selected" data-shape="box">四角</div>
-        <div class="icon-opt small" data-shape="glow">ぼかし</div>
+        <div class="icon-opt small" data-shape="box">四角</div>
+        <div class="icon-opt small selected" data-shape="glow">ぼかし</div>
         <div class="icon-opt small" data-shape="frosted">すりガラス</div>
         <div class="icon-opt small" data-shape="neon">ネオン</div>
         <div class="icon-opt small" data-shape="marker">マーカー</div>
@@ -5044,7 +5049,7 @@ if(isDisplay){
   let previewCurrentItem = null;
   let previewCurrentKey = null;
   let previewCurrentListBtn = null;
-  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewBgCustom = '#8a5a12', previewShape = 'box', previewDeco = 'normal', previewOutlineColor = 'auto', previewPos = 'bottom';
+  let previewFont = 'yomogi', previewSize = 26, previewColor = '#2a2118', previewBg = 'paper', previewBgCustom = '#8a5a12', previewShape = 'glow', previewDeco = 'normal', previewOutlineColor = 'auto', previewPos = 'bottom';
 
   function updateOutlineColorVisibility(){
     const show = previewDeco === 'outline';
@@ -5074,6 +5079,9 @@ if(isDisplay){
   const PREVIEW_GLOW_BASE = {
     paper: '245,236,224', ink: '42,33,24', gold: '212,168,67', lantern: '224,90,45', none: '20,14,10'
   };
+  const PREVIEW_BUBBLE_FLAT = {
+    paper: '#f5ece0', ink: '#2a2118', gold: '#c9a227', lantern: '#c9401f', none: '#f5ece0'
+  };
   function previewHexToRgb(hex){
     try{
       const h = hex.replace('#','');
@@ -5087,9 +5095,19 @@ if(isDisplay){
     const msg = previewCurrentItem.message || '(メッセージなし)';
     let liveFontSize;
 
-    previewLiveCaption.textContent = msg;
+    // 背景(枠)と文字を完全に分離するため、内側に専用のspanを用意する
+    let textSpan = previewLiveCaption.querySelector('.live-caption-text');
+    if(!textSpan){
+      previewLiveCaption.innerHTML = '';
+      textSpan = document.createElement('span');
+      textSpan.className = 'live-caption-text';
+      previewLiveCaption.appendChild(textSpan);
+    }
+    textSpan.textContent = msg;
     previewLiveCaption.style.fontFamily = FONT_STACKS[previewFont] || FONT_STACKS.yomogi;
     previewLiveCaption.style.color = previewColor;
+    // 前回選んだ形状によるbackgroundImageが残らないよう、枠側は毎回リセットしてから組み立てる
+    previewLiveCaption.style.backgroundImage = '';
 
     if(isTextOnly){
       // 文字だけのスライド:画面いっぱいに背景色、文字も大きめに
@@ -5100,11 +5118,11 @@ if(isDisplay){
       previewLiveCaption.style.maxWidth = '86%';
       liveFontSize = previewSize * 1.2;
       previewLiveCaption.style.fontSize = liveFontSize + 'px';
-      previewLiveCaption.style.textShadow = '0 2px 8px rgba(0,0,0,0.4)';
+      textSpan.style.textShadow = '0 2px 8px rgba(0,0,0,0.4)';
     }else{
       // 写真つき:写真の上に吹き出しとして重ねる
       previewStage.style.background = 'transparent';
-      previewLiveCaption.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker');
+      previewLiveCaption.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
       const rgb = previewBg === 'custom' ? previewHexToRgb(previewBgCustom) : (PREVIEW_GLOW_BASE[previewBg] || PREVIEW_GLOW_BASE.paper);
       if(previewShape === 'glow'){
         previewLiveCaption.classList.add('shape-glow');
@@ -5129,6 +5147,13 @@ if(isDisplay){
         previewLiveCaption.style.background = `rgba(${rgb},0.75)`;
         previewLiveCaption.style.boxShadow = 'none';
         previewLiveCaption.style.padding = '4px 10px';
+      }else if(previewShape === 'bubble'){
+        previewLiveCaption.classList.add('shape-bubble');
+        const flatColor = previewBg === 'custom' ? previewBgCustom : (PREVIEW_BUBBLE_FLAT[previewBg] || PREVIEW_BUBBLE_FLAT.paper);
+        previewLiveCaption.style.background = flatColor;
+        previewLiveCaption.style.setProperty('--bubble-color', flatColor);
+        previewLiveCaption.style.boxShadow = 'none';
+        previewLiveCaption.style.padding = '14px 22px';
       }else{
         previewLiveCaption.style.background = previewBg === 'custom' ? previewBgCustom : (PREVIEW_CAPTION_BG[previewBg] || PREVIEW_CAPTION_BG.paper);
         previewLiveCaption.style.boxShadow = previewBg === 'none' ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
@@ -5141,9 +5166,9 @@ if(isDisplay){
       liveFontSize = previewSize;
       previewLiveCaption.style.fontSize = liveFontSize + 'px';
       if(previewShape === 'neon'){
-        previewLiveCaption.style.textShadow = `0 0 6px ${previewColor}, 0 0 14px ${previewColor}, 0 0 26px ${previewColor}`;
+        textSpan.style.textShadow = `0 0 6px ${previewColor}, 0 0 14px ${previewColor}, 0 0 26px ${previewColor}`;
       }else{
-        previewLiveCaption.style.textShadow = (previewBg === 'none' || previewShape === 'glow' || previewShape === 'frosted' || previewShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+        textSpan.style.textShadow = (previewBg === 'none' || previewShape === 'glow' || previewShape === 'frosted' || previewShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6), 1px -1px 0 rgba(0,0,0,0.6), -1px 1px 0 rgba(0,0,0,0.6), 1px 1px 0 rgba(0,0,0,0.6)' : 'none';
       }
     }
 
@@ -5152,33 +5177,40 @@ if(isDisplay){
     else{ previewLiveCaption.style.bottom = '6%'; previewLiveCaption.style.top = 'auto'; }
     if(previewPos !== 'center'){ previewLiveCaption.style.transform = 'translateX(-50%)'; }
 
-    // 文字装飾:選んだ場合は縁取り・影・グラデーションなどを適用(文字サイズに応じた太さ)
-    previewLiveCaption.style.backgroundImage = '';
-    previewLiveCaption.style.webkitBackgroundClip = '';
-    previewLiveCaption.style.backgroundClip = '';
-    previewLiveCaption.style.webkitTextFillColor = '';
+    // 文字装飾:選んだ場合は縁取り・影・グラデーションなどを、文字専用のspanにだけ適用する(枠の背景とは無関係)
+    textSpan.style.backgroundImage = '';
+    textSpan.style.webkitBackgroundClip = '';
+    textSpan.style.backgroundClip = '';
+    textSpan.style.webkitTextFillColor = '';
     if(previewDeco === 'outline'){
       const o = getOutlineStyle(liveFontSize, previewColor, previewOutlineColor);
-      previewLiveCaption.style.webkitTextStroke = o.stroke;
-      previewLiveCaption.style.textShadow = o.shadow;
+      textSpan.style.webkitTextStroke = o.stroke;
+      textSpan.style.textShadow = o.shadow;
     }else if(previewDeco === 'shadow'){
-      previewLiveCaption.style.webkitTextStroke = '';
+      textSpan.style.webkitTextStroke = '';
       const d = Math.max(2, Math.round(liveFontSize / 10));
-      previewLiveCaption.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
     }else if(previewDeco === 'gradient'){
-      previewLiveCaption.style.webkitTextStroke = '';
-      previewLiveCaption.style.textShadow = 'none';
-      previewLiveCaption.style.backgroundImage = `linear-gradient(135deg, ${previewColor}, #d4a843)`;
-      previewLiveCaption.style.webkitBackgroundClip = 'text';
-      previewLiveCaption.style.backgroundClip = 'text';
-      previewLiveCaption.style.webkitTextFillColor = 'transparent';
+      textSpan.style.webkitTextStroke = '';
+      textSpan.style.textShadow = 'none';
+      textSpan.style.backgroundImage = `linear-gradient(135deg, ${previewColor}, #d4a843)`;
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
+    }else if(previewDeco === 'rainbow'){
+      textSpan.style.webkitTextStroke = '';
+      textSpan.style.textShadow = 'none';
+      textSpan.style.backgroundImage = 'linear-gradient(90deg, #ff4d4d, #ffb14d, #ffe14d, #4dff88, #4dc9ff, #a24dff, #ff4dd2)';
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
     }else if(previewDeco === 'pop'){
       const o = getOutlineStyle(liveFontSize, previewColor, previewOutlineColor);
-      previewLiveCaption.style.webkitTextStroke = o.stroke;
+      textSpan.style.webkitTextStroke = o.stroke;
       const d = Math.max(2, Math.round(liveFontSize / 9));
-      previewLiveCaption.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
     }else{
-      previewLiveCaption.style.webkitTextStroke = '';
+      textSpan.style.webkitTextStroke = '';
     }
   }
 
@@ -5445,6 +5477,30 @@ if(isDisplay){
         renderSponsorList();
       });
     });
+    renderSponsorPlayButtons(); // 開始後の操作パネルにも、常に最新の一覧を反映する
+  }
+
+  // 操作パネル(再生中)側の「今流す」ボタン一覧を、登録済みの動画の数だけ生成する
+  function renderSponsorPlayButtons(){
+    const sponsorPlayRow = document.getElementById('sponsor-play-row');
+    if(!sponsorPlayRow) return;
+    if(sponsors.length === 0){
+      sponsorPlayRow.style.display = 'none';
+      sponsorPlayRow.innerHTML = '';
+      return;
+    }
+    sponsorPlayRow.style.display = 'block';
+    sponsorPlayRow.innerHTML = sponsors.map((s, i) =>
+      `<button class="sponsor-play-btn" data-idx="${i}">📢 「${escapeHtmlCP(s.title)}」を今流す</button>`
+    ).join('');
+    sponsorPlayRow.querySelectorAll('.sponsor-play-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sponsor = sponsors[parseInt(btn.dataset.idx, 10)];
+        if(childWin && !childWin.closed){
+          childWin.postMessage({ type: 'playSponsor', sponsor }, '*');
+        }
+      });
+    });
   }
 
   document.getElementById('sponsor-add-file-btn').addEventListener('click', () => sponsorFileInput.click());
@@ -5508,22 +5564,26 @@ if(isDisplay){
     cpInsertOffsetSlider.value = settings.insertOffset;
     cpInsertOffsetValue.textContent = settings.insertOffset + '枚後';
 
-    // スポンサー再生ボタンを、登録済みの動画の数だけ生成する
-    const sponsorPlayRow = document.getElementById('sponsor-play-row');
-    if(sponsors.length > 0){
-      sponsorPlayRow.style.display = 'block';
-      sponsorPlayRow.innerHTML = sponsors.map((s, i) =>
-        `<button class="sponsor-play-btn" data-idx="${i}">📢 「${escapeHtmlCP(s.title)}」を今流す</button>`
-      ).join('');
-      sponsorPlayRow.querySelectorAll('.sponsor-play-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const sponsor = sponsors[parseInt(btn.dataset.idx, 10)];
-          if(childWin && !childWin.closed){
-            childWin.postMessage({ type: 'playSponsor', sponsor }, '*');
-          }
-        });
-      });
-    }
+    renderSponsorPlayButtons();
+
+    // ---------- 再生中に、スポンサー動画を新しく追加する ----------
+    const cpSponsorFileInput = document.getElementById('cp-sponsor-file-input');
+    document.getElementById('cp-sponsor-add-file-btn').addEventListener('click', () => cpSponsorFileInput.click());
+    cpSponsorFileInput.addEventListener('change', () => {
+      const file = cpSponsorFileInput.files[0];
+      if(!file) return;
+      const title = prompt('この動画の名前(例:〇〇商店様)を入力してください', file.name) || file.name;
+      sponsors.push({ type: 'file', title, file: file });
+      renderSponsorPlayButtons();
+      cpSponsorFileInput.value = '';
+    });
+    document.getElementById('cp-sponsor-add-youtube-btn').addEventListener('click', () => {
+      const url = prompt('YouTubeの動画URLを入力してください(例:https://www.youtube.com/watch?v=xxxxx)');
+      if(!url) return;
+      const title = prompt('この動画の名前(例:〇〇商店様)を入力してください', 'スポンサー動画') || 'スポンサー動画';
+      sponsors.push({ type: 'youtube', title, url });
+      renderSponsorPlayButtons();
+    });
 
     function onReady(e){
       if(e.source !== childWin || !e.data || e.data.type !== 'ready') return;
@@ -5628,18 +5688,26 @@ if(isDisplay){
   let restyleFont = 'yomogi', restyleSize = 20, restyleTracking = 0;
   let restyleColor = '#2a2118', restyleColorCustom = '#2a2118';
   let restyleBg = 'paper', restyleBgCustom = '#8a5a12';
-  let restyleCorner = 'rounded', restyleShape = 'box', restyleDeco = 'normal', restylePos = 'bottom';
+  let restyleCorner = 'rounded', restyleShape = 'glow', restyleDeco = 'normal', restylePos = 'bottom';
 
   function updateRestylePreview(){
     const text = restyleTextInput.value.trim();
-    restylePreviewText.textContent = text;
+    let textSpan = restylePreviewText.querySelector('.mini-caption-text');
+    if(!textSpan){
+      restylePreviewText.innerHTML = '';
+      textSpan = document.createElement('span');
+      textSpan.className = 'mini-caption-text';
+      restylePreviewText.appendChild(textSpan);
+    }
+    textSpan.textContent = text;
     restylePreviewText.style.fontFamily = FONT_STACKS[restyleFont] || FONT_STACKS.yomogi;
     restylePreviewText.style.fontSize = Math.min(restyleSize, 26) + 'px';
     restylePreviewText.style.letterSpacing = restyleTracking + 'px';
     const txtColor = restyleColor === 'custom' ? restyleColorCustom : restyleColor;
     restylePreviewText.style.color = txtColor;
     restylePreviewText.classList.toggle('corner-square', restyleCorner === 'square');
-    restylePreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker');
+    restylePreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
+    restylePreviewText.style.backgroundImage = ''; // 前回のshapeによる残りをリセット
     const rRgb = restyleBg === 'custom' ? miniHexToRgb(restyleBgCustom) : (MINI_GLOW_BASE[restyleBg] || MINI_GLOW_BASE.paper);
     if(restyleShape === 'glow'){
       restylePreviewText.classList.add('shape-glow');
@@ -5656,44 +5724,56 @@ if(isDisplay){
     }else if(restyleShape === 'marker'){
       restylePreviewText.classList.add('shape-marker');
       restylePreviewText.style.background = `rgba(${rRgb},0.75)`;
+    }else if(restyleShape === 'bubble'){
+      restylePreviewText.classList.add('shape-bubble');
+      const flatColor = restyleBg === 'custom' ? restyleBgCustom : (MINI_BUBBLE_FLAT[restyleBg] || MINI_BUBBLE_FLAT.paper);
+      restylePreviewText.style.background = flatColor;
+      restylePreviewText.style.setProperty('--bubble-color', flatColor);
     }else{
       restylePreviewText.style.background = restyleBg === 'custom' ? restyleBgCustom : (MINI_CAPTION_BG[restyleBg] || MINI_CAPTION_BG.paper);
       restylePreviewText.style.backdropFilter = '';
       restylePreviewText.style.webkitBackdropFilter = '';
       restylePreviewText.style.border = '';
     }
-    restylePreviewText.style.backgroundImage = '';
-    restylePreviewText.style.webkitBackgroundClip = '';
-    restylePreviewText.style.backgroundClip = '';
-    restylePreviewText.style.webkitTextFillColor = '';
+    textSpan.style.backgroundImage = '';
+    textSpan.style.webkitBackgroundClip = '';
+    textSpan.style.backgroundClip = '';
+    textSpan.style.webkitTextFillColor = '';
     if(restyleDeco === 'outline'){
       const o = getOutlineStyle(Math.min(restyleSize, 26), txtColor, 'auto');
-      restylePreviewText.style.webkitTextStroke = o.stroke;
-      restylePreviewText.style.textShadow = o.shadow;
+      textSpan.style.webkitTextStroke = o.stroke;
+      textSpan.style.textShadow = o.shadow;
       restylePreviewText.style.boxShadow = 'none';
     }else if(restyleDeco === 'shadow'){
-      restylePreviewText.style.webkitTextStroke = '';
+      textSpan.style.webkitTextStroke = '';
       const d = Math.max(2, Math.round(Math.min(restyleSize, 26) / 10));
-      restylePreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
     }else if(restyleDeco === 'gradient'){
-      restylePreviewText.style.webkitTextStroke = '';
-      restylePreviewText.style.textShadow = 'none';
-      restylePreviewText.style.backgroundImage = `linear-gradient(135deg, ${txtColor}, #d4a843)`;
-      restylePreviewText.style.webkitBackgroundClip = 'text';
-      restylePreviewText.style.backgroundClip = 'text';
-      restylePreviewText.style.webkitTextFillColor = 'transparent';
+      textSpan.style.webkitTextStroke = '';
+      textSpan.style.textShadow = 'none';
+      textSpan.style.backgroundImage = `linear-gradient(135deg, ${txtColor}, #d4a843)`;
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
+    }else if(restyleDeco === 'rainbow'){
+      textSpan.style.webkitTextStroke = '';
+      textSpan.style.textShadow = 'none';
+      textSpan.style.backgroundImage = 'linear-gradient(90deg, #ff4d4d, #ffb14d, #ffe14d, #4dff88, #4dc9ff, #a24dff, #ff4dd2)';
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
     }else if(restyleDeco === 'pop'){
       const o = getOutlineStyle(Math.min(restyleSize, 26), txtColor, 'auto');
-      restylePreviewText.style.webkitTextStroke = o.stroke;
+      textSpan.style.webkitTextStroke = o.stroke;
       const d = Math.max(2, Math.round(Math.min(restyleSize, 26) / 9));
-      restylePreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
     }else{
-      restylePreviewText.style.webkitTextStroke = '';
+      textSpan.style.webkitTextStroke = '';
       restylePreviewText.style.boxShadow = (restyleBg === 'none' || restyleShape === 'glow' || restyleShape === 'frosted' || restyleShape === 'marker') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
       if(restyleShape === 'neon'){
-        restylePreviewText.style.textShadow = `0 0 6px ${txtColor}, 0 0 14px ${txtColor}, 0 0 26px ${txtColor}`;
+        textSpan.style.textShadow = `0 0 6px ${txtColor}, 0 0 14px ${txtColor}, 0 0 26px ${txtColor}`;
       }else{
-        restylePreviewText.style.textShadow = (restyleBg === 'none' || restyleShape === 'glow' || restyleShape === 'frosted' || restyleShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+        textSpan.style.textShadow = (restyleBg === 'none' || restyleShape === 'glow' || restyleShape === 'frosted' || restyleShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
       }
     }
   }
@@ -5980,7 +6060,7 @@ if(isDisplay){
   let selectedBg = 'paper';
   let selectedBgCustom = '#8a5a12';
   let selectedCorner = 'rounded';
-  let selectedShape = 'box';
+  let selectedShape = 'glow';
   let selectedDeco = 'normal';
   let selectedPos = 'bottom';
 
@@ -5993,6 +6073,9 @@ if(isDisplay){
   const MINI_GLOW_BASE = {
     paper: '245,236,224', ink: '42,33,24', gold: '212,168,67', lantern: '224,90,45', none: '20,14,10'
   };
+  const MINI_BUBBLE_FLAT = {
+    paper: '#f5ece0', ink: '#2a2118', gold: '#c9a227', lantern: '#c9401f', none: '#f5ece0'
+  };
   function miniHexToRgb(hex){
     try{
       const h = hex.replace('#','');
@@ -6003,14 +6086,22 @@ if(isDisplay){
   function updateCaptionPreview(){
     const iconPrefix = selectedIcon ? selectedIcon + ' ' : '';
     const text = captionInput.value.trim();
-    captionPreviewText.textContent = text ? (iconPrefix + text) : '';
+    let textSpan = captionPreviewText.querySelector('.mini-caption-text');
+    if(!textSpan){
+      captionPreviewText.innerHTML = '';
+      textSpan = document.createElement('span');
+      textSpan.className = 'mini-caption-text';
+      captionPreviewText.appendChild(textSpan);
+    }
+    textSpan.textContent = text ? (iconPrefix + text) : '';
     captionPreviewText.style.fontFamily = FONT_STACKS[selectedFont] || FONT_STACKS.yomogi;
     captionPreviewText.style.fontSize = Math.min(selectedSize, 26) + 'px';
     captionPreviewText.style.letterSpacing = selectedTracking + 'px';
     const txtColor = selectedColor === 'custom' ? selectedColorCustom : selectedColor;
     captionPreviewText.style.color = txtColor;
     captionPreviewText.classList.toggle('corner-square', selectedCorner === 'square');
-    captionPreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker');
+    captionPreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
+    captionPreviewText.style.backgroundImage = ''; // 前回のshapeによる残りをリセット
     const cRgb = selectedBg === 'custom' ? miniHexToRgb(selectedBgCustom) : (MINI_GLOW_BASE[selectedBg] || MINI_GLOW_BASE.paper);
     if(selectedShape === 'glow'){
       captionPreviewText.classList.add('shape-glow');
@@ -6027,6 +6118,11 @@ if(isDisplay){
     }else if(selectedShape === 'marker'){
       captionPreviewText.classList.add('shape-marker');
       captionPreviewText.style.background = `rgba(${cRgb},0.75)`;
+    }else if(selectedShape === 'bubble'){
+      captionPreviewText.classList.add('shape-bubble');
+      const flatColor = selectedBg === 'custom' ? selectedBgCustom : (MINI_BUBBLE_FLAT[selectedBg] || MINI_BUBBLE_FLAT.paper);
+      captionPreviewText.style.background = flatColor;
+      captionPreviewText.style.setProperty('--bubble-color', flatColor);
     }else{
       captionPreviewText.style.background = selectedBg === 'custom' ? selectedBgCustom : (MINI_CAPTION_BG[selectedBg] || MINI_CAPTION_BG.paper);
       captionPreviewText.style.backdropFilter = '';
@@ -6038,38 +6134,45 @@ if(isDisplay){
       captionPreviewStage.style.backgroundSize = 'cover';
       captionPreviewStage.style.backgroundPosition = 'center';
     }
-    captionPreviewText.style.backgroundImage = captionPreviewText.style.backgroundImage; // (下で上書き)
-    captionPreviewText.style.webkitBackgroundClip = '';
-    captionPreviewText.style.backgroundClip = '';
-    captionPreviewText.style.webkitTextFillColor = '';
+    textSpan.style.backgroundImage = '';
+    textSpan.style.webkitBackgroundClip = '';
+    textSpan.style.backgroundClip = '';
+    textSpan.style.webkitTextFillColor = '';
     if(selectedDeco === 'outline'){
       const o = getOutlineStyle(Math.min(selectedSize, 26), txtColor, 'auto');
-      captionPreviewText.style.webkitTextStroke = o.stroke;
-      captionPreviewText.style.textShadow = o.shadow;
+      textSpan.style.webkitTextStroke = o.stroke;
+      textSpan.style.textShadow = o.shadow;
       captionPreviewText.style.boxShadow = 'none';
     }else if(selectedDeco === 'shadow'){
-      captionPreviewText.style.webkitTextStroke = '';
+      textSpan.style.webkitTextStroke = '';
       const d = Math.max(2, Math.round(Math.min(selectedSize, 26) / 10));
-      captionPreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.55)`;
     }else if(selectedDeco === 'gradient'){
-      captionPreviewText.style.webkitTextStroke = '';
-      captionPreviewText.style.textShadow = 'none';
-      captionPreviewText.style.backgroundImage = `linear-gradient(135deg, ${txtColor}, #d4a843)`;
-      captionPreviewText.style.webkitBackgroundClip = 'text';
-      captionPreviewText.style.backgroundClip = 'text';
-      captionPreviewText.style.webkitTextFillColor = 'transparent';
+      textSpan.style.webkitTextStroke = '';
+      textSpan.style.textShadow = 'none';
+      textSpan.style.backgroundImage = `linear-gradient(135deg, ${txtColor}, #d4a843)`;
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
+    }else if(selectedDeco === 'rainbow'){
+      textSpan.style.webkitTextStroke = '';
+      textSpan.style.textShadow = 'none';
+      textSpan.style.backgroundImage = 'linear-gradient(90deg, #ff4d4d, #ffb14d, #ffe14d, #4dff88, #4dc9ff, #a24dff, #ff4dd2)';
+      textSpan.style.webkitBackgroundClip = 'text';
+      textSpan.style.backgroundClip = 'text';
+      textSpan.style.webkitTextFillColor = 'transparent';
     }else if(selectedDeco === 'pop'){
       const o = getOutlineStyle(Math.min(selectedSize, 26), txtColor, 'auto');
-      captionPreviewText.style.webkitTextStroke = o.stroke;
+      textSpan.style.webkitTextStroke = o.stroke;
       const d = Math.max(2, Math.round(Math.min(selectedSize, 26) / 9));
-      captionPreviewText.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
+      textSpan.style.textShadow = `${d}px ${d}px 0 rgba(0,0,0,0.5)`;
     }else{
-      captionPreviewText.style.webkitTextStroke = '';
+      textSpan.style.webkitTextStroke = '';
       captionPreviewText.style.boxShadow = (selectedBg === 'none' || selectedShape === 'glow' || selectedShape === 'frosted' || selectedShape === 'marker') ? 'none' : '0 4px 10px rgba(0,0,0,0.3)';
       if(selectedShape === 'neon'){
-        captionPreviewText.style.textShadow = `0 0 6px ${txtColor}, 0 0 14px ${txtColor}, 0 0 26px ${txtColor}`;
+        textSpan.style.textShadow = `0 0 6px ${txtColor}, 0 0 14px ${txtColor}, 0 0 26px ${txtColor}`;
       }else{
-        captionPreviewText.style.textShadow = (selectedBg === 'none' || selectedShape === 'glow' || selectedShape === 'frosted' || selectedShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
+        textSpan.style.textShadow = (selectedBg === 'none' || selectedShape === 'glow' || selectedShape === 'frosted' || selectedShape === 'marker') ? '-1px -1px 0 rgba(0,0,0,0.6),1px -1px 0 rgba(0,0,0,0.6),-1px 1px 0 rgba(0,0,0,0.6),1px 1px 0 rgba(0,0,0,0.6)' : 'none';
       }
     }
   }
