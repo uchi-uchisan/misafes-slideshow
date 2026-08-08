@@ -4714,7 +4714,14 @@ if(isDisplay){
     return res.json();
   }
 
+  let liveCameraConnecting = false; // すでに接続処理中なら、ボタンを連打しても新しい接続を始めない
+
   async function connectLiveCamera(){
+    if(liveCameraConnecting || liveCameraPc){
+      return; // すでに接続中・接続済みなら、何もしない(二重接続を防ぐ)
+    }
+    liveCameraConnecting = true;
+
     const overlay = document.getElementById('live-overlay');
     const video = document.getElementById('live-overlay-video');
     const statusEl = document.getElementById('live-overlay-status');
@@ -4735,6 +4742,7 @@ if(isDisplay){
         const data = await liveSignalGet_('getLiveOffer');
         if(data.sdp){
           clearInterval(offerPoll);
+          liveCameraConnecting = false; // offerを受け取れたら、もう「連打防止」の役目は終わり
           console.log('[ライブ映像診断] offerを受信しました');
           statusEl.textContent = '📹 接続しています…';
 
@@ -4793,6 +4801,7 @@ if(isDisplay){
     liveCameraPollTimers.forEach(t => clearInterval(t));
     liveCameraPollTimers = [];
     if(liveCameraPc){ liveCameraPc.close(); liveCameraPc = null; }
+    liveCameraConnecting = false;
     const overlay = document.getElementById('live-overlay');
     const video = document.getElementById('live-overlay-video');
     overlay.classList.remove('active', 'connected');
