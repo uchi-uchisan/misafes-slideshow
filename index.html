@@ -6250,7 +6250,11 @@ if(isDisplay){
 
   let liveCameraConnected = false;
   document.getElementById('live-camera-toggle-btn').addEventListener('click', (e) => {
-    if(!childWin || childWin.closed) return;
+    if(!childWin || childWin.closed){
+      console.log('[live] childWin が無効なため中断:', childWin, childWin && childWin.closed);
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
     liveCameraConnected = !liveCameraConnected;
     if(liveCameraConnected){
       childWin.postMessage({ type: 'connectLiveCamera' }, '*');
