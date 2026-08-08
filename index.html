@@ -4723,27 +4723,38 @@ if(isDisplay){
     statusEl.textContent = '📹 露店からの配信を待っています…';
     overlay.classList.add('active');
 
-    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+    // ライブ映像中は、カウンター・案内文だけ隠し、QRコードは表示したままにする
+    ['counter', 'ticker'].forEach(id => {
       const el = document.getElementById(id);
       if(el) el.style.visibility = 'hidden';
     });
 
     let lastCandidateRow = 1;
-    // 露店側がofferを出すまで待つ
     const offerPoll = setInterval(async () => {
       try{
         const data = await liveSignalGet_('getLiveOffer');
         if(data.sdp){
           clearInterval(offerPoll);
+          console.log('[ライブ映像診断] offerを受信しました');
           statusEl.textContent = '📹 接続しています…';
 
           liveCameraPc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
           liveCameraPc.ontrack = (e) => {
+            console.log('[ライブ映像診断] ontrackが発火しました(映像を受信)', e.streams);
             video.srcObject = e.streams[0];
             overlay.classList.add('connected');
           };
           liveCameraPc.onicecandidate = (e) => {
-            if(e.candidate) liveSignalPost_('liveCandidate', { role: 'viewer', candidate: e.candidate });
+            if(e.candidate){
+              console.log('[ライブ映像診断] 自分側の接続候補を送信します');
+              liveSignalPost_('liveCandidate', { role: 'viewer', candidate: e.candidate });
+            }
+          };
+          liveCameraPc.onconnectionstatechange = () => {
+            console.log('[ライブ映像診断] 接続状態が変化:', liveCameraPc.connectionState);
+          };
+          liveCameraPc.oniceconnectionstatechange = () => {
+            console.log('[ライブ映像診断] ICE接続状態が変化:', liveCameraPc.iceConnectionState);
           };
 
           const offer = JSON.parse(data.sdp);
@@ -4751,21 +4762,29 @@ if(isDisplay){
           const answer = await liveCameraPc.createAnswer();
           await liveCameraPc.setLocalDescription(answer);
           await liveSignalPost_('liveAnswer', { sdp: JSON.stringify(answer) });
+          console.log('[ライブ映像診断] answerを送信しました');
 
           const candPoll = setInterval(async () => {
             try{
               const cdata = await liveSignalGet_('getLiveCandidates', { role: 'viewer', sinceRow: lastCandidateRow });
               if(cdata.candidates && cdata.candidates.length > 0){
+                console.log('[ライブ映像診断] 相手側の接続候補を', cdata.candidates.length, '件受信');
                 for(const c of cdata.candidates){
-                  try{ await liveCameraPc.addIceCandidate(new RTCIceCandidate(c)); }catch(e){}
+                  try{ await liveCameraPc.addIceCandidate(new RTCIceCandidate(c)); }catch(e){
+                    console.log('[ライブ映像診断] 接続候補の追加に失敗:', e);
+                  }
                 }
                 lastCandidateRow = cdata.lastRow;
               }
-            }catch(err){}
+            }catch(err){
+              console.log('[ライブ映像診断] 接続候補の取得で例外:', err);
+            }
           }, 2000);
           liveCameraPollTimers.push(candPoll);
         }
-      }catch(err){}
+      }catch(err){
+        console.log('[ライブ映像診断] offer取得で例外:', err);
+      }
     }, 1500);
     liveCameraPollTimers.push(offerPoll);
   }
