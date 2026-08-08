@@ -1071,6 +1071,19 @@
   #live-camera-toggle-btn.connected{
     background:rgba(224,45,45,0.35);
   }
+  #force-resume-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:16px;
+    background:rgba(233,228,216,0.08);
+    border:1.5px solid rgba(233,228,216,0.3);
+    color:rgba(233,228,216,0.85);
+    border-radius:10px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
   #preview-modal .preview-box{
     width:min(520px, 100%);
     background:var(--night);
@@ -1410,6 +1423,7 @@
     <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
     <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
     <button type="button" id="live-camera-toggle-btn">📹 ライブ映像に接続(実験的機能)</button>
+    <button type="button" id="force-resume-btn">⏹ 演出・アナウンスを今すぐ止めて、通常表示に戻す</button>
 
     <div class="cp-btn-grid">
       <button class="cp-btn" id="prev-btn">◀ 前へ</button>
@@ -4716,6 +4730,7 @@ if(isDisplay){
     const offerPoll = setInterval(async () => {
       try{
         const data = await liveSignalGet_('getLiveOffer');
+        console.log('[ライブ映像診断] getLiveOfferの結果:', data);
         if(data.sdp){
           clearInterval(offerPoll);
           statusEl.textContent = '📹 接続しています…';
@@ -4748,7 +4763,9 @@ if(isDisplay){
           }, 2000);
           liveCameraPollTimers.push(candPoll);
         }
-      }catch(err){}
+      }catch(err){
+        console.log('[ライブ映像診断] getLiveOfferで例外:', err);
+      }
     }, 1500);
     liveCameraPollTimers.push(offerPoll);
   }
@@ -4767,6 +4784,35 @@ if(isDisplay){
       if(el) el.style.visibility = '';
     });
     scheduleNext(); // 通常のスライドショーを再開する
+  }
+
+  // どの演出(お知らせ・特別ゲスト歓迎・CM・ライブ映像)が出ていても、まとめて強制的に閉じて通常表示に戻す
+  function forceResumeSlideshow(){
+    clearTimeout(window.__vipTimer);
+    clearTimeout(window.__noticeTimer);
+
+    const vipOverlay = document.getElementById('vip-overlay');
+    if(vipOverlay) vipOverlay.classList.remove('active');
+
+    const noticeOverlay = document.getElementById('notice-overlay');
+    if(noticeOverlay) noticeOverlay.classList.remove('active');
+
+    const sponsorOverlay = document.getElementById('sponsor-overlay');
+    if(sponsorOverlay && sponsorOverlay.classList.contains('active')){
+      closeSponsorVideo(); // これ自体がscheduleNext()を呼ぶので、下の重複呼び出しは避ける
+      return;
+    }
+
+    if(document.getElementById('live-overlay').classList.contains('active')){
+      disconnectLiveCamera(); // これ自体がscheduleNext()を呼ぶので、下の重複呼び出しは避ける
+      return;
+    }
+
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = '';
+    });
+    scheduleNext();
   }
 
   function extractYouTubeId_(url){
@@ -5058,6 +5104,9 @@ if(isDisplay){
     }
     if(msg.type === 'disconnectLiveCamera'){
       disconnectLiveCamera();
+    }
+    if(msg.type === 'forceResume'){
+      forceResumeSlideshow();
     }
     if(msg.type === 'addPhotos'){
       const startIndex = slides.length;
@@ -6184,6 +6233,17 @@ if(isDisplay){
       e.target.textContent = '📹 ライブ映像に接続(実験的機能)';
       e.target.classList.remove('connected');
     }
+  });
+
+  document.getElementById('force-resume-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'forceResume' }, '*');
+    }
+    // ライブ映像ボタンの見た目も、念のためリセットしておく
+    liveCameraConnected = false;
+    const liveBtn = document.getElementById('live-camera-toggle-btn');
+    liveBtn.textContent = '📹 ライブ映像に接続(実験的機能)';
+    liveBtn.classList.remove('connected');
   });
 
   document.getElementById('sponsor-add-file-btn').addEventListener('click', () => sponsorFileInput.click());
