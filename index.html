@@ -4693,10 +4693,12 @@ if(isDisplay){
   // ---------- ライブ映像(自作・実験的機能):露店からの映像を受信して全画面表示する ----------
   let liveCameraPc = null;
   let liveCameraPollTimers = [];
+  // 操作パネル側にある同名の定数は、この会場側の画面(display=1)からは見えないため、同じURLをここにも定義する
+  const LIVE_APPSCRIPT_BASE_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec";
 
   async function liveSignalPost_(action, extra){
     try{
-      await fetch(PENDING_APPSCRIPT_URL.split('?')[0], {
+      await fetch(LIVE_APPSCRIPT_BASE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(Object.assign({ action }, extra))
@@ -4704,7 +4706,7 @@ if(isDisplay){
     }catch(err){ /* 次のポーリングでリトライ */ }
   }
   async function liveSignalGet_(action, params){
-    const url = new URL(PENDING_APPSCRIPT_URL.split('?')[0]);
+    const url = new URL(LIVE_APPSCRIPT_BASE_URL);
     url.searchParams.set('action', action);
     Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
     const res = await fetch(url.toString(), { cache: 'no-store' });
@@ -4730,7 +4732,6 @@ if(isDisplay){
     const offerPoll = setInterval(async () => {
       try{
         const data = await liveSignalGet_('getLiveOffer');
-        console.log('[ライブ映像診断] getLiveOfferの結果:', data);
         if(data.sdp){
           clearInterval(offerPoll);
           statusEl.textContent = '📹 接続しています…';
@@ -4763,9 +4764,7 @@ if(isDisplay){
           }, 2000);
           liveCameraPollTimers.push(candPoll);
         }
-      }catch(err){
-        console.log('[ライブ映像診断] getLiveOfferで例外:', err);
-      }
+      }catch(err){}
     }, 1500);
     liveCameraPollTimers.push(offerPoll);
   }
