@@ -176,6 +176,35 @@
     display:none;
   }
   #show.active{ display:block; }
+  #sponsor-overlay{
+    position:absolute; inset:0;
+    z-index:200;
+    background:#000;
+    display:none;
+    align-items:center; justify-content:center;
+  }
+  #sponsor-overlay.active{ display:flex; }
+  #sponsor-overlay-inner{
+    width:100%; height:100%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #sponsor-overlay-inner video,
+  #sponsor-overlay-inner iframe{
+    width:100%; height:100%;
+    border:none;
+  }
+  #sponsor-close-btn{
+    position:absolute;
+    top:24px; right:24px;
+    z-index:201;
+    padding:10px 20px;
+    background:rgba(0,0,0,0.6);
+    color:#fff;
+    border:1.5px solid rgba(255,255,255,0.4);
+    border-radius:8px;
+    font-size:14px;
+    cursor:pointer;
+  }
   .slide{
     position:absolute; inset:0;
     background-size:contain;
@@ -621,6 +650,29 @@
     color:rgba(233,228,216,0.85);
   }
   .cp-speed-row span:last-child{ min-width:42px; text-align:right; color:var(--gold); font-weight:700; }
+  .sponsor-item-row{
+    display:flex; align-items:center; gap:8px;
+    background:rgba(233,228,216,0.06);
+    border:1px solid rgba(212,168,67,0.2);
+    border-radius:8px;
+    padding:8px 12px;
+    margin-bottom:6px;
+    font-size:12.5px;
+    color:rgba(233,228,216,0.85);
+  }
+  .sponsor-item-row .sponsor-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sponsor-item-row .sponsor-remove{ color:var(--lantern); cursor:pointer; font-size:16px; flex-shrink:0; }
+  .sponsor-play-btn{
+    display:block; width:100%;
+    padding:12px;
+    margin-bottom:8px;
+    background:rgba(224,90,45,0.15);
+    border:1.5px solid var(--lantern);
+    color:var(--lantern);
+    border-radius:8px;
+    font-size:13px; font-weight:700;
+    cursor:pointer;
+  }
   .cp-btn-grid{
     display:grid;
     grid-template-columns:1fr 1fr 1fr;
@@ -1049,6 +1101,17 @@
       </div>
       <input type="range" id="insert-offset-slider" min="1" max="10" value="1">
       <span class="hint">「1枚後」だと、承認した瞬間ほぼすぐ表示されます。数字を大きくすると、今流れている写真がしばらく続いてから登場します</span>
+
+      <div class="row" style="margin-top:20px;">
+        <label>📢 スポンサー紹介(任意)</label>
+      </div>
+      <span class="hint">登録しておくと、開始後いつでも好きなタイミングで、操作パネルから流せます</span>
+      <div id="sponsor-list" style="margin-top:8px;"></div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" id="sponsor-add-file-btn" class="add-ticker-btn" style="flex:1;">＋ 動画ファイル</button>
+        <button type="button" id="sponsor-add-youtube-btn" class="add-ticker-btn" style="flex:1;">＋ YouTube URL</button>
+      </div>
+      <input type="file" id="sponsor-file-input" accept="video/*" style="display:none;">
     </div>
 
     <button id="start-btn" disabled>スライドショー開始(別ウィンドウで表示)</button>
@@ -1094,6 +1157,8 @@
       <input type="range" id="delay-interval-slider" min="1" max="10" value="3" style="width:70px;">
       <span id="delay-interval-value">3分</span>
     </div>
+
+    <div id="sponsor-play-row" style="display:none; margin-bottom:16px;"></div>
 
     <div class="cp-btn-grid">
       <button class="cp-btn" id="prev-btn">◀ 前へ</button>
@@ -1566,6 +1631,9 @@
 <div id="show">
   <div id="counter"></div>
   <div id="ticker"><div class="ticker-track" id="ticker-track"></div></div>
+  <div id="sponsor-overlay">
+    <div id="sponsor-overlay-inner"></div>
+  </div>
   <div id="qr-overlay" class="qr-overlay-box">
     <div class="qr-box" id="qr-box"></div>
     <div class="qr-label">📷 写真・メッセージを送る</div>
@@ -4138,6 +4206,53 @@ if(isDisplay){
     return Math.min(offset, order.length);
   }
 
+  // ---------- スポンサー紹介の再生(操作パネルから手動で呼ばれる) ----------
+  function playSponsorVideo(sponsor){
+    const overlay = document.getElementById('sponsor-overlay');
+    const inner = document.getElementById('sponsor-overlay-inner');
+    clearTimeout(timer); // 通常のスライド送りを一旦止める
+
+    inner.innerHTML = '';
+    let closeBtn = document.getElementById('sponsor-close-btn');
+    if(!closeBtn){
+      closeBtn = document.createElement('div');
+      closeBtn.id = 'sponsor-close-btn';
+      closeBtn.textContent = '✕ 閉じる';
+      overlay.appendChild(closeBtn);
+    }
+    closeBtn.onclick = closeSponsorVideo;
+
+    if(sponsor.type === 'youtube'){
+      const videoId = extractYouTubeId_(sponsor.url);
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+      iframe.allow = 'autoplay; encrypted-media';
+      iframe.allowFullscreen = true;
+      inner.appendChild(iframe);
+    }else{
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(sponsor.file); // 表示ウィンドウ側で、受け取ったファイルから改めてURLを作る
+      video.autoplay = true;
+      video.controls = true;
+      video.addEventListener('ended', closeSponsorVideo);
+      inner.appendChild(video);
+    }
+    overlay.classList.add('active');
+  }
+
+  function closeSponsorVideo(){
+    const overlay = document.getElementById('sponsor-overlay');
+    const inner = document.getElementById('sponsor-overlay-inner');
+    overlay.classList.remove('active');
+    inner.innerHTML = ''; // 動画を止める(要素ごと削除)
+    scheduleNext(); // 通常のスライドショーを再開する
+  }
+
+  function extractYouTubeId_(url){
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/);
+    return m ? m[1] : '';
+  }
+
   function scheduleNext(){
     clearTimeout(timer);
     if(paused) return;
@@ -4407,6 +4522,9 @@ if(isDisplay){
     }
     if(msg.type === 'updateInsertOffset'){
       window.__insertOffset = msg.offset;
+    }
+    if(msg.type === 'playSponsor'){
+      playSponsorVideo(msg.sponsor);
     }
     if(msg.type === 'addPhotos'){
       const startIndex = slides.length;
@@ -5309,6 +5427,43 @@ if(isDisplay){
   shuffleToggle.addEventListener('click', () => { shuffleOn = !shuffleOn; shuffleToggle.classList.toggle('on', shuffleOn); });
   loopToggle.addEventListener('click', () => { loopOn = !loopOn; loopToggle.classList.toggle('on', loopOn); });
 
+  // ---------- スポンサー紹介の登録(設定画面) ----------
+  let sponsors = []; // { type: 'file'|'youtube', title, url }
+  const sponsorListEl = document.getElementById('sponsor-list');
+  const sponsorFileInput = document.getElementById('sponsor-file-input');
+
+  function renderSponsorList(){
+    sponsorListEl.innerHTML = sponsors.map((s, i) => `
+      <div class="sponsor-item-row">
+        <span class="sponsor-name">${s.type === 'youtube' ? '▶ YouTube' : '🎞'} ${escapeHtmlCP(s.title)}</span>
+        <span class="sponsor-remove" data-idx="${i}">✕</span>
+      </div>
+    `).join('');
+    sponsorListEl.querySelectorAll('.sponsor-remove').forEach(el => {
+      el.addEventListener('click', () => {
+        sponsors.splice(parseInt(el.dataset.idx, 10), 1);
+        renderSponsorList();
+      });
+    });
+  }
+
+  document.getElementById('sponsor-add-file-btn').addEventListener('click', () => sponsorFileInput.click());
+  sponsorFileInput.addEventListener('change', () => {
+    const file = sponsorFileInput.files[0];
+    if(!file) return;
+    const title = prompt('この動画の名前(例:〇〇商店様)を入力してください', file.name) || file.name;
+    sponsors.push({ type: 'file', title, file: file });
+    renderSponsorList();
+    sponsorFileInput.value = '';
+  });
+  document.getElementById('sponsor-add-youtube-btn').addEventListener('click', () => {
+    const url = prompt('YouTubeの動画URLを入力してください(例:https://www.youtube.com/watch?v=xxxxx)');
+    if(!url) return;
+    const title = prompt('この動画の名前(例:〇〇商店様)を入力してください', 'スポンサー動画') || 'スポンサー動画';
+    sponsors.push({ type: 'youtube', title, url });
+    renderSponsorList();
+  });
+
   const qrUrlInput = document.getElementById('qr-url');
 
   const tickerList = document.getElementById('ticker-list');
@@ -5352,6 +5507,23 @@ if(isDisplay){
     cpSpeedValue.textContent = settings.interval + '秒';
     cpInsertOffsetSlider.value = settings.insertOffset;
     cpInsertOffsetValue.textContent = settings.insertOffset + '枚後';
+
+    // スポンサー再生ボタンを、登録済みの動画の数だけ生成する
+    const sponsorPlayRow = document.getElementById('sponsor-play-row');
+    if(sponsors.length > 0){
+      sponsorPlayRow.style.display = 'block';
+      sponsorPlayRow.innerHTML = sponsors.map((s, i) =>
+        `<button class="sponsor-play-btn" data-idx="${i}">📢 「${escapeHtmlCP(s.title)}」を今流す</button>`
+      ).join('');
+      sponsorPlayRow.querySelectorAll('.sponsor-play-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sponsor = sponsors[parseInt(btn.dataset.idx, 10)];
+          if(childWin && !childWin.closed){
+            childWin.postMessage({ type: 'playSponsor', sponsor }, '*');
+          }
+        });
+      });
+    }
 
     function onReady(e){
       if(e.source !== childWin || !e.data || e.data.type !== 'ready') return;
