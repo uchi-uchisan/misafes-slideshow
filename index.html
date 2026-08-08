@@ -205,6 +205,123 @@
     font-size:14px;
     cursor:pointer;
   }
+  #vip-overlay{
+    position:absolute; inset:0;
+    z-index:210;
+    display:none;
+    align-items:center; justify-content:center;
+    overflow:hidden;
+    background:radial-gradient(ellipse at center, #7a2a12 0%, #2a0f08 60%, #12070a 100%);
+    animation:vip-bg-pulse 1.6s ease-in-out infinite;
+  }
+  #vip-overlay.active{ display:flex; }
+  @keyframes vip-bg-pulse{
+    0%, 100%{ filter:brightness(1); }
+    50%{ filter:brightness(1.25); }
+  }
+  #vip-overlay-text{
+    position:relative;
+    z-index:2;
+    max-width:88%;
+    text-align:center;
+    white-space:pre-line;
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;
+    font-weight:900;
+    font-size:56px;
+    color:#fff;
+    letter-spacing:0.04em;
+    -webkit-text-stroke:3px #c9401f;
+    text-shadow:0 0 24px rgba(212,168,67,0.9), 0 0 48px rgba(224,90,45,0.7), 6px 6px 0 rgba(0,0,0,0.45);
+    animation:vip-text-pop 0.7s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes vip-text-pop{
+    0%{ transform:scale(0.4) rotate(-4deg); opacity:0; }
+    60%{ transform:scale(1.12) rotate(2deg); opacity:1; }
+    100%{ transform:scale(1) rotate(0deg); opacity:1; }
+  }
+  .vip-sparkle{
+    position:absolute;
+    font-size:64px;
+    z-index:1;
+    animation:vip-sparkle-float 3s ease-in-out infinite;
+    opacity:0.85;
+  }
+  .vip-sparkle-1{ top:10%; left:12%; animation-delay:0s; }
+  .vip-sparkle-2{ top:15%; right:14%; animation-delay:0.5s; font-size:80px; }
+  .vip-sparkle-3{ bottom:14%; left:18%; animation-delay:1s; font-size:72px; }
+  .vip-sparkle-4{ bottom:10%; right:10%; animation-delay:1.5s; }
+  .vip-sparkle-5{ top:45%; left:6%; animation-delay:0.8s; font-size:52px; }
+  @keyframes vip-sparkle-float{
+    0%, 100%{ transform:translateY(0) rotate(0deg) scale(1); }
+    50%{ transform:translateY(-18px) rotate(12deg) scale(1.15); }
+  }
+  #notice-overlay{
+    position:absolute; inset:0;
+    z-index:205;
+    display:none;
+    flex-direction:column;
+    align-items:center; justify-content:center;
+    background:linear-gradient(135deg, #1a2440, #0d1220);
+    text-align:center;
+    padding:40px;
+  }
+  #notice-overlay.active{ display:flex; }
+  #notice-overlay-icon{
+    font-size:80px;
+    margin-bottom:24px;
+    animation:notice-icon-shake 1.4s ease-in-out infinite;
+  }
+  @keyframes notice-icon-shake{
+    0%, 100%{ transform:rotate(0deg); }
+    25%{ transform:rotate(-8deg); }
+    75%{ transform:rotate(8deg); }
+  }
+  #notice-overlay-text{
+    max-width:86%;
+    white-space:pre-line;
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;
+    font-weight:900;
+    font-size:44px;
+    color:#fff;
+    line-height:1.5;
+    text-shadow:0 4px 14px rgba(0,0,0,0.5);
+  }
+  #live-overlay{
+    position:absolute; inset:0;
+    z-index:215;
+    display:none;
+    align-items:center; justify-content:center;
+    background:#000;
+  }
+  #live-overlay.active{ display:flex; }
+  #live-overlay-video{
+    width:100%; height:100%;
+    object-fit:contain;
+  }
+  #live-overlay-status{
+    position:absolute;
+    color:rgba(255,255,255,0.8);
+    font-size:20px;
+    font-weight:700;
+  }
+  .live-badge{
+    position:absolute;
+    top:24px; left:24px;
+    padding:8px 16px;
+    background:rgba(224,45,45,0.85);
+    color:#fff;
+    font-weight:900;
+    font-size:14px;
+    border-radius:20px;
+    display:none;
+    animation:live-badge-pulse 1.2s ease-in-out infinite;
+  }
+  #live-overlay.connected .live-badge{ display:block; }
+  #live-overlay.connected #live-overlay-status{ display:none; }
+  @keyframes live-badge-pulse{
+    0%, 100%{ opacity:1; }
+    50%{ opacity:0.5; }
+  }
   .slide{
     position:absolute; inset:0;
     background-size:contain;
@@ -673,6 +790,14 @@
     font-size:13px; font-weight:700;
     cursor:pointer;
   }
+  .sponsor-preview-link{
+    font-size:11px;
+    color:rgba(233,228,216,0.55);
+    text-decoration:underline;
+    cursor:pointer;
+    margin-bottom:10px;
+    text-align:center;
+  }
   .cp-btn-grid{
     display:grid;
     grid-template-columns:1fr 1fr 1fr;
@@ -830,6 +955,122 @@
     padding:24px;
   }
   #preview-modal.active{ display:flex; }
+  #cp-sponsor-modal{
+    position:fixed; inset:0;
+    background:rgba(6,8,18,0.92);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:80;
+    padding:24px;
+  }
+  #cp-sponsor-modal.active{ display:flex; }
+  .cp-sponsor-box{
+    width:min(560px, 100%);
+    background:var(--night);
+    border:1px solid rgba(212,168,67,0.4);
+    border-radius:18px;
+    padding:20px;
+  }
+  .cp-sponsor-title{
+    color:var(--gold);
+    font-size:15px;
+    font-weight:700;
+    margin-bottom:12px;
+  }
+  .cp-sponsor-stage{
+    width:100%;
+    aspect-ratio:16/9;
+    background:#000;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:14px;
+  }
+  .cp-sponsor-stage video,
+  .cp-sponsor-stage iframe{
+    width:100%; height:100%; border:none;
+  }
+  .cp-sponsor-note{
+    font-size:11.5px;
+    color:rgba(233,228,216,0.6);
+    margin-bottom:14px;
+    line-height:1.6;
+  }
+  .cp-sponsor-btn-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .cp-sponsor-mute-label{
+    display:flex; align-items:center; gap:6px;
+    font-size:13px;
+    color:rgba(233,228,216,0.85);
+    cursor:pointer;
+  }
+  #cp-sponsor-close-btn{
+    padding:10px 24px;
+    background:rgba(212,168,67,0.15);
+    border:1.5px solid var(--gold);
+    color:var(--gold);
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  #cp-sponsor-handoff-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:12px;
+    background:rgba(224,90,45,0.18);
+    border:1.5px solid var(--lantern);
+    color:var(--lantern);
+    border-radius:8px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #vip-welcome-btn{
+    display:block;
+    width:100%;
+    padding:14px;
+    margin-bottom:16px;
+    background:linear-gradient(135deg, rgba(212,168,67,0.25), rgba(224,90,45,0.25));
+    border:1.5px solid var(--gold);
+    color:var(--gold);
+    border-radius:10px;
+    font-size:14px;
+    font-weight:900;
+    cursor:pointer;
+  }
+  #lost-child-btn, #closing-notice-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:10px;
+    background:rgba(60,80,140,0.2);
+    border:1.5px solid rgba(140,170,230,0.6);
+    color:rgba(200,215,245,0.95);
+    border-radius:10px;
+    font-size:13.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #live-camera-toggle-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:16px;
+    background:rgba(224,45,45,0.15);
+    border:1.5px solid rgba(224,45,45,0.6);
+    color:#ff8080;
+    border-radius:10px;
+    font-size:13.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #live-camera-toggle-btn.connected{
+    background:rgba(224,45,45,0.35);
+  }
   #preview-modal .preview-box{
     width:min(520px, 100%);
     background:var(--night);
@@ -1165,6 +1406,11 @@
     </div>
     <input type="file" id="cp-sponsor-file-input" accept="video/*" style="display:none;">
 
+    <button type="button" id="vip-welcome-btn">🎉 特別ゲスト歓迎(その場で1タップ)</button>
+    <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
+    <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
+    <button type="button" id="live-camera-toggle-btn">📹 ライブ映像に接続(実験的機能)</button>
+
     <div class="cp-btn-grid">
       <button class="cp-btn" id="prev-btn">◀ 前へ</button>
       <button class="cp-btn" id="pause-btn">一時停止</button>
@@ -1189,6 +1435,21 @@
       </div>
       <div id="pending-list" class="pending-list">
         <div class="pending-empty">今のところ新しい投稿はありません</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cp-sponsor-modal">
+    <div class="cp-sponsor-box">
+      <div class="cp-sponsor-title" id="cp-sponsor-title"></div>
+      <div class="cp-sponsor-stage" id="cp-sponsor-stage"></div>
+      <div class="cp-sponsor-note">この確認画面は、あなただけに表示されています。来場者向けの会場モニターには一切映りません。広告が終わり、本編が始まったタイミングで「今から会場に映す」を押すと、そのまま今の再生位置から会場に切り替わります。</div>
+      <button id="cp-sponsor-handoff-btn">📢 今から会場に映す(このタイミングから)</button>
+      <div class="cp-sponsor-btn-row">
+        <label class="cp-sponsor-mute-label">
+          <input type="checkbox" id="cp-sponsor-mute" checked> 🔇 音を消す
+        </label>
+        <button id="cp-sponsor-close-btn">✕ 閉じる</button>
       </div>
     </div>
   </div>
@@ -1223,6 +1484,10 @@
           <div class="color-opt" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
           <div class="color-opt" data-color="#c9401f" style="background:#c9401f;"></div>
           <div class="color-opt" data-color="#d4a843" style="background:#d4a843;"></div>
+          <div class="color-opt" data-color="#ffffff" style="background:#ffffff; border-color:rgba(42,23,16,0.3);"></div>
+          <div class="color-opt" data-color="#16213e" style="background:#16213e;"></div>
+          <div class="color-opt" data-color="#2f6b4f" style="background:#2f6b4f;"></div>
+          <div class="color-opt" data-color="#d9668f" style="background:#d9668f;"></div>
         </div>
         <div class="style-row-label">背景の色</div>
         <div class="icon-row" id="preview-bg-row">
@@ -1319,6 +1584,10 @@
         <div class="color-opt" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
         <div class="color-opt" data-color="#c9401f" style="background:#c9401f;"></div>
         <div class="color-opt" data-color="#d4a843" style="background:#d4a843;"></div>
+        <div class="color-opt" data-color="#ffffff" style="background:#ffffff; border-color:rgba(42,23,16,0.3);"></div>
+        <div class="color-opt" data-color="#16213e" style="background:#16213e;"></div>
+        <div class="color-opt" data-color="#2f6b4f" style="background:#2f6b4f;"></div>
+        <div class="color-opt" data-color="#d9668f" style="background:#d9668f;"></div>
         <div class="color-opt bg-custom-swatch" id="restyle-text-custom-swatch" data-color="custom" title="自由に選ぶ">
           <input type="color" id="restyle-text-custom-input" value="#2a2118">
         </div>
@@ -1574,6 +1843,10 @@
         <div class="color-opt" data-color="#f5ece0" style="background:#f5ece0; border-color:rgba(42,23,16,0.3);"></div>
         <div class="color-opt" data-color="#c9401f" style="background:#c9401f;"></div>
         <div class="color-opt" data-color="#d4a843" style="background:#d4a843;"></div>
+        <div class="color-opt" data-color="#ffffff" style="background:#ffffff; border-color:rgba(42,23,16,0.3);"></div>
+        <div class="color-opt" data-color="#16213e" style="background:#16213e;"></div>
+        <div class="color-opt" data-color="#2f6b4f" style="background:#2f6b4f;"></div>
+        <div class="color-opt" data-color="#d9668f" style="background:#d9668f;"></div>
         <div class="color-opt bg-custom-swatch" id="text-custom-swatch" data-color="custom" title="自由に選ぶ">
           <input type="color" id="text-custom-input" value="#2a2118">
         </div>
@@ -1638,6 +1911,23 @@
   <div id="ticker"><div class="ticker-track" id="ticker-track"></div></div>
   <div id="sponsor-overlay">
     <div id="sponsor-overlay-inner"></div>
+  </div>
+  <div id="vip-overlay">
+    <div id="vip-overlay-text"></div>
+    <div class="vip-sparkle vip-sparkle-1">✨</div>
+    <div class="vip-sparkle vip-sparkle-2">🎉</div>
+    <div class="vip-sparkle vip-sparkle-3">✨</div>
+    <div class="vip-sparkle vip-sparkle-4">🎊</div>
+    <div class="vip-sparkle vip-sparkle-5">✨</div>
+  </div>
+  <div id="notice-overlay">
+    <div id="notice-overlay-icon">📢</div>
+    <div id="notice-overlay-text"></div>
+  </div>
+  <div id="live-overlay">
+    <div id="live-overlay-status">📹 接続しています…</div>
+    <video id="live-overlay-video" autoplay playsinline></video>
+    <div class="live-badge">🔴 LIVE</div>
   </div>
   <div id="qr-overlay" class="qr-overlay-box">
     <div class="qr-box" id="qr-box"></div>
@@ -4088,7 +4378,10 @@ if(isDisplay){
     cap.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
 
     const bgRgb = st.bg === 'custom' ? hexToRgbStr(st.bgCustom || '#8a5a12') : (GLOW_BASE_COLOR[st.bg || 'paper'] || GLOW_BASE_COLOR.paper);
-    if(st.shape === 'glow'){
+    if(st.bg === 'none'){
+      // 「背景なし」は、選んでいる形状に関わらず常に何も表示しない
+      cap.style.background = 'transparent';
+    }else if(st.shape === 'glow'){
       cap.classList.add('shape-glow');
       cap.style.background = `radial-gradient(ellipse at center, rgba(${bgRgb},0.92) 0%, rgba(${bgRgb},0.65) 45%, rgba(${bgRgb},0) 78%)`;
     }else if(st.shape === 'frosted'){
@@ -4212,10 +4505,16 @@ if(isDisplay){
   }
 
   // ---------- スポンサー紹介の再生(操作パネルから手動で呼ばれる) ----------
-  function playSponsorVideo(sponsor){
+  function playSponsorVideo(sponsor, startTime){
     const overlay = document.getElementById('sponsor-overlay');
     const inner = document.getElementById('sponsor-overlay-inner');
     clearTimeout(timer); // 通常のスライド送りを一旦止める
+
+    // CM再生中は、QRコード・案内文・カウンターを隠す
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = 'hidden';
+    });
 
     inner.innerHTML = '';
     let closeBtn = document.getElementById('sponsor-close-btn');
@@ -4227,10 +4526,12 @@ if(isDisplay){
     }
     closeBtn.onclick = closeSponsorVideo;
 
+    const startSecs = Math.max(0, Math.floor(startTime || 0));
     if(sponsor.type === 'youtube'){
       const videoId = extractYouTubeId_(sponsor.url);
+      const startParam = startSecs > 0 ? `&start=${startSecs}` : '';
       const iframe = document.createElement('iframe');
-      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0${startParam}`;
       iframe.allow = 'autoplay; encrypted-media';
       iframe.allowFullscreen = true;
       inner.appendChild(iframe);
@@ -4239,6 +4540,9 @@ if(isDisplay){
       video.src = URL.createObjectURL(sponsor.file); // 表示ウィンドウ側で、受け取ったファイルから改めてURLを作る
       video.autoplay = true;
       video.controls = true;
+      if(startSecs > 0){
+        video.addEventListener('loadedmetadata', () => { video.currentTime = startSecs; }, { once: true });
+      }
       video.addEventListener('ended', closeSponsorVideo);
       inner.appendChild(video);
     }
@@ -4250,6 +4554,218 @@ if(isDisplay){
     const inner = document.getElementById('sponsor-overlay-inner');
     overlay.classList.remove('active');
     inner.innerHTML = ''; // 動画を止める(要素ごと削除)
+
+    // CM終了後、隠していたQRコード・案内文・カウンターを元に戻す
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = '';
+    });
+
+    scheduleNext(); // 通常のスライドショーを再開する
+  }
+
+  // ---------- 特別ゲスト歓迎:スライドショーを止めて、全画面で派手に演出する ----------
+  function showVipWelcome(text, duration){
+    const overlay = document.getElementById('vip-overlay');
+    const textEl = document.getElementById('vip-overlay-text');
+    clearTimeout(timer); // 通常のスライド送りを一旦止める
+
+    // 演出中は、QRコード・案内文・カウンターを隠す(CMと同様)
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = 'hidden';
+    });
+
+    textEl.textContent = text;
+    overlay.classList.add('active');
+    playFanfareSound_();
+
+    clearTimeout(window.__vipTimer);
+    window.__vipTimer = setTimeout(() => {
+      overlay.classList.remove('active');
+      ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.visibility = '';
+      });
+      scheduleNext(); // 通常のスライドショーを再開する
+    }, (duration || 6) * 1000);
+  }
+
+  // 効果音ファイルを使わず、その場で簡単なファンファーレ風の音を鳴らす
+  function playFanfareSound_(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // ド・ミ・ソ・高いド、と駆け上がる簡単な和音進行(ファンファーレ風)
+      const notes = [
+        { freq: 523.25, start: 0.00, dur: 0.16 },  // ド
+        { freq: 659.25, start: 0.15, dur: 0.16 },  // ミ
+        { freq: 783.99, start: 0.30, dur: 0.16 },  // ソ
+        { freq: 1046.5, start: 0.45, dur: 0.55 }   // 高いド(伸ばす)
+      ];
+      notes.forEach(n => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = n.freq;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const t0 = ctx.currentTime + n.start;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(0.35, t0 + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + n.dur);
+        osc.start(t0);
+        osc.stop(t0 + n.dur + 0.05);
+      });
+    }catch(err){
+      // 音が鳴らせない環境でも、演出自体は問題なく続ける
+    }
+  }
+
+  // ---------- お知らせ(迷子・呼び出し・終了案内など):落ち着いた見た目で、少し長めに表示する ----------
+  function showNotice(text, icon, duration){
+    const overlay = document.getElementById('notice-overlay');
+    const textEl = document.getElementById('notice-overlay-text');
+    const iconEl = document.getElementById('notice-overlay-icon');
+    clearTimeout(timer); // 通常のスライド送りを一旦止める
+
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = 'hidden';
+    });
+
+    iconEl.textContent = icon || '📢';
+    textEl.textContent = text;
+    overlay.classList.add('active');
+    playNoticeChime_();
+
+    clearTimeout(window.__noticeTimer);
+    window.__noticeTimer = setTimeout(() => {
+      overlay.classList.remove('active');
+      ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.visibility = '';
+      });
+      scheduleNext(); // 通常のスライドショーを再開する
+    }, (duration || 15) * 1000);
+  }
+
+  // お知らせ用の、控えめな「ポーン、ポーン」という2音チャイム
+  function playNoticeChime_(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = [
+        { freq: 880.0, start: 0.00, dur: 0.35 },
+        { freq: 659.25, start: 0.40, dur: 0.45 }
+      ];
+      notes.forEach(n => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = n.freq;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const t0 = ctx.currentTime + n.start;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(0.3, t0 + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + n.dur);
+        osc.start(t0);
+        osc.stop(t0 + n.dur + 0.05);
+      });
+    }catch(err){
+      // 音が鳴らせない環境でも、演出自体は問題なく続ける
+    }
+  }
+
+  // ---------- ライブ映像(自作・実験的機能):露店からの映像を受信して全画面表示する ----------
+  let liveCameraPc = null;
+  let liveCameraPollTimers = [];
+
+  async function liveSignalPost_(action, extra){
+    try{
+      await fetch(PENDING_APPSCRIPT_URL.split('?')[0], {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(Object.assign({ action }, extra))
+      });
+    }catch(err){ /* 次のポーリングでリトライ */ }
+  }
+  async function liveSignalGet_(action, params){
+    const url = new URL(PENDING_APPSCRIPT_URL.split('?')[0]);
+    url.searchParams.set('action', action);
+    Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    return res.json();
+  }
+
+  async function connectLiveCamera(){
+    const overlay = document.getElementById('live-overlay');
+    const video = document.getElementById('live-overlay-video');
+    const statusEl = document.getElementById('live-overlay-status');
+    clearTimeout(timer); // 通常のスライド送りを一旦止める
+    overlay.classList.remove('connected');
+    statusEl.textContent = '📹 露店からの配信を待っています…';
+    overlay.classList.add('active');
+
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = 'hidden';
+    });
+
+    let lastCandidateRow = 1;
+    // 露店側がofferを出すまで待つ
+    const offerPoll = setInterval(async () => {
+      try{
+        const data = await liveSignalGet_('getLiveOffer');
+        if(data.sdp){
+          clearInterval(offerPoll);
+          statusEl.textContent = '📹 接続しています…';
+
+          liveCameraPc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+          liveCameraPc.ontrack = (e) => {
+            video.srcObject = e.streams[0];
+            overlay.classList.add('connected');
+          };
+          liveCameraPc.onicecandidate = (e) => {
+            if(e.candidate) liveSignalPost_('liveCandidate', { role: 'viewer', candidate: e.candidate });
+          };
+
+          const offer = JSON.parse(data.sdp);
+          await liveCameraPc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await liveCameraPc.createAnswer();
+          await liveCameraPc.setLocalDescription(answer);
+          await liveSignalPost_('liveAnswer', { sdp: JSON.stringify(answer) });
+
+          const candPoll = setInterval(async () => {
+            try{
+              const cdata = await liveSignalGet_('getLiveCandidates', { role: 'viewer', sinceRow: lastCandidateRow });
+              if(cdata.candidates && cdata.candidates.length > 0){
+                for(const c of cdata.candidates){
+                  try{ await liveCameraPc.addIceCandidate(new RTCIceCandidate(c)); }catch(e){}
+                }
+                lastCandidateRow = cdata.lastRow;
+              }
+            }catch(err){}
+          }, 2000);
+          liveCameraPollTimers.push(candPoll);
+        }
+      }catch(err){}
+    }, 1500);
+    liveCameraPollTimers.push(offerPoll);
+  }
+
+  function disconnectLiveCamera(){
+    liveCameraPollTimers.forEach(t => clearInterval(t));
+    liveCameraPollTimers = [];
+    if(liveCameraPc){ liveCameraPc.close(); liveCameraPc = null; }
+    const overlay = document.getElementById('live-overlay');
+    const video = document.getElementById('live-overlay-video');
+    overlay.classList.remove('active', 'connected');
+    video.srcObject = null;
+
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = '';
+    });
     scheduleNext(); // 通常のスライドショーを再開する
   }
 
@@ -4529,7 +5045,19 @@ if(isDisplay){
       window.__insertOffset = msg.offset;
     }
     if(msg.type === 'playSponsor'){
-      playSponsorVideo(msg.sponsor);
+      playSponsorVideo(msg.sponsor, msg.startTime);
+    }
+    if(msg.type === 'showVipWelcome'){
+      showVipWelcome(msg.text, msg.duration);
+    }
+    if(msg.type === 'showNotice'){
+      showNotice(msg.text, msg.icon, msg.duration);
+    }
+    if(msg.type === 'connectLiveCamera'){
+      connectLiveCamera();
+    }
+    if(msg.type === 'disconnectLiveCamera'){
+      disconnectLiveCamera();
     }
     if(msg.type === 'addPhotos'){
       const startIndex = slides.length;
@@ -4553,7 +5081,7 @@ if(isDisplay){
     if(msg.type === 'addTextSlide'){
       const startIndex = slides.length;
       slides.push({ isText: true, caption: msg.text || '', style: msg.style || null });
-      order.splice(insertPos(), 0, startIndex);
+      order.splice(msg.priority ? Math.min(1, order.length) : insertPos(), 0, startIndex);
       updateCounter();
     }
     if(msg.type === 'announce'){
@@ -4912,11 +5440,29 @@ if(isDisplay){
     }
   }
 
+  let milestoneBaseline = null; // 最初にパネルを開いた時点の投稿数(これより後に増えた分だけを対象にする)
+  const MILESTONE_INTERVAL = 50; // 何件ごとにお祝いするか
+
   async function fetchPendingSubmissions(){
     const listEl = document.getElementById('pending-list');
     const countEl = document.getElementById('pending-count');
     try{
       const rawItems = await fetchPendingItems();
+
+      // 投稿数の節目(50件・100件…)に達したら、自動でお祝い演出を出す
+      const total = rawItems.length;
+      if(milestoneBaseline === null){
+        milestoneBaseline = Math.floor(total / MILESTONE_INTERVAL) * MILESTONE_INTERVAL; // 開始時点はお祝いしない
+      }else{
+        const currentMilestone = Math.floor(total / MILESTONE_INTERVAL) * MILESTONE_INTERVAL;
+        if(currentMilestone > milestoneBaseline){
+          milestoneBaseline = currentMilestone;
+          if(childWin && !childWin.closed){
+            childWin.postMessage({ type: 'showVipWelcome', text: `🎉 投稿${currentMilestone}件突破! 🎉\nありがとうございます`, duration: 6 }, '*');
+          }
+        }
+      }
+
       const items = rawItems.filter(item => {
         const key = item.time + '|' + item.message;
         return (item.message || item.photoUrl) && !approvedKeys.has(key) && !skippedKeys.has(key);
@@ -5124,7 +5670,15 @@ if(isDisplay){
       previewStage.style.background = 'transparent';
       previewLiveCaption.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
       const rgb = previewBg === 'custom' ? previewHexToRgb(previewBgCustom) : (PREVIEW_GLOW_BASE[previewBg] || PREVIEW_GLOW_BASE.paper);
-      if(previewShape === 'glow'){
+      if(previewBg === 'none'){
+        // 「背景なし」は、選んでいる形状に関わらず常に何も表示しない
+        previewLiveCaption.style.background = 'transparent';
+        previewLiveCaption.style.boxShadow = 'none';
+        previewLiveCaption.style.padding = '0';
+        previewLiveCaption.style.backdropFilter = '';
+        previewLiveCaption.style.webkitBackdropFilter = '';
+        previewLiveCaption.style.border = '';
+      }else if(previewShape === 'glow'){
         previewLiveCaption.classList.add('shape-glow');
         previewLiveCaption.style.background = `radial-gradient(ellipse at center, rgba(${rgb},0.92) 0%, rgba(${rgb},0.65) 45%, rgba(${rgb},0) 78%)`;
         previewLiveCaption.style.boxShadow = 'none';
@@ -5490,18 +6044,147 @@ if(isDisplay){
       return;
     }
     sponsorPlayRow.style.display = 'block';
-    sponsorPlayRow.innerHTML = sponsors.map((s, i) =>
-      `<button class="sponsor-play-btn" data-idx="${i}">📢 「${escapeHtmlCP(s.title)}」を今流す</button>`
+    sponsorPlayRow.innerHTML = sponsors.map((s, i) => `
+      <button class="sponsor-play-btn" data-idx="${i}">📢 「${escapeHtmlCP(s.title)}」を今流す</button>
+    `).join('') + sponsors.map((s, i) =>
+      `<div class="sponsor-preview-link" data-idx="${i}">👀 「${escapeHtmlCP(s.title)}」を先に確認だけする(会場には映しません)</div>`
     ).join('');
     sponsorPlayRow.querySelectorAll('.sponsor-play-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const sponsor = sponsors[parseInt(btn.dataset.idx, 10)];
+        // 会場の表示ウィンドウに送って、実際にスクリーンへ流す(会場のスライドは自動的に一時停止する)
         if(childWin && !childWin.closed){
           childWin.postMessage({ type: 'playSponsor', sponsor }, '*');
         }
       });
     });
+    sponsorPlayRow.querySelectorAll('.sponsor-preview-link').forEach(link => {
+      link.addEventListener('click', () => {
+        const sponsor = sponsors[parseInt(link.dataset.idx, 10)];
+        playSponsorInPanel(sponsor); // 会場には送らず、操作パネル側だけで内容を確認する
+      });
+    });
   }
+
+  // ---------- CMを、事前に操作パネル側だけで確認する(会場モニターには映さない) ----------
+  let cpSponsorCurrent = null; // 今、確認画面で開いているスポンサー情報
+  let cpSponsorYtPlayer = null; // YouTube IFrame APIのプレイヤー(再生位置取得用)
+  let cpSponsorVideoEl = null; // 動画ファイルの<video>要素(再生位置取得用)
+  let ytApiReadyPromise = null;
+
+  function loadYouTubeApi_(){
+    if(window.YT && window.YT.Player) return Promise.resolve();
+    if(ytApiReadyPromise) return ytApiReadyPromise;
+    ytApiReadyPromise = new Promise(resolve => {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = resolve;
+    });
+    return ytApiReadyPromise;
+  }
+
+  function playSponsorInPanel(sponsor){
+    const modal = document.getElementById('cp-sponsor-modal');
+    const stage = document.getElementById('cp-sponsor-stage');
+    const title = document.getElementById('cp-sponsor-title');
+    const muteCheckbox = document.getElementById('cp-sponsor-mute');
+    title.textContent = `📢 ${sponsor.title}`;
+    stage.innerHTML = '';
+    cpSponsorCurrent = sponsor;
+    cpSponsorYtPlayer = null;
+    cpSponsorVideoEl = null;
+
+    if(sponsor.type === 'youtube'){
+      const videoId = extractYouTubeId_(sponsor.url);
+      const playerDiv = document.createElement('div');
+      stage.appendChild(playerDiv);
+      loadYouTubeApi_().then(() => {
+        cpSponsorYtPlayer = new YT.Player(playerDiv, {
+          videoId,
+          playerVars: { autoplay: 1, rel: 0, mute: muteCheckbox.checked ? 1 : 0 },
+          events: {
+            onReady: e => { if(muteCheckbox.checked) e.target.mute(); e.target.playVideo(); }
+          }
+        });
+      });
+    }else{
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(sponsor.file);
+      video.autoplay = true;
+      video.controls = true;
+      video.muted = muteCheckbox.checked;
+      stage.appendChild(video);
+      cpSponsorVideoEl = video;
+    }
+    modal.classList.add('active');
+  }
+
+  function closeSponsorInPanel(){
+    const modal = document.getElementById('cp-sponsor-modal');
+    const stage = document.getElementById('cp-sponsor-stage');
+    modal.classList.remove('active');
+    stage.innerHTML = ''; // 動画・音を止める(要素ごと削除)
+    cpSponsorYtPlayer = null;
+    cpSponsorVideoEl = null;
+    cpSponsorCurrent = null;
+  }
+  document.getElementById('cp-sponsor-close-btn').addEventListener('click', closeSponsorInPanel);
+
+  // 「今から会場に映す」:確認画面の今の再生位置から、会場側の再生を始める
+  document.getElementById('cp-sponsor-handoff-btn').addEventListener('click', () => {
+    if(!cpSponsorCurrent) return;
+    let startTime = 0;
+    if(cpSponsorCurrent.type === 'youtube' && cpSponsorYtPlayer && cpSponsorYtPlayer.getCurrentTime){
+      startTime = cpSponsorYtPlayer.getCurrentTime() || 0;
+    }else if(cpSponsorVideoEl){
+      startTime = cpSponsorVideoEl.currentTime || 0;
+    }
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'playSponsor', sponsor: cpSponsorCurrent, startTime }, '*');
+    }
+    closeSponsorInPanel(); // 手元の確認再生は終了する(会場側だけが続きから再生される)
+  });
+
+  // 「特別ゲスト歓迎」:名前を入力するだけで、即座に華やかな歓迎スライドを差し込む
+  document.getElementById('vip-welcome-btn').addEventListener('click', () => {
+    const name = prompt('お名前・肩書きなどを入力してください(例:〇〇市議会議員 △△様)');
+    if(!name) return;
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'showVipWelcome', text: `ようこそ!\n${name}`, duration: 6 }, '*');
+    }
+  });
+
+  document.getElementById('lost-child-btn').addEventListener('click', () => {
+    const text = prompt('お知らせ内容を入力してください(例:みずいろの帽子の女の子をお預かりしています。お心当たりの方は本部テントまでお越しください)');
+    if(!text) return;
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'showNotice', text, icon: '🔍', duration: 20 }, '*');
+    }
+  });
+
+  document.getElementById('closing-notice-btn').addEventListener('click', () => {
+    const text = prompt('お知らせ内容を入力してください', 'まもなくお祭りは終了です\nお忘れ物のないようお気をつけください');
+    if(!text) return;
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'showNotice', text, icon: '⏰', duration: 15 }, '*');
+    }
+  });
+
+  let liveCameraConnected = false;
+  document.getElementById('live-camera-toggle-btn').addEventListener('click', (e) => {
+    if(!childWin || childWin.closed) return;
+    liveCameraConnected = !liveCameraConnected;
+    if(liveCameraConnected){
+      childWin.postMessage({ type: 'connectLiveCamera' }, '*');
+      e.target.textContent = '📹 ライブ映像を切断する';
+      e.target.classList.add('connected');
+    }else{
+      childWin.postMessage({ type: 'disconnectLiveCamera' }, '*');
+      e.target.textContent = '📹 ライブ映像に接続(実験的機能)';
+      e.target.classList.remove('connected');
+    }
+  });
 
   document.getElementById('sponsor-add-file-btn').addEventListener('click', () => sponsorFileInput.click());
   sponsorFileInput.addEventListener('change', () => {
@@ -5613,7 +6296,37 @@ if(isDisplay){
     fetchPendingSubmissions();
     clearInterval(pendingPollTimer);
     pendingPollTimer = setInterval(fetchPendingSubmissions, 15000);
+
+    // ギャラリーの「いいね」が多い写真を、5分おきに1枚だけスライドに挟み込む
+    clearInterval(window.__galleryHighlightTimer);
+    window.__galleryHighlightTimer = setInterval(insertGalleryBestShot_, 5 * 60 * 1000);
   });
+
+  const insertedGalleryShots_ = new Set(); // 一度挿入した写真は、同じお祭りの間は重複させない
+  async function insertGalleryBestShot_(){
+    try{
+      const res = await fetch(PENDING_APPSCRIPT_URL.split('?')[0] + '?action=getGalleryApproved', { cache: 'no-store' });
+      if(!res.ok) return;
+      const items = await res.json();
+      const candidates = items.filter(it => it.photoUrl && !insertedGalleryShots_.has(it.time));
+      if(candidates.length === 0) return;
+      candidates.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+      const best = candidates[0];
+      if((best.likes || 0) <= 0) return; // いいねが1件も付いていない写真は対象外
+      insertedGalleryShots_.add(best.time);
+      if(childWin && !childWin.closed){
+        const caption = `📸 今、人気の1枚(❤️${best.likes})` + (best.message ? `\n${best.message}` : '');
+        childWin.postMessage({
+          type: 'addPhotoByUrl',
+          url: best.photoUrl,
+          caption,
+          style: { size: 20, color: '#ffffff', bg: 'custom', bgCustom: '#c9401f', shape: 'glow', deco: 'shadow', font: 'gothic', pos: 'bottom' }
+        }, '*');
+      }
+    }catch(err){
+      // 取得できなくても、通常のスライドショーには影響させない
+    }
+  }
 
   window.addEventListener('message', e => {
     if(!e.data || e.data.type !== 'state') return;
@@ -5709,7 +6422,13 @@ if(isDisplay){
     restylePreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
     restylePreviewText.style.backgroundImage = ''; // 前回のshapeによる残りをリセット
     const rRgb = restyleBg === 'custom' ? miniHexToRgb(restyleBgCustom) : (MINI_GLOW_BASE[restyleBg] || MINI_GLOW_BASE.paper);
-    if(restyleShape === 'glow'){
+    if(restyleBg === 'none'){
+      // 「背景なし」は、選んでいる形状に関わらず常に何も表示しない
+      restylePreviewText.style.background = 'transparent';
+      restylePreviewText.style.backdropFilter = '';
+      restylePreviewText.style.webkitBackdropFilter = '';
+      restylePreviewText.style.border = '';
+    }else if(restyleShape === 'glow'){
       restylePreviewText.classList.add('shape-glow');
       restylePreviewText.style.background = `radial-gradient(ellipse at center, rgba(${rRgb},0.92) 0%, rgba(${rRgb},0.65) 45%, rgba(${rRgb},0) 78%)`;
     }else if(restyleShape === 'frosted'){
@@ -6103,7 +6822,13 @@ if(isDisplay){
     captionPreviewText.classList.remove('shape-glow', 'shape-frosted', 'shape-neon', 'shape-marker', 'shape-bubble');
     captionPreviewText.style.backgroundImage = ''; // 前回のshapeによる残りをリセット
     const cRgb = selectedBg === 'custom' ? miniHexToRgb(selectedBgCustom) : (MINI_GLOW_BASE[selectedBg] || MINI_GLOW_BASE.paper);
-    if(selectedShape === 'glow'){
+    if(selectedBg === 'none'){
+      // 「背景なし」は、選んでいる形状に関わらず常に何も表示しない
+      captionPreviewText.style.background = 'transparent';
+      captionPreviewText.style.backdropFilter = '';
+      captionPreviewText.style.webkitBackdropFilter = '';
+      captionPreviewText.style.border = '';
+    }else if(selectedShape === 'glow'){
       captionPreviewText.classList.add('shape-glow');
       captionPreviewText.style.background = `radial-gradient(ellipse at center, rgba(${cRgb},0.92) 0%, rgba(${cRgb},0.65) 45%, rgba(${cRgb},0) 78%)`;
     }else if(selectedShape === 'frosted'){
