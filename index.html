@@ -3,18 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>町内スライドショー</title>
+<title>みさフェス スライドショー</title>
 <script src="face-api.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Yomogi&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Yomogi&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
   :root{
     --night: #12162c;
     --night-deep: #0a0d1c;
     --lantern: #e8542a;
     --lantern-soft: #f2825c;
-    --gold: #d4a843;
+    --gold: #c9a961;
+    --gold-bright: #e0c37a;
     --paper: #f5ece0;
     --ink: #e9e4d8;
   }
@@ -22,7 +23,7 @@
   html,body{
     height:100%;
     background:var(--night-deep);
-    font-family:"Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
+    font-family:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
     overflow-x:hidden;
     overflow-y:auto;
   }
@@ -41,26 +42,31 @@
   }
   .panel{
     width:min(560px, 92vw);
-    background:rgba(10,13,28,0.55);
-    border:1px solid rgba(212,168,67,0.35);
+    background:linear-gradient(165deg, rgba(18,22,44,0.65), rgba(10,13,28,0.55));
+    border:1px solid rgba(201,169,97,0.3);
     border-radius:18px;
     padding:40px 36px;
     backdrop-filter: blur(6px);
+    box-shadow:0 24px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,169,97,0.08) inset;
   }
   .eyebrow{
     color:var(--gold);
     letter-spacing:0.35em;
     font-size:11px;
+    font-weight:700;
     text-align:center;
     margin-bottom:10px;
   }
   h1{
-    color:var(--ink);
+    background:linear-gradient(135deg, var(--gold-bright), var(--paper) 55%, var(--gold-bright));
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
     text-align:center;
-    font-size:26px;
-    font-weight:600;
+    font-size:27px;
+    font-weight:700;
     margin-bottom:6px;
-    letter-spacing:0.04em;
+    letter-spacing:0.03em;
   }
   .sub{
     color:rgba(233,228,216,0.55);
@@ -964,6 +970,28 @@
     padding:24px;
   }
   #cp-sponsor-modal.active{ display:flex; }
+  #live-preview-modal{
+    position:fixed; inset:0;
+    background:rgba(6,8,18,0.92);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:80;
+    padding:24px;
+  }
+  #live-preview-modal.active{ display:flex; }
+  #live-preview-video{ width:100%; height:100%; object-fit:contain; background:#000; }
+  #live-preview-approve-btn{
+    display:block; width:100%;
+    padding:12px;
+    margin-bottom:12px;
+    background:rgba(224,90,45,0.18);
+    border:1.5px solid var(--lantern);
+    color:var(--lantern);
+    border-radius:8px;
+    font-size:14px; font-weight:700;
+    cursor:pointer;
+  }
+  #live-preview-approve-btn:disabled{ opacity:0.4; cursor:not-allowed; }
   .cp-sponsor-box{
     width:min(560px, 100%);
     background:var(--night);
@@ -1289,8 +1317,8 @@
 
 <div id="setup">
   <div class="panel">
-    <div class="eyebrow">町内会 お祭り上映</div>
-    <h1>スライドショー準備</h1>
+    <div class="eyebrow">みさフェス</div>
+    <h1>スライドショー</h1>
     <div class="sub">写真を選ぶだけで、そのまま全画面で流せます</div>
 
     <div class="drop" id="drop">
@@ -1422,7 +1450,10 @@
     <button type="button" id="vip-welcome-btn">🎉 特別ゲスト歓迎(その場で1タップ)</button>
     <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
     <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
-    <button type="button" id="live-camera-toggle-btn">📹 ライブ映像に接続(実験的機能)</button>
+    <button type="button" id="live-camera-toggle-btn">📹 ライブ映像を受け付ける(実験的機能)</button>
+    <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:-8px 0 16px 2px;">
+      <input type="checkbox" id="live-venue-audio-toggle"> 🔊 会場でも音声を流す(不具合が起きたらオフのままにしてください)
+    </label>
     <button type="button" id="force-resume-btn">⏹ 演出・アナウンスを今すぐ止めて、通常表示に戻す</button>
 
     <div class="cp-btn-grid">
@@ -1464,6 +1495,21 @@
           <input type="checkbox" id="cp-sponsor-mute" checked> 🔇 音を消す
         </label>
         <button id="cp-sponsor-close-btn">✕ 閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="live-preview-modal">
+    <div class="cp-sponsor-box">
+      <div class="cp-sponsor-title">📹 ライブ映像プレビュー(あなただけに表示中)</div>
+      <div class="cp-sponsor-stage"><video id="live-preview-video" autoplay playsinline muted></video></div>
+      <div id="live-preview-status" class="cp-sponsor-note">露店からの接続を待っています…(会場のスライドショーは、通常通り進行しています)</div>
+      <button id="live-preview-approve-btn" disabled>✅ この映像を会場に表示する</button>
+      <div class="cp-sponsor-btn-row">
+        <label class="cp-sponsor-mute-label">
+          <input type="checkbox" id="live-preview-mute" checked> 🔇 プレビューの音を消す
+        </label>
+        <button id="live-preview-close-btn">✕ 閉じる(会場には映さない)</button>
       </div>
     </div>
   </div>
@@ -4647,7 +4693,12 @@ if(isDisplay){
       if(el) el.style.visibility = 'hidden';
     });
 
-    iconEl.textContent = icon || '📢';
+    if(icon){
+      iconEl.textContent = icon;
+      iconEl.style.display = '';
+    }else{
+      iconEl.style.display = 'none';
+    }
     textEl.textContent = text;
     overlay.classList.add('active');
     playNoticeChime_();
@@ -4722,7 +4773,7 @@ if(isDisplay){
 
   let liveCameraConnecting = false; // すでに接続処理中なら、ボタンを連打しても新しい接続を始めない
 
-  async function connectLiveCamera(){
+  async function connectLiveCamera(muted){
     if(liveCameraConnecting || liveCameraPc){
       return; // すでに接続中・接続済みなら、何もしない(二重接続を防ぐ)
     }
@@ -4731,6 +4782,7 @@ if(isDisplay){
     const overlay = document.getElementById('live-overlay');
     const video = document.getElementById('live-overlay-video');
     const statusEl = document.getElementById('live-overlay-status');
+    video.muted = muted !== false; // 特にfalse指定がなければ、初期状態はミュート(安全側)にしておく
     clearTimeout(timer); // 通常のスライド送りを一旦止める
     overlay.classList.remove('connected');
     statusEl.textContent = '📹 露店からの配信を待っています…';
@@ -4745,7 +4797,7 @@ if(isDisplay){
     let lastCandidateRow = 1;
     const offerPoll = setInterval(async () => {
       try{
-        const data = await liveSignalGet_('getLiveOffer');
+        const data = await liveSignalGet_('getLiveOffer', { viewer: 'venue' });
         if(data.sdp){
           clearInterval(offerPoll);
           console.log('[ライブ映像診断] offerを受信しました');
@@ -4774,7 +4826,7 @@ if(isDisplay){
           liveCameraPc.onicecandidate = (e) => {
             if(e.candidate){
               console.log('[ライブ映像診断] 自分側の接続候補を送信します');
-              liveSignalPost_('liveCandidate', { role: 'viewer', candidate: e.candidate });
+              liveSignalPost_('liveCandidate', { role: 'viewer', candidate: e.candidate, viewer: 'venue' });
             }
           };
           liveCameraPc.onconnectionstatechange = () => {
@@ -4788,12 +4840,12 @@ if(isDisplay){
           await liveCameraPc.setRemoteDescription(new RTCSessionDescription(offer));
           const answer = await liveCameraPc.createAnswer();
           await liveCameraPc.setLocalDescription(answer);
-          await liveSignalPost_('liveAnswer', { sdp: JSON.stringify(answer) });
+          await liveSignalPost_('liveAnswer', { sdp: JSON.stringify(answer), viewer: 'venue' });
           console.log('[ライブ映像診断] answerを送信しました');
 
           const candPoll = setInterval(async () => {
             try{
-              const cdata = await liveSignalGet_('getLiveCandidates', { role: 'viewer', sinceRow: lastCandidateRow });
+              const cdata = await liveSignalGet_('getLiveCandidates', { role: 'viewer', viewer: 'venue', sinceRow: lastCandidateRow });
               if(cdata.candidates && cdata.candidates.length > 0){
                 console.log('[ライブ映像診断] 相手側の接続候補を', cdata.candidates.length, '件受信');
                 for(const c of cdata.candidates){
@@ -4821,6 +4873,7 @@ if(isDisplay){
     liveCameraPollTimers = [];
     if(liveCameraPc){ liveCameraPc.close(); liveCameraPc = null; }
     liveCameraConnecting = false;
+    liveSignalPost_('liveStop', { viewer: 'venue' });
     const overlay = document.getElementById('live-overlay');
     const video = document.getElementById('live-overlay-video');
     overlay.classList.remove('active', 'connected');
@@ -5147,10 +5200,14 @@ if(isDisplay){
       showNotice(msg.text, msg.icon, msg.duration);
     }
     if(msg.type === 'connectLiveCamera'){
-      connectLiveCamera();
+      connectLiveCamera(msg.muted);
     }
     if(msg.type === 'disconnectLiveCamera'){
       disconnectLiveCamera();
+    }
+    if(msg.type === 'setLiveCameraMuted'){
+      const v = document.getElementById('live-overlay-video');
+      if(v) v.muted = !!msg.muted;
     }
     if(msg.type === 'forceResume'){
       forceResumeSlideshow();
@@ -5270,6 +5327,8 @@ if(isDisplay){
   // ---------- 承認待ち投稿(写真・メッセージ) ----------
   // Apps Script経由での取得を優先(スプレッドシートへの直接リンクを画面に出さないため)
   const PENDING_APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec?action=getPending";
+  // 会場側(display=1)にある同名の定数は、操作パネル側からは見えないため、同じURLをここにも定義する
+  const LIVE_APPSCRIPT_BASE_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec";
   // 上記が通信エラー等で使えない場合の予備(スプレッドシートを直接読む方法)
   const PENDING_CSV_URL = "https://docs.google.com/spreadsheets/d/1m_2r8VBmrFw6aben2TeZN0tP4hzav0F2GjWxRgeL3Fo/gviz/tq?tqx=out:csv";
   const approvedKeys = new Set();
@@ -6254,35 +6313,139 @@ if(isDisplay){
   document.getElementById('lost-child-btn').addEventListener('click', () => {
     const text = prompt('お知らせ内容を入力してください(例:みずいろの帽子の女の子をお預かりしています。お心当たりの方は本部テントまでお越しください)');
     if(!text) return;
+    const icon = prompt('先頭に表示するマーク(絵文字)を入力してください。不要な場合は空のままOKを押してください', '🔍') || '';
     if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'showNotice', text, icon: '🔍', duration: 20 }, '*');
+      childWin.postMessage({ type: 'showNotice', text, icon, duration: 20 }, '*');
     }
   });
 
   document.getElementById('closing-notice-btn').addEventListener('click', () => {
     const text = prompt('お知らせ内容を入力してください', 'まもなくお祭りは終了です\nお忘れ物のないようお気をつけください');
     if(!text) return;
+    const icon = prompt('先頭に表示するマーク(絵文字)を入力してください。不要な場合は空のままOKを押してください', '⏰') || '';
     if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'showNotice', text, icon: '⏰', duration: 15 }, '*');
+      childWin.postMessage({ type: 'showNotice', text, icon, duration: 15 }, '*');
     }
   });
 
-  let liveCameraConnected = false;
-  document.getElementById('live-camera-toggle-btn').addEventListener('click', (e) => {
+  // ---------- ライブ映像:操作パネルでプレビュー確認 → 承認したら会場に表示 ----------
+  let operatorLivePc = null;
+  let operatorLivePollTimers = [];
+  let operatorLiveConnecting = false;
+
+  function opLiveSignalPost_(action, extra){
+    return fetch(LIVE_APPSCRIPT_BASE_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(Object.assign({ action }, extra))
+    }).catch(() => {});
+  }
+  async function opLiveSignalGet_(action, params){
+    const url = new URL(LIVE_APPSCRIPT_BASE_URL);
+    url.searchParams.set('action', action);
+    Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    return res.json();
+  }
+
+  document.getElementById('live-camera-toggle-btn').addEventListener('click', async () => {
+    if(operatorLiveConnecting || operatorLivePc) return; // 連打防止
+    operatorLiveConnecting = true;
+
+    const modal = document.getElementById('live-preview-modal');
+    const video = document.getElementById('live-preview-video');
+    const statusEl = document.getElementById('live-preview-status');
+    const approveBtn = document.getElementById('live-preview-approve-btn');
+    approveBtn.disabled = true;
+    statusEl.textContent = '露店からの接続を待っています…(会場のスライドショーは、通常通り進行しています)';
+    modal.classList.add('active');
+
+    // スマホ側に「操作パネル向けに、新しく接続してください」と依頼する
+    await opLiveSignalPost_('requestLiveOffer', { viewer: 'operator' });
+
+    let lastCandidateRow = 1;
+    const offerPoll = setInterval(async () => {
+      try{
+        const data = await opLiveSignalGet_('getLiveOffer', { viewer: 'operator' });
+        if(data.sdp){
+          clearInterval(offerPoll);
+          statusEl.textContent = '接続しています…';
+
+          operatorLivePc = new RTCPeerConnection({ iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun.cloudflare.com:3478' },
+            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+          ] });
+          operatorLivePc.ontrack = (e) => {
+            if(video.srcObject === e.streams[0]) return;
+            video.srcObject = e.streams[0];
+            video.muted = document.getElementById('live-preview-mute').checked;
+            video.play().catch(() => {});
+            statusEl.textContent = '✅ 映像を受信しました。内容を確認してください。';
+            approveBtn.disabled = false;
+          };
+          operatorLivePc.onicecandidate = (e) => {
+            if(e.candidate) opLiveSignalPost_('liveCandidate', { role: 'viewer', candidate: e.candidate, viewer: 'operator' });
+          };
+
+          const offer = JSON.parse(data.sdp);
+          await operatorLivePc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await operatorLivePc.createAnswer();
+          await operatorLivePc.setLocalDescription(answer);
+          await opLiveSignalPost_('liveAnswer', { sdp: JSON.stringify(answer), viewer: 'operator' });
+
+          const candPoll = setInterval(async () => {
+            try{
+              const cdata = await opLiveSignalGet_('getLiveCandidates', { role: 'viewer', viewer: 'operator', sinceRow: lastCandidateRow });
+              if(cdata.candidates && cdata.candidates.length > 0){
+                for(const c of cdata.candidates){
+                  try{ await operatorLivePc.addIceCandidate(new RTCIceCandidate(c)); }catch(e){}
+                }
+                lastCandidateRow = cdata.lastRow;
+              }
+            }catch(err){}
+          }, 2000);
+          operatorLivePollTimers.push(candPoll);
+        }
+      }catch(err){}
+    }, 1500);
+    operatorLivePollTimers.push(offerPoll);
+  });
+
+  document.getElementById('live-preview-mute').addEventListener('change', (e) => {
+    const video = document.getElementById('live-preview-video');
+    video.muted = e.target.checked;
+  });
+
+  function closeOperatorLivePreview_(){
+    operatorLivePollTimers.forEach(t => clearInterval(t));
+    operatorLivePollTimers = [];
+    if(operatorLivePc){ operatorLivePc.close(); operatorLivePc = null; }
+    operatorLiveConnecting = false;
+    opLiveSignalPost_('liveStop', { viewer: 'operator' });
+    document.getElementById('live-preview-modal').classList.remove('active');
+    document.getElementById('live-preview-video').srcObject = null;
+  }
+  document.getElementById('live-preview-close-btn').addEventListener('click', closeOperatorLivePreview_);
+
+  document.getElementById('live-preview-approve-btn').addEventListener('click', () => {
     if(!childWin || childWin.closed){
-      console.log('[live] childWin が無効なため中断:', childWin, childWin && childWin.closed);
       alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
       return;
     }
-    liveCameraConnected = !liveCameraConnected;
-    if(liveCameraConnected){
-      childWin.postMessage({ type: 'connectLiveCamera' }, '*');
-      e.target.textContent = '📹 ライブ映像を切断する';
-      e.target.classList.add('connected');
-    }else{
-      childWin.postMessage({ type: 'disconnectLiveCamera' }, '*');
-      e.target.textContent = '📹 ライブ映像に接続(実験的機能)';
-      e.target.classList.remove('connected');
+    closeOperatorLivePreview_(); // 確認用の接続は、もう不要なので閉じる
+    const withAudio = document.getElementById('live-venue-audio-toggle').checked;
+    childWin.postMessage({ type: 'connectLiveCamera', muted: !withAudio }, '*'); // 会場側が、新しく「venue」向けの接続を始める
+  });
+
+  // 接続後も、チェックを切り替えるだけで会場の音声をオン/オフできるようにする
+  document.getElementById('live-venue-audio-toggle').addEventListener('change', (e) => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'setLiveCameraMuted', muted: !e.target.checked }, '*');
     }
   });
 
@@ -6290,11 +6453,7 @@ if(isDisplay){
     if(childWin && !childWin.closed){
       childWin.postMessage({ type: 'forceResume' }, '*');
     }
-    // ライブ映像ボタンの見た目も、念のためリセットしておく
-    liveCameraConnected = false;
-    const liveBtn = document.getElementById('live-camera-toggle-btn');
-    liveBtn.textContent = '📹 ライブ映像に接続(実験的機能)';
-    liveBtn.classList.remove('connected');
+    closeOperatorLivePreview_();
   });
 
   document.getElementById('sponsor-add-file-btn').addEventListener('click', () => sponsorFileInput.click());
