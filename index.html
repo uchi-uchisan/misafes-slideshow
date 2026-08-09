@@ -4755,7 +4755,11 @@ if(isDisplay){
           liveCameraPc = new RTCPeerConnection({ iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun.cloudflare.com:3478' }
+            { urls: 'stun:stun.cloudflare.com:3478' },
+            // ▼ 無料のTURNサーバー(Open Relay Project):STUNだけで繋がらない場合の中継役 ▼
+            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
           ] });
           liveCameraPc.ontrack = (e) => {
             console.log('[ライブ映像診断] ontrackが発火しました(映像を受信)', e.streams);
