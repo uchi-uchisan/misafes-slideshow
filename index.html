@@ -4696,15 +4696,21 @@ if(isDisplay){
   // 操作パネル側にある同名の定数は、この会場側の画面(display=1)からは見えないため、同じURLをここにも定義する
   const LIVE_APPSCRIPT_BASE_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec";
 
-  async function liveSignalPost_(action, extra){
-    try{
-      await fetch(LIVE_APPSCRIPT_BASE_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(Object.assign({ action }, extra))
-      });
-    }catch(err){ /* 次のポーリングでリトライ */ }
+  // 複数の送信が同時に走らないよう、1件ずつ順番に送る「待ち行列」にする
+  let liveSignalQueue_ = Promise.resolve();
+  function liveSignalPost_(action, extra){
+    liveSignalQueue_ = liveSignalQueue_.then(async () => {
+      try{
+        await fetch(LIVE_APPSCRIPT_BASE_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(Object.assign({ action }, extra))
+        });
+      }catch(err){ /* 次のポーリングでリトライ */ }
+      await new Promise(r => setTimeout(r, 250)); // 次の送信まで、少し間隔を空ける
+    });
+    return liveSignalQueue_;
   }
   async function liveSignalGet_(action, params){
     const url = new URL(LIVE_APPSCRIPT_BASE_URL);
