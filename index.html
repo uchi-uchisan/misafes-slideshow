@@ -4763,6 +4763,7 @@ if(isDisplay){
           ] });
           liveCameraPc.ontrack = (e) => {
             console.log('[ライブ映像診断] ontrackが発火しました(映像を受信)', e.streams);
+            if(video.srcObject === e.streams[0]) return; // すでに同じ映像が設定済みなら、再設定・再生し直さない
             video.srcObject = e.streams[0];
             overlay.classList.add('connected');
             video.play().then(() => {
