@@ -1940,7 +1940,7 @@
   </div>
   <div id="live-overlay">
     <div id="live-overlay-status">📹 接続しています…</div>
-    <video id="live-overlay-video" autoplay playsinline></video>
+    <video id="live-overlay-video" autoplay playsinline muted></video>
     <div class="live-badge">🔴 LIVE</div>
   </div>
   <div id="qr-overlay" class="qr-overlay-box">
@@ -4761,6 +4761,11 @@ if(isDisplay){
             console.log('[ライブ映像診断] ontrackが発火しました(映像を受信)', e.streams);
             video.srcObject = e.streams[0];
             overlay.classList.add('connected');
+            video.play().then(() => {
+              console.log('[ライブ映像診断] 映像の再生を開始しました');
+            }).catch(err => {
+              console.log('[ライブ映像診断] 映像の再生に失敗:', err);
+            });
           };
           liveCameraPc.onicecandidate = (e) => {
             if(e.candidate){
