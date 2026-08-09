@@ -1095,9 +1095,17 @@
     font-size:13.5px;
     font-weight:700;
     cursor:pointer;
+    position:relative;
   }
   #live-camera-toggle-btn.connected{
     background:rgba(224,45,45,0.35);
+  }
+  #live-camera-toggle-btn.broadcaster-ready{
+    animation:live-ready-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes live-ready-pulse{
+    0%, 100%{ box-shadow:0 0 0 0 rgba(224,45,45,0.6); }
+    50%{ box-shadow:0 0 0 8px rgba(224,45,45,0); }
   }
   #force-resume-btn{
     display:block;
@@ -6349,9 +6357,29 @@ if(isDisplay){
     return res.json();
   }
 
+  // スマホが「配信を開始しました」の合図を出していないか、通常の操作パネル画面のまま定期的に確認する
+  let lastBroadcasterReadySeen_ = '';
+  async function pollBroadcasterReady_(){
+    try{
+      const data = await opLiveSignalGet_('getLiveBroadcasterReady');
+      const btn = document.getElementById('live-camera-toggle-btn');
+      if(data.readyAt && data.readyAt !== lastBroadcasterReadySeen_){
+        btn.classList.add('broadcaster-ready');
+        btn.textContent = '📹 配信の準備ができています!押して確認';
+      }
+    }catch(err){}
+  }
+  setInterval(pollBroadcasterReady_, 8000);
+
   document.getElementById('live-camera-toggle-btn').addEventListener('click', async () => {
     if(operatorLiveConnecting || operatorLivePc) return; // 連打防止
     operatorLiveConnecting = true;
+
+    // 通知バッジを消し、ボタンの表示も元に戻す
+    const toggleBtn = document.getElementById('live-camera-toggle-btn');
+    toggleBtn.classList.remove('broadcaster-ready');
+    toggleBtn.textContent = '📹 ライブ映像を受け付ける(実験的機能)';
+    opLiveSignalGet_('getLiveBroadcasterReady').then(d => { if(d.readyAt) lastBroadcasterReadySeen_ = d.readyAt; }).catch(() => {});
 
     const modal = document.getElementById('live-preview-modal');
     const video = document.getElementById('live-preview-video');
@@ -6438,6 +6466,7 @@ if(isDisplay){
       return;
     }
     closeOperatorLivePreview_(); // 確認用の接続は、もう不要なので閉じる
+    opLiveSignalPost_('requestLiveOffer', { viewer: 'venue' }); // スマホに「今度は会場向けに繋いでください」と伝える
     const withAudio = document.getElementById('live-venue-audio-toggle').checked;
     childWin.postMessage({ type: 'connectLiveCamera', muted: !withAudio }, '*'); // 会場側が、新しく「venue」向けの接続を始める
   });
