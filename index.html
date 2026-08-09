@@ -4748,7 +4748,6 @@ if(isDisplay){
         const data = await liveSignalGet_('getLiveOffer');
         if(data.sdp){
           clearInterval(offerPoll);
-          liveCameraConnecting = false; // offerを受け取れたら、もう「連打防止」の役目は終わり
           console.log('[ライブ映像診断] offerを受信しました');
           statusEl.textContent = '📹 接続しています…';
 
