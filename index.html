@@ -292,20 +292,6 @@
     line-height:1.5;
     text-shadow:0 4px 14px rgba(0,0,0,0.5);
   }
-  /* ---------- 花火演出 ---------- */
-  #fireworks-overlay{
-    position:absolute; inset:0;
-    z-index:220;
-    display:none;
-    align-items:center; justify-content:center;
-    overflow:hidden;
-    background:radial-gradient(ellipse at center, #241a30 0%, #140f1c 55%, #0a0710 100%);
-  }
-  #fireworks-overlay.active{ display:flex; }
-  #fireworks-canvas{
-    width:100%; height:100%;
-    display:block;
-  }
   #live-overlay{
     position:absolute; inset:0;
     z-index:215;
@@ -1084,19 +1070,6 @@
     font-weight:900;
     cursor:pointer;
   }
-  #fireworks-btn{
-    display:block;
-    width:100%;
-    padding:14px;
-    margin-bottom:16px;
-    background:linear-gradient(135deg, rgba(94,203,255,0.2), rgba(224,112,255,0.2));
-    border:1.5px solid rgba(150,200,255,0.7);
-    color:#dbeeff;
-    border-radius:10px;
-    font-size:14px;
-    font-weight:900;
-    cursor:pointer;
-  }
   #lost-child-btn, #closing-notice-btn{
     display:block;
     width:100%;
@@ -1483,7 +1456,6 @@
     <input type="file" id="cp-sponsor-file-input" accept="video/*" style="display:none;">
 
     <button type="button" id="vip-welcome-btn">🎉 特別ゲスト歓迎(その場で1タップ)</button>
-    <button type="button" id="fireworks-btn">🎆 花火を打ち上げる</button>
     <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
     <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
     <button type="button" id="live-camera-toggle-btn">📹 ライブ映像に接続(実験的機能)</button>
@@ -2004,10 +1976,6 @@
   <div id="notice-overlay">
     <div id="notice-overlay-icon">📢</div>
     <div id="notice-overlay-text"></div>
-  </div>
-
-  <div id="fireworks-overlay">
-    <canvas id="fireworks-canvas"></canvas>
   </div>
   <div id="live-overlay">
     <div id="live-overlay-status">📹 接続しています…</div>
@@ -4706,239 +4674,6 @@ if(isDisplay){
     }
   }
 
-  // ---------- 花火演出:操作パネルの「花火を打ち上げる」ボタンで発火する ----------
-  function showFireworks(duration){
-    const dur = duration || 12;
-    const overlay = document.getElementById('fireworks-overlay');
-    clearTimeout(timer); // 通常のスライド送りを一旦止める
-
-    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.style.visibility = 'hidden';
-    });
-
-    overlay.classList.add('active');
-    fwStart_(dur);
-
-    clearTimeout(window.__fireworksTimer);
-    window.__fireworksTimer = setTimeout(() => {
-      fwStop_();
-      overlay.classList.remove('active');
-      ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.style.visibility = '';
-      });
-      scheduleNext(); // 通常のスライドショーを再開する
-    }, dur * 1000);
-  }
-
-  // 花火の描画エンジン(Canvas 2Dのパーティクル方式。他の機能とは名前が被らないよう fw プレフィックスで統一)
-  const fwCanvas_ = document.getElementById('fireworks-canvas');
-  const fwCtx_ = fwCanvas_.getContext('2d');
-  let fwRunning_ = false;
-  let fwShells_ = [];
-  let fwSparks_ = [];
-  let fwRafId_ = null;
-  let fwLaunchTimers_ = [];
-  const FW_GRAVITY = 0.055;
-  const FW_COLORS = [
-    ['#ff6b5a','#ffb199'],
-    ['#ffd75e','#fff4c2'],
-    ['#5ecbff','#c2eaff'],
-    ['#7bff9e','#d4ffe0'],
-    ['#e070ff','#f2c2ff'],
-    ['#ffffff','#dbe9ff'],
-  ];
-
-  function fwRandRange_(a,b){ return a + Math.random()*(b-a); }
-
-  function fwResizeCanvas_(){
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = fwCanvas_.clientWidth || window.innerWidth;
-    const h = fwCanvas_.clientHeight || window.innerHeight;
-    fwCanvas_.width = w * dpr;
-    fwCanvas_.height = h * dpr;
-    fwCtx_.setTransform(dpr,0,0,dpr,0,0);
-  }
-
-  function fwLaunch_(targetX, targetY){
-    const w = fwCanvas_.clientWidth, h = fwCanvas_.clientHeight;
-    const startX = targetX + fwRandRange_(-20,20);
-    fwShells_.push({
-      x:startX, y:h+10,
-      targetX, targetY,
-      life:0, riseTime: fwRandRange_(45,65),
-      trail:[]
-    });
-    playFireworksLaunchSound_();
-  }
-
-  function fwBurst_(x, y){
-    const [core, edge] = FW_COLORS[Math.floor(Math.random()*FW_COLORS.length)];
-    const count = 70 + Math.floor(Math.random()*40);
-    const speedBase = fwRandRange_(2.6, 4.2);
-    for(let i=0;i<count;i++){
-      const angle = (Math.PI*2*i)/count + Math.random()*0.15;
-      const speed = speedBase * (0.6 + Math.random()*0.5);
-      fwSparks_.push({
-        x, y,
-        vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
-        life:1, decay: fwRandRange_(0.010,0.018),
-        color: Math.random() < 0.75 ? core : edge,
-        size: fwRandRange_(1.6,2.8), trail:[]
-      });
-    }
-    fwSparks_.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size:18, flash:true, trail:[] });
-    playFireworksBurstSound_();
-  }
-
-  function fwUpdate_(){
-    for(let i=fwShells_.length-1;i>=0;i--){
-      const s = fwShells_[i];
-      s.life++;
-      const t = s.life / s.riseTime;
-      const ease = 1 - Math.pow(1-t, 2);
-      const h = fwCanvas_.clientHeight;
-      s.x = s.x + (s.targetX - s.x) * 0.03;
-      const prevY = s.y;
-      s.y = (h+10) + ((s.targetY) - (h+10)) * ease;
-      s.trail.push({x:s.x, y:prevY});
-      if(s.trail.length > 8) s.trail.shift();
-      if(t >= 1){
-        fwBurst_(s.targetX, s.targetY);
-        fwShells_.splice(i,1);
-      }
-    }
-    for(let i=fwSparks_.length-1;i>=0;i--){
-      const p = fwSparks_[i];
-      p.trail.push({x:p.x, y:p.y});
-      if(p.trail.length > 5) p.trail.shift();
-      p.vy += FW_GRAVITY;
-      p.vx *= 0.985; p.vy *= 0.985;
-      p.x += p.vx; p.y += p.vy;
-      p.life -= p.decay;
-      if(p.life <= 0) fwSparks_.splice(i,1);
-    }
-  }
-
-  function fwHexToRgba_(hex, a){
-    const v = hex.replace('#','');
-    const r = parseInt(v.substring(0,2),16), g = parseInt(v.substring(2,4),16), b = parseInt(v.substring(4,6),16);
-    return `rgba(${r},${g},${b},${a})`;
-  }
-
-  function fwDraw_(){
-    const w = fwCanvas_.clientWidth, h = fwCanvas_.clientHeight;
-    fwCtx_.fillStyle = 'rgba(20,15,28,0.28)';
-    fwCtx_.fillRect(0,0,w,h);
-    fwCtx_.globalCompositeOperation = 'lighter';
-
-    for(const s of fwShells_){
-      for(let j=0;j<s.trail.length;j++){
-        const tp = s.trail[j];
-        const a = (j+1)/s.trail.length;
-        fwCtx_.fillStyle = `rgba(255,214,150,${a*0.8})`;
-        fwCtx_.beginPath();
-        fwCtx_.arc(tp.x, tp.y, 1.8*a, 0, Math.PI*2);
-        fwCtx_.fill();
-      }
-    }
-    for(const p of fwSparks_){
-      for(let j=0;j<p.trail.length;j++){
-        const tp = p.trail[j];
-        const a = ((j+1)/p.trail.length) * p.life;
-        fwCtx_.fillStyle = fwHexToRgba_(p.color, a*0.6);
-        fwCtx_.beginPath();
-        fwCtx_.arc(tp.x, tp.y, (p.flash? p.size*0.6 : p.size)*a, 0, Math.PI*2);
-        fwCtx_.fill();
-      }
-      fwCtx_.fillStyle = fwHexToRgba_(p.color, p.life);
-      fwCtx_.beginPath();
-      fwCtx_.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2);
-      fwCtx_.fill();
-    }
-    fwCtx_.globalCompositeOperation = 'source-over';
-  }
-
-  function fwLoop_(){
-    if(!fwRunning_) return;
-    fwUpdate_();
-    fwDraw_();
-    fwRafId_ = requestAnimationFrame(fwLoop_);
-  }
-
-  function fwStart_(duration){
-    fwResizeCanvas_();
-    fwShells_ = []; fwSparks_ = [];
-    fwRunning_ = true;
-    fwLoop_();
-
-    // 打ち上げ間隔をランダムにずらしながら、演出時間いっぱいまで自動で連発する
-    const w = fwCanvas_.clientWidth, h = fwCanvas_.clientHeight;
-    let elapsed = 0.3;
-    while(elapsed < duration - 1.2){
-      const t = elapsed;
-      const tid = setTimeout(() => {
-        if(!fwRunning_) return;
-        fwLaunch_(fwRandRange_(w*0.2, w*0.8), fwRandRange_(h*0.18, h*0.42));
-      }, t*1000);
-      fwLaunchTimers_.push(tid);
-      elapsed += fwRandRange_(0.9, 1.7);
-    }
-  }
-
-  function fwStop_(){
-    fwRunning_ = false;
-    if(fwRafId_) cancelAnimationFrame(fwRafId_);
-    fwLaunchTimers_.forEach(t => clearTimeout(t));
-    fwLaunchTimers_ = [];
-    fwShells_ = []; fwSparks_ = [];
-    fwCtx_.clearRect(0,0,fwCanvas_.width,fwCanvas_.height);
-  }
-
-  // 効果音ファイルを使わず、その場で音を合成する(打ち上げの「ヒュー」)
-  function playFireworksLaunchSound_(){
-    try{
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.connect(gain); gain.connect(ctx.destination);
-      const t0 = ctx.currentTime, dur = 0.55;
-      osc.frequency.setValueAtTime(280, t0);
-      osc.frequency.exponentialRampToValueAtTime(900, t0 + dur*0.9);
-      gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(0.06, t0 + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-      osc.start(t0); osc.stop(t0 + dur + 0.05);
-    }catch(err){ /* 音が鳴らせない環境でも、演出自体は問題なく続ける */ }
-  }
-
-  // 破裂の「ドン」(ノイズバッファ + ローパスフィルタ)
-  function playFireworksBurstSound_(){
-    try{
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const dur = 0.9;
-      const bufferSize = ctx.sampleRate * dur;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for(let i=0;i<bufferSize;i++){
-        data[i] = (Math.random()*2 - 1) * Math.pow(1 - i/bufferSize, 2);
-      }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1800, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + dur);
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.5, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-      noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
-      noise.start();
-    }catch(err){ /* 音が鳴らせない環境でも、演出自体は問題なく続ける */ }
-  }
-
   // ---------- お知らせ(迷子・呼び出し・終了案内など):落ち着いた見た目で、少し長めに表示する ----------
   function showNotice(text, icon, duration){
     const overlay = document.getElementById('notice-overlay');
@@ -5148,19 +4883,12 @@ if(isDisplay){
   function forceResumeSlideshow(){
     clearTimeout(window.__vipTimer);
     clearTimeout(window.__noticeTimer);
-    clearTimeout(window.__fireworksTimer);
 
     const vipOverlay = document.getElementById('vip-overlay');
     if(vipOverlay) vipOverlay.classList.remove('active');
 
     const noticeOverlay = document.getElementById('notice-overlay');
     if(noticeOverlay) noticeOverlay.classList.remove('active');
-
-    const fireworksOverlay = document.getElementById('fireworks-overlay');
-    if(fireworksOverlay && fireworksOverlay.classList.contains('active')){
-      fwStop_();
-      fireworksOverlay.classList.remove('active');
-    }
 
     const sponsorOverlay = document.getElementById('sponsor-overlay');
     if(sponsorOverlay && sponsorOverlay.classList.contains('active')){
@@ -5463,9 +5191,6 @@ if(isDisplay){
     }
     if(msg.type === 'showNotice'){
       showNotice(msg.text, msg.icon, msg.duration);
-    }
-    if(msg.type === 'showFireworks'){
-      showFireworks(msg.duration);
     }
     if(msg.type === 'connectLiveCamera'){
       connectLiveCamera(msg.muted);
@@ -6575,12 +6300,6 @@ if(isDisplay){
     if(!name) return;
     if(childWin && !childWin.closed){
       childWin.postMessage({ type: 'showVipWelcome', text: `ようこそ!\n${name}`, duration: 6 }, '*');
-    }
-  });
-
-  document.getElementById('fireworks-btn').addEventListener('click', () => {
-    if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'showFireworks', duration: 12 }, '*');
     }
   });
 
