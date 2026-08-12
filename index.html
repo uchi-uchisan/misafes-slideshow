@@ -398,6 +398,16 @@
     line-height:1.6;
     margin-bottom:16px;
   }
+  #mf-setup-tab-audio-btn{
+    display:block; width:100%;
+    padding:14px;
+    background:linear-gradient(135deg, rgba(212,168,67,0.3), rgba(224,90,45,0.25));
+    border:1.5px solid var(--gold);
+    color:var(--gold);
+    border-radius:8px;
+    font-size:14px; font-weight:900;
+    cursor:pointer;
+  }
   #mf-setup-start-btn{
     display:block; width:100%;
     padding:12px;
@@ -2126,16 +2136,22 @@
   <div id="music-fireworks-setup">
     <div class="mf-setup-box">
       <div class="mf-setup-title">🎵 音楽連動花火の設定</div>
-      <div class="mf-setup-row">
-        <label>マイク</label>
-        <select id="mf-mic-select"></select>
+
+      <button id="mf-setup-tab-audio-btn">🖥️ ブラウザのタブ音声を直接使う(一番正確)</button>
+      <div class="mf-setup-note" style="margin-bottom:16px;">YouTube Musicなどを、このパソコンの<b>別タブ</b>で再生している場合におすすめです。次の画面で「そのタブ」を選び、「タブの音声を共有」にチェックを入れてください。</div>
+
+      <div style="border-top:1px solid rgba(212,168,67,0.2); margin:16px 0; padding-top:16px;">
+        <div class="mf-setup-row">
+          <label>または、マイクを使う</label>
+          <select id="mf-mic-select"></select>
+        </div>
+        <div class="mf-setup-row" id="mf-speaker-row">
+          <label>音の出力先(効果音)</label>
+          <select id="mf-speaker-select"></select>
+        </div>
+        <div class="mf-setup-note">スピーカーの近くにマイクを置いて、音楽を拾える状態にしてください。マイク経由は、周りの音や部屋の反響の影響を受けやすいため、タブ音声が使えない場合の代わりとしてお使いください。</div>
+        <button id="mf-setup-start-btn">▶ マイクで開始する</button>
       </div>
-      <div class="mf-setup-row" id="mf-speaker-row">
-        <label>音の出力先(効果音)</label>
-        <select id="mf-speaker-select"></select>
-      </div>
-      <div class="mf-setup-note">スピーカーの近くにマイクを置いて、音楽を拾える状態にしてください。</div>
-      <button id="mf-setup-start-btn">▶ 開始する</button>
       <button id="mf-setup-cancel-btn">✕ キャンセル</button>
     </div>
   </div>
@@ -5362,16 +5378,44 @@ if(isDisplay){
     startMusicSyncFireworks(micId, speakerId);
   });
 
-  async function startMusicSyncFireworks(micId, speakerId){
+  document.getElementById('mf-setup-tab-audio-btn').addEventListener('click', () => {
+    const speakerId = document.getElementById('mf-speaker-select').value;
+    document.getElementById('music-fireworks-setup').classList.remove('active');
+    startMusicSyncFromTabAudio(speakerId);
+  });
+
+  // タブ音声で開始する(getDisplayMediaで、特定のタブの音声を直接取り込む)
+  async function startMusicSyncFromTabAudio(speakerId){
+    let stream;
     try{
-      msStream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    }catch(err){
+      return; // ユーザーがキャンセルした場合など
+    }
+    if(stream.getAudioTracks().length === 0){
+      alert('音声が取得できませんでした。共有する画面を選ぶ際に、「タブの音声を共有」にチェックを入れてください。');
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+    stream.getVideoTracks().forEach(t => t.stop()); // 映像は不要なので、すぐ止める(音声だけ残す)
+    await startMusicSyncFromStream_(stream, speakerId);
+  }
+
+  async function startMusicSyncFireworks(micId, speakerId){
+    let stream;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: micId ? { deviceId: { exact: micId } } : true
       });
     }catch(err){
       alert('マイクを開始できませんでした。マイクの許可設定をご確認ください。');
       return;
     }
+    await startMusicSyncFromStream_(stream, speakerId);
+  }
 
+  async function startMusicSyncFromStream_(stream, speakerId){
+    msStream = stream;
     msAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if(speakerId && msAudioCtx.setSinkId){
       try{ await msAudioCtx.setSinkId(speakerId); }catch(err){ /* 対応していない環境では、既定の出力先のまま続ける */ }
