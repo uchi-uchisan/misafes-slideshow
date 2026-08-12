@@ -1584,6 +1584,11 @@
 
     <button type="button" id="vip-welcome-btn">🎉 特別ゲスト歓迎(その場で1タップ)</button>
     <button type="button" id="fireworks-btn">🎆 花火演出</button>
+    <div class="cp-speed-row">
+      <span>🔊 花火の音量</span>
+      <input type="range" id="fireworks-volume-slider" min="0" max="100" value="70" style="flex:1;">
+      <span id="fireworks-volume-value">70%</span>
+    </div>
     <button type="button" id="music-fireworks-btn">🎵 音楽連動花火 ON</button>
     <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
     <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
@@ -5043,8 +5048,13 @@ if(isDisplay){
     if(fireworksAudioCtx.state === 'suspended') fireworksAudioCtx.resume();
     return fireworksAudioCtx;
   }
+  // 花火の効果音だけの音量(0〜1)。操作パネルのスライダーから調整できる
+  window.__fireworksVolume = window.__fireworksVolume !== undefined ? window.__fireworksVolume : 0.7;
+
   function playFireworksLaunchSound_(){
     try{
+      const vol = window.__fireworksVolume;
+      if(vol <= 0) return;
       const ctx = getFireworksAudioCtx_();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -5056,7 +5066,7 @@ if(isDisplay){
       osc.frequency.setValueAtTime(280, t0);
       osc.frequency.exponentialRampToValueAtTime(900, t0 + dur*0.9);
       gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(0.06, t0 + 0.05);
+      gain.gain.linearRampToValueAtTime(0.06 * vol, t0 + 0.05);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
       osc.start(t0);
       osc.stop(t0 + dur + 0.05);
@@ -5064,6 +5074,8 @@ if(isDisplay){
   }
   function playFireworksBurstSound_(){
     try{
+      const vol = window.__fireworksVolume;
+      if(vol <= 0) return;
       const ctx = getFireworksAudioCtx_();
       const dur = 0.9;
       const bufferSize = ctx.sampleRate * dur;
@@ -5079,12 +5091,57 @@ if(isDisplay){
       filter.frequency.setValueAtTime(1800, ctx.currentTime);
       filter.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + dur);
       const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.setValueAtTime(0.5 * vol, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
       noise.connect(filter);
       filter.connect(gain);
       gain.connect(ctx.destination);
       noise.start();
+    }catch(err){}
+  }
+
+  // 破裂音(パン・ドンなど)とは別の、打ち上げ時の「ヒュー」音のバリエーション
+  function playFireworksWhistleSound_(){
+    try{
+      const vol = window.__fireworksVolume;
+      if(vol <= 0) return;
+      const ctx = getFireworksAudioCtx_();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t0 = ctx.currentTime;
+      const dur = 0.7;
+      osc.frequency.setValueAtTime(1600, t0);
+      osc.frequency.exponentialRampToValueAtTime(3200, t0 + dur*0.85); // 甲高く「ヒュルルル」と駆け上がる
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.035 * vol, t0 + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    }catch(err){}
+  }
+
+  // 破裂音のバリエーション:低音は重い「ドン」、高音は軽い「パチッ」
+  function playFireworksCrackleSound_(){
+    try{
+      const vol = window.__fireworksVolume;
+      if(vol <= 0) return;
+      const ctx = getFireworksAudioCtx_();
+      for(let i=0;i<4;i++){
+        const t0 = ctx.currentTime + i*0.04 + Math.random()*0.02;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(2400 + Math.random()*1200, t0);
+        gain.gain.setValueAtTime(0.025 * vol, t0);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
+        osc.start(t0);
+        osc.stop(t0 + 0.08);
+      }
     }catch(err){}
   }
 
@@ -5098,6 +5155,8 @@ if(isDisplay){
       const el = document.getElementById(id);
       if(el) el.style.visibility = 'hidden';
     });
+
+    overlay.classList.add('active'); // 先に表示状態にしてから、サイズを計算する(0×0になるのを防ぐ)
 
     let W, H, DPR;
     function resize(){
@@ -5201,7 +5260,6 @@ if(isDisplay){
       fireworksAnimFrame = requestAnimationFrame(loop);
     }
 
-    overlay.classList.add('active');
     fireworksAnimFrame = requestAnimationFrame(loop);
 
     // 自動で、ランダムなタイミング・場所に連続発射する(フィナーレ演出)
@@ -5317,6 +5375,7 @@ if(isDisplay){
     source.connect(msAnalyser);
     msFreqData = new Uint8Array(msAnalyser.frequencyBinCount);
 
+    document.getElementById('music-fireworks-overlay').classList.add('active'); // 先に表示状態にしてから、サイズを計算する
     msCanvas = document.getElementById('music-fireworks-canvas');
     msCtx = msCanvas.getContext('2d');
     msResizeCanvas_();
@@ -5324,7 +5383,6 @@ if(isDisplay){
 
     msShells = []; msSparks = [];
     msBeatHistory = [];
-    document.getElementById('music-fireworks-overlay').classList.add('active');
     msActive = true;
     msLoop_();
   }
@@ -5363,6 +5421,7 @@ if(isDisplay){
     const x = msRandRange_(msW*0.12, msW*0.88);
     const y = msRandRange_(msH*0.15, msH*0.5);
     msShells.push({ x, y: msH+10, targetX:x, targetY:y, life:0, riseTime: msRandRange_(18,30), band, energy });
+    if(band !== 'high') playFireworksWhistleSound_(); // 「ヒュー」という打ち上げ音(高音の細かい花火は、打ち上げ音を鳴らさずパチパチ感を優先)
   }
 
   function msBurst_(x, y, band, energy){
@@ -5389,7 +5448,9 @@ if(isDisplay){
       });
     }
     msSparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: band==='low'?26:14, flash:true, trail:[] });
-    playFireworksBurstSound_();
+    // 帯域によって音を変える:低音・中音は重い「ドン」、高音は軽い「パチパチッ」
+    if(band === 'high') playFireworksCrackleSound_();
+    else playFireworksBurstSound_();
   }
 
   function msAnalyzeAndSchedule_(){
@@ -5819,6 +5880,9 @@ if(isDisplay){
     }
     if(msg.type === 'showFireworks'){
       showFireworks(msg.duration);
+    }
+    if(msg.type === 'setFireworksVolume'){
+      window.__fireworksVolume = msg.volume;
     }
     if(msg.type === 'startMusicFireworksSetup'){
       showMusicFireworksSetup();
@@ -6930,6 +6994,16 @@ if(isDisplay){
   document.getElementById('fireworks-btn').addEventListener('click', () => {
     if(childWin && !childWin.closed){
       childWin.postMessage({ type: 'showFireworks', duration: 12 }, '*');
+    }
+  });
+
+  const fireworksVolumeSlider = document.getElementById('fireworks-volume-slider');
+  const fireworksVolumeValue = document.getElementById('fireworks-volume-value');
+  fireworksVolumeSlider.addEventListener('input', () => {
+    const pct = parseInt(fireworksVolumeSlider.value, 10);
+    fireworksVolumeValue.textContent = pct + '%';
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'setFireworksVolume', volume: pct / 100 }, '*');
     }
   });
 
