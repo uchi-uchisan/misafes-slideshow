@@ -5534,9 +5534,8 @@ if(isDisplay){
       });
     }
     msSparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: band==='low'?26:14, flash:true, trail:[] });
-    // 帯域によって音を変える:低音・中音は重い「ドン」、高音は軽い「パチパチッ」
-    if(band === 'high') playFireworksCrackleSound_();
-    else playFireworksBurstSound_();
+    // 機械的な音に感じられたため、帯域を問わず「バン」系の破裂音(4種のバリエーション)に統一する
+    playFireworksBurstSound_();
   }
 
   // 「曲全体の平均的な音量」と「直近の音量」を、それぞれ違う速さで追いかけ、
