@@ -1600,6 +1600,9 @@
       <span id="fireworks-volume-value">70%</span>
     </div>
     <button type="button" id="music-fireworks-btn">🎵 音楽連動花火 ON</button>
+    <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:-4px 0 10px 2px;">
+      <input type="checkbox" id="notice-speech-toggle" checked> 🔊 アナウンスを音声でも読み上げる
+    </label>
     <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
     <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
     <button type="button" id="live-camera-toggle-btn">📹 ライブ映像に接続(実験的機能)</button>
@@ -4868,6 +4871,7 @@ if(isDisplay){
     textEl.textContent = text;
     overlay.classList.add('active');
     playNoticeChime_();
+    speakNoticeText_(text);
 
     clearTimeout(window.__noticeTimer);
     window.__noticeTimer = setTimeout(() => {
@@ -4904,6 +4908,26 @@ if(isDisplay){
       });
     }catch(err){
       // 音が鳴らせない環境でも、演出自体は問題なく続ける
+    }
+  }
+
+  // お知らせ文を、ブラウザ標準の音声合成で読み上げる(window.__noticeSpeechOn がfalseなら何もしない)
+  function speakNoticeText_(text){
+    if(window.__noticeSpeechOn === false) return; // 明示的にオフにされていなければ、既定で読み上げる
+    if(!('speechSynthesis' in window)) return;
+    try{
+      window.speechSynthesis.cancel(); // 前の読み上げが残っていたら止める
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'ja-JP';
+      utter.rate = 0.95;
+      utter.pitch = 1.0;
+      // 日本語の音声があれば、明示的に選ぶ(環境によっては省略しても自動選択される)
+      const voices = window.speechSynthesis.getVoices();
+      const jaVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+      if(jaVoice) utter.voice = jaVoice;
+      setTimeout(() => window.speechSynthesis.speak(utter), 900); // チャイムの音と重ならないよう、少し間を置く
+    }catch(err){
+      // 読み上げに失敗しても、文字の表示・チャイムはそのまま続ける
     }
   }
 
@@ -5153,18 +5177,29 @@ if(isDisplay){
       const vol = window.__fireworksVolume;
       if(vol <= 0) return;
       const ctx = getFireworksAudioCtx_();
-      for(let i=0;i<4;i++){
-        const t0 = ctx.currentTime + i*0.04 + Math.random()*0.02;
-        const osc = ctx.createOscillator();
+      // 電子音っぽくならないよう、短いノイズの弾けで「パチッ」を表現する(合成音のオシレーターは使わない)
+      for(let i=0;i<5;i++){
+        const t0 = ctx.currentTime + i*0.045 + Math.random()*0.03;
+        const dur = 0.05 + Math.random()*0.03;
+        const bufferSize = Math.floor(ctx.sampleRate * dur);
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for(let j=0;j<bufferSize;j++){
+          data[j] = (Math.random()*2 - 1) * Math.pow(1 - j/bufferSize, 3);
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2200 + Math.random()*2600, t0);
+        filter.Q.value = 1.2;
         const gain = ctx.createGain();
-        osc.type = 'square';
-        osc.connect(gain);
+        gain.gain.setValueAtTime(0.5 * vol, t0);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        noise.connect(filter);
+        filter.connect(gain);
         gain.connect(ctx.destination);
-        osc.frequency.setValueAtTime(2400 + Math.random()*1200, t0);
-        gain.gain.setValueAtTime(0.025 * vol, t0);
-        gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
-        osc.start(t0);
-        osc.stop(t0 + 0.08);
+        noise.start(t0);
       }
     }catch(err){}
   }
@@ -5504,6 +5539,11 @@ if(isDisplay){
     else playFireworksBurstSound_();
   }
 
+  // 「曲全体の平均的な音量」と「直近の音量」を、それぞれ違う速さで追いかけ、
+  // 直近の方が明らかに大きい状態が続いていたら「サビ(盛り上がり)」とみなす
+  let msLongTermEMA = 0, msShortTermEMA = 0;
+  let msClimaxSince = 0;
+
   function msAnalyzeAndSchedule_(){
     msAnalyser.getByteFrequencyData(msFreqData);
     const nyquist = msAudioCtx.sampleRate / 2;
@@ -5515,7 +5555,8 @@ if(isDisplay){
       for(let i=loBin;i<=hiBin;i++){ sum += msFreqData[i]; count++; }
       return count ? sum/count : 0;
     }
-    const lowE = bandEnergy(20,150), midE = bandEnergy(150,2000), highE = bandEnergy(2000,8000);
+    // 中音域は「歌声・メロディ」を拾いやすい範囲(人の声の基音〜倍音)に、少し絞り込む
+    const lowE = bandEnergy(20,150), midE = bandEnergy(200,3500), highE = bandEnergy(3500,9000);
     const overallE = (lowE+midE+highE)/3;
     const now = performance.now();
 
@@ -5528,10 +5569,25 @@ if(isDisplay){
       return; // 発射も判定も行わない
     }
 
+    // サビ(盛り上がり)の検出:曲全体のゆっくりした平均と、直近数百msの平均を比べる
+    msLongTermEMA = msLongTermEMA === 0 ? overallE : msLongTermEMA*0.995 + overallE*0.005;  // ゆっくり(曲全体の基準)
+    msShortTermEMA = msShortTermEMA === 0 ? overallE : msShortTermEMA*0.90 + overallE*0.10; // 速い(今の瞬間)
+    const climaxRatio = msLongTermEMA > 6 ? msShortTermEMA / msLongTermEMA : 1;
+    if(climaxRatio > 1.22){
+      if(msClimaxSince === 0) msClimaxSince = now;
+    }else{
+      msClimaxSince = 0;
+    }
+    // 0.6秒以上「盛り上がった状態」が続いていたら、本格的にサビと判断する
+    const isClimax = msClimaxSince !== 0 && (now - msClimaxSince > 600);
+
     // 低音(ビート):一番反応を強く・優先的に扱う
     const isLowPeak = value_isLowPeak_(lowE, now);
     if(isLowPeak){
       msLaunch_('low', lowE);
+      if(isClimax){ // サビの間は、ビートに合わせてもう1発追加で畳み掛ける
+        setTimeout(() => msLaunch_('low', lowE), 90);
+      }
       const flashEl = document.getElementById('music-beat-flash');
       flashEl.style.transition = 'none';
       flashEl.style.opacity = String(Math.min(0.22, (lowE/255)*0.28));
@@ -5541,16 +5597,17 @@ if(isDisplay){
       });
     }
 
-    // 中音(ボーカル・メロディのピーク)
+    // 中音(歌声・メロディのピーク):一番大事にしたい帯域なので、優先的に・敏感に反応させる
     if(value_isMidPeak_(midE, now)) msLaunch_('mid', midE);
 
     // 高音(シンバル・ハイハットのピーク)
     if(value_isHighPeak_(highE, now)) msLaunch_('high', highE);
 
-    // 曲の盛り上がり(全体音量)が高いほど、ピークがなくても控えめに追加発射する(サビの密度感を出す)
+    // サビの間は、ピークがなくても、歌声(中音)を中心に、控えめな連続発射を追加する
     const density = overallE/255;
-    if(density > 0.4 && Math.random() < (density-0.4)*0.35){
-      msLaunch_(midE >= highE ? 'mid' : 'high', Math.max(midE,highE));
+    const climaxBoost = isClimax ? 0.5 : 0;
+    if(density > 0.35 && Math.random() < (density-0.35)*0.3 + climaxBoost*0.5){
+      msLaunch_('mid', midE); // 歌声に寄り添う形にするため、ここは常に中音を優先する
     }
   }
 
@@ -5569,7 +5626,7 @@ if(isDisplay){
     msMidHistory.push(midE);
     if(msMidHistory.length > 40) msMidHistory.shift();
     const avg = msMidHistory.reduce((a,b)=>a+b,0) / msMidHistory.length;
-    const isPeak = midE > avg*1.3 && midE > 40 && (now - msLastMidAt > 260);
+    const isPeak = midE > avg*1.18 && midE > 32 && (now - msLastMidAt > 160); // 歌声を優先したいので、他の帯域より敏感にする
     if(isPeak) msLastMidAt = now;
     return isPeak;
   }
@@ -5953,6 +6010,9 @@ if(isDisplay){
     }
     if(msg.type === 'showNotice'){
       showNotice(msg.text, msg.icon, msg.duration);
+    }
+    if(msg.type === 'setNoticeSpeech'){
+      window.__noticeSpeechOn = msg.on;
     }
     if(msg.type === 'connectLiveCamera'){
       connectLiveCamera(msg.muted);
@@ -7109,6 +7169,12 @@ if(isDisplay){
       childWin.postMessage({ type: 'stopMusicFireworks' }, '*');
       btn.textContent = '🎵 音楽連動花火 ON';
       btn.classList.remove('active');
+    }
+  });
+
+  document.getElementById('notice-speech-toggle').addEventListener('change', (e) => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'setNoticeSpeech', on: e.target.checked }, '*');
     }
   });
 
