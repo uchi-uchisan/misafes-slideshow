@@ -328,6 +328,104 @@
     0%, 100%{ opacity:1; }
     50%{ opacity:0.5; }
   }
+  #fireworks-overlay{
+    position:absolute; inset:0;
+    z-index:220;
+    display:none;
+    background:#1a1420;
+  }
+  #fireworks-overlay.active{ display:block; }
+  #fireworks-canvas{
+    position:absolute; top:0; left:0;
+    width:100%; height:100%;
+    display:block;
+  }
+  #music-fireworks-overlay{
+    position:absolute; inset:0;
+    z-index:150; /* スライドショーより上、QR・案内文よりは下 */
+    display:none;
+    pointer-events:none; /* 下のスライドショーの操作を妨げない */
+  }
+  #music-fireworks-overlay.active{ display:block; }
+  #music-fireworks-canvas{
+    position:absolute; top:0; left:0;
+    width:100%; height:100%;
+    display:block;
+  }
+  #music-fireworks-setup{
+    position:absolute; inset:0;
+    z-index:230;
+    display:none;
+    align-items:center; justify-content:center;
+    background:rgba(6,8,18,0.92);
+    padding:24px;
+  }
+  #music-fireworks-setup.active{ display:flex; }
+  .mf-setup-box{
+    width:min(440px, 100%);
+    background:var(--night);
+    border:1px solid rgba(212,168,67,0.4);
+    border-radius:16px;
+    padding:24px;
+  }
+  .mf-setup-title{
+    color:var(--gold);
+    font-size:15px;
+    font-weight:700;
+    margin-bottom:16px;
+  }
+  .mf-setup-row{
+    margin-bottom:14px;
+  }
+  .mf-setup-row label{
+    display:block;
+    font-size:12px;
+    color:rgba(233,228,216,0.7);
+    margin-bottom:6px;
+  }
+  .mf-setup-row select{
+    width:100%;
+    padding:10px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(212,168,67,0.3);
+    border-radius:8px;
+    color:var(--ink);
+    font-size:13px;
+  }
+  .mf-setup-note{
+    font-size:11px;
+    color:rgba(233,228,216,0.5);
+    line-height:1.6;
+    margin-bottom:16px;
+  }
+  #mf-setup-start-btn{
+    display:block; width:100%;
+    padding:12px;
+    margin-bottom:8px;
+    background:linear-gradient(135deg, rgba(94,203,255,0.25), rgba(224,112,255,0.25));
+    border:1.5px solid #9ad4ff;
+    color:#c7e8ff;
+    border-radius:8px;
+    font-size:14px; font-weight:700;
+    cursor:pointer;
+  }
+  #mf-setup-cancel-btn{
+    display:block; width:100%;
+    padding:10px;
+    background:transparent;
+    border:1px solid rgba(233,228,216,0.3);
+    color:rgba(233,228,216,0.7);
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  #music-beat-flash{
+    position:absolute; inset:0;
+    z-index:151;
+    background:#fff;
+    opacity:0;
+    pointer-events:none;
+  }
   .slide{
     position:absolute; inset:0;
     background-size:contain;
@@ -1070,6 +1168,35 @@
     font-weight:900;
     cursor:pointer;
   }
+  #fireworks-btn{
+    display:block;
+    width:100%;
+    padding:14px;
+    margin-bottom:16px;
+    background:linear-gradient(135deg, rgba(94,203,255,0.2), rgba(224,112,255,0.2));
+    border:1.5px solid #9ad4ff;
+    color:#c7e8ff;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:900;
+    cursor:pointer;
+  }
+  #music-fireworks-btn{
+    display:block;
+    width:100%;
+    padding:14px;
+    margin-bottom:16px;
+    background:linear-gradient(135deg, rgba(255,215,94,0.2), rgba(94,203,255,0.2));
+    border:1.5px solid var(--gold);
+    color:var(--gold);
+    border-radius:10px;
+    font-size:14px;
+    font-weight:900;
+    cursor:pointer;
+  }
+  #music-fireworks-btn.active{
+    background:linear-gradient(135deg, rgba(255,215,94,0.4), rgba(94,203,255,0.4));
+  }
   #lost-child-btn, #closing-notice-btn{
     display:block;
     width:100%;
@@ -1456,6 +1583,8 @@
     <input type="file" id="cp-sponsor-file-input" accept="video/*" style="display:none;">
 
     <button type="button" id="vip-welcome-btn">🎉 特別ゲスト歓迎(その場で1タップ)</button>
+    <button type="button" id="fireworks-btn">🎆 花火演出</button>
+    <button type="button" id="music-fireworks-btn">🎵 音楽連動花火 ON</button>
     <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
     <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
     <button type="button" id="live-camera-toggle-btn">📹 ライブ映像に接続(実験的機能)</button>
@@ -1981,6 +2110,29 @@
     <div id="live-overlay-status">📹 接続しています…</div>
     <video id="live-overlay-video" autoplay playsinline muted></video>
     <div class="live-badge">🔴 LIVE</div>
+  </div>
+  <div id="fireworks-overlay">
+    <canvas id="fireworks-canvas"></canvas>
+  </div>
+  <div id="music-fireworks-overlay">
+    <canvas id="music-fireworks-canvas"></canvas>
+  </div>
+  <div id="music-beat-flash"></div>
+  <div id="music-fireworks-setup">
+    <div class="mf-setup-box">
+      <div class="mf-setup-title">🎵 音楽連動花火の設定</div>
+      <div class="mf-setup-row">
+        <label>マイク</label>
+        <select id="mf-mic-select"></select>
+      </div>
+      <div class="mf-setup-row" id="mf-speaker-row">
+        <label>音の出力先(効果音)</label>
+        <select id="mf-speaker-select"></select>
+      </div>
+      <div class="mf-setup-note">スピーカーの近くにマイクを置いて、音楽を拾える状態にしてください。</div>
+      <button id="mf-setup-start-btn">▶ 開始する</button>
+      <button id="mf-setup-cancel-btn">✕ キャンセル</button>
+    </div>
   </div>
   <div id="qr-overlay" class="qr-overlay-box">
     <div class="qr-box" id="qr-box"></div>
@@ -4879,10 +5031,468 @@ if(isDisplay){
     scheduleNext(); // 通常のスライドショーを再開する
   }
 
+  // ---------- 花火演出:自動で連続発射する、フィナーレ風の演出 ----------
+  let fireworksAnimFrame = null;
+  let fireworksLaunchTimers = [];
+  let fireworksAudioCtx = null;
+
+  function getFireworksAudioCtx_(){
+    if(!fireworksAudioCtx){
+      fireworksAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(fireworksAudioCtx.state === 'suspended') fireworksAudioCtx.resume();
+    return fireworksAudioCtx;
+  }
+  function playFireworksLaunchSound_(){
+    try{
+      const ctx = getFireworksAudioCtx_();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t0 = ctx.currentTime;
+      const dur = 0.55;
+      osc.frequency.setValueAtTime(280, t0);
+      osc.frequency.exponentialRampToValueAtTime(900, t0 + dur*0.9);
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.06, t0 + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    }catch(err){}
+  }
+  function playFireworksBurstSound_(){
+    try{
+      const ctx = getFireworksAudioCtx_();
+      const dur = 0.9;
+      const bufferSize = ctx.sampleRate * dur;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for(let i=0;i<bufferSize;i++){
+        data[i] = (Math.random()*2 - 1) * Math.pow(1 - i/bufferSize, 2);
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1800, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + dur);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start();
+    }catch(err){}
+  }
+
+  function showFireworks(duration){
+    const overlay = document.getElementById('fireworks-overlay');
+    const canvas = document.getElementById('fireworks-canvas');
+    const ctx = canvas.getContext('2d');
+    clearTimeout(timer); // 通常のスライド送りを一旦止める
+
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = 'hidden';
+    });
+
+    let W, H, DPR;
+    function resize(){
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.clientWidth = overlay.clientWidth;
+      H = canvas.clientHeight = overlay.clientHeight;
+      canvas.width = W * DPR;
+      canvas.height = H * DPR;
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+    }
+    resize();
+
+    const GRAVITY = 0.055;
+    const COLORS = [
+      ['#ff6b5a','#ffb199'], ['#ffd75e','#fff4c2'], ['#5ecbff','#c2eaff'],
+      ['#7bff9e','#d4ffe0'], ['#e070ff','#f2c2ff'], ['#ffffff','#dbe9ff']
+    ];
+    let shells = [];
+    let sparks = [];
+    const randRange = (a,b) => a + Math.random()*(b-a);
+
+    function launchFirework(targetX, targetY, isWillow, isFinale){
+      const startX = targetX + randRange(-20,20);
+      shells.push({ x:startX, y:H+10, targetX, targetY, life:0, riseTime:randRange(42,62), trail:[], isWillow, isFinale });
+      playFireworksLaunchSound_();
+    }
+    function burst(x, y, isWillow, isFinale){
+      const [core, edge] = COLORS[Math.floor(Math.random()*COLORS.length)];
+      const count = isFinale ? 180 + Math.floor(Math.random()*40) : (90 + Math.floor(Math.random()*50));
+      const speedBase = (isFinale ? randRange(3.6, 5.4) : randRange(2.8, 4.6)) * (isWillow ? 0.75 : 1);
+      for(let i=0;i<count;i++){
+        const angle = (Math.PI*2*i)/count + Math.random()*0.15;
+        const speed = speedBase * (0.6 + Math.random()*0.5);
+        sparks.push({
+          x, y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+          life:1,
+          // 柳は、ゆっくり尾を引きながら垂れ落ちるよう、消えるのを遅く・重力の影響を強くする
+          decay: isWillow ? randRange(0.004, 0.007) : randRange(0.009, 0.016),
+          gravityMul: isWillow ? 2.2 : 1,
+          color: Math.random() < 0.75 ? core : edge,
+          size: (isFinale ? randRange(2.2, 3.6) : randRange(1.8, 3.0)),
+          trail:[]
+        });
+      }
+      sparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: isFinale ? 32 : 22, flash:true, trail:[] });
+      playFireworksBurstSound_();
+    }
+    function updateShells(){
+      for(let i=shells.length-1;i>=0;i--){
+        const s = shells[i];
+        s.life++;
+        const t = s.life / s.riseTime;
+        const ease = 1 - Math.pow(1-t, 2);
+        s.x = s.x + (s.targetX - s.x) * 0.03;
+        const prevY = s.y;
+        s.y = (H+10) + ((s.targetY) - (H+10)) * ease;
+        s.trail.push({x:s.x, y:prevY});
+        if(s.trail.length > 8) s.trail.shift();
+        if(t >= 1){ burst(s.targetX, s.targetY, s.isWillow, s.isFinale); shells.splice(i,1); }
+      }
+    }
+    function updateSparks(){
+      for(let i=sparks.length-1;i>=0;i--){
+        const p = sparks[i];
+        p.trail.push({x:p.x, y:p.y});
+        if(p.trail.length > (p.gravityMul > 1 ? 9 : 5)) p.trail.shift(); // 柳は尾を長めに残す
+        p.vy += GRAVITY * (p.gravityMul || 1); p.vx *= 0.985; p.vy *= 0.985;
+        p.x += p.vx; p.y += p.vy;
+        p.life -= p.decay;
+        if(p.life <= 0) sparks.splice(i,1);
+      }
+    }
+    function hexToRgba(hex, a){
+      const v = hex.replace('#','');
+      return `rgba(${parseInt(v.substr(0,2),16)},${parseInt(v.substr(2,2),16)},${parseInt(v.substr(4,2),16)},${a})`;
+    }
+    function draw(){
+      ctx.fillStyle = 'rgba(26,20,32,0.24)'; // 通常より残像を長めにして、賑やかに見せる
+      ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation = 'lighter';
+      for(const s of shells){
+        for(let j=0;j<s.trail.length;j++){
+          const tp = s.trail[j]; const a = (j+1)/s.trail.length;
+          ctx.fillStyle = `rgba(255,214,150,${a*0.8})`;
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, 1.8*a, 0, Math.PI*2); ctx.fill();
+        }
+      }
+      for(const p of sparks){
+        for(let j=0;j<p.trail.length;j++){
+          const tp = p.trail[j]; const a = ((j+1)/p.trail.length) * p.life;
+          ctx.fillStyle = hexToRgba(p.color, a*0.6);
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, (p.flash? p.size*0.6 : p.size)*a, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.fillStyle = hexToRgba(p.color, p.life);
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    function loop(){
+      updateShells(); updateSparks(); draw();
+      fireworksAnimFrame = requestAnimationFrame(loop);
+    }
+
+    overlay.classList.add('active');
+    fireworksAnimFrame = requestAnimationFrame(loop);
+
+    // 自動で、ランダムなタイミング・場所に連続発射する(フィナーレ演出)
+    const totalMs = (duration || 12) * 1000;
+    const startedAt = Date.now();
+    let finaleFired = false;
+    const scheduleLaunch = () => {
+      const elapsed = Date.now() - startedAt;
+      // 終了2秒前になったら、通常の連射を止めて、大玉のフィナーレを1発だけ打ち上げる
+      if(!finaleFired && elapsed >= totalMs - 2000){
+        finaleFired = true;
+        launchFirework(W*0.5, H*0.32, false, true);
+        return; // ここでスケジュールを止める(この後はstopFireworks_で全体が終了する)
+      }
+      const isWillow = Math.random() < 0.25; // 4回に1回くらいの頻度で、柳タイプを混ぜる
+      launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), isWillow);
+      if(Math.random() < 0.3){ // たまに畳み掛けるように2発同時発射
+        setTimeout(() => launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), Math.random() < 0.25), 120);
+      }
+      const t = setTimeout(scheduleLaunch, randRange(400, 900));
+      fireworksLaunchTimers.push(t);
+    };
+    scheduleLaunch();
+
+    clearTimeout(window.__fireworksTimer);
+    window.__fireworksTimer = setTimeout(() => stopFireworks_(), totalMs);
+  }
+
+  function stopFireworks_(){
+    fireworksLaunchTimers.forEach(t => clearTimeout(t));
+    fireworksLaunchTimers = [];
+    if(fireworksAnimFrame) cancelAnimationFrame(fireworksAnimFrame);
+    fireworksAnimFrame = null;
+    document.getElementById('fireworks-overlay').classList.remove('active');
+
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = '';
+    });
+    scheduleNext(); // 通常のスライドショーを再開する
+  }
+
+  // ---------- 音楽連動花火:スライドショーは止めず、透明なオーバーレイとして重ねる ----------
+  let msStream = null, msAudioCtx = null, msAnalyser = null, msFreqData = null;
+  let msAnimFrame = null;
+  let msCanvas, msCtx, msW, msH, msDPR;
+  let msShells = [], msSparks = [];
+  let msBeatHistory = [];
+  let msLastBeatAt = 0;
+  let msActive = false;
+
+  // マイク・スピーカーの一覧を取得し、選択画面を表示する
+  async function showMusicFireworksSetup(){
+    const setupEl = document.getElementById('music-fireworks-setup');
+    const micSelect = document.getElementById('mf-mic-select');
+    const speakerSelect = document.getElementById('mf-speaker-select');
+    const speakerRow = document.getElementById('mf-speaker-row');
+    micSelect.innerHTML = '<option>読み込み中…</option>';
+    setupEl.classList.add('active');
+
+    try{
+      // 端末名を表示するには、一度マイクの許可を得る必要がある
+      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tempStream.getTracks().forEach(t => t.stop());
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(d => d.kind === 'audioinput');
+      const speakers = devices.filter(d => d.kind === 'audiooutput');
+
+      micSelect.innerHTML = mics.map((d,i) => `<option value="${d.deviceId}">${d.label || ('マイク' + (i+1))}</option>`).join('');
+
+      // 出力先の選択(setSinkId)に対応していないブラウザでは、この欄ごと隠す
+      if(typeof AudioContext !== 'undefined' && AudioContext.prototype.setSinkId && speakers.length > 0){
+        speakerRow.style.display = '';
+        speakerSelect.innerHTML = speakers.map((d,i) => `<option value="${d.deviceId}">${d.label || ('出力先' + (i+1))}</option>`).join('');
+      }else{
+        speakerRow.style.display = 'none';
+      }
+    }catch(err){
+      micSelect.innerHTML = '<option>マイクを取得できませんでした</option>';
+    }
+  }
+
+  document.getElementById('mf-setup-cancel-btn').addEventListener('click', () => {
+    document.getElementById('music-fireworks-setup').classList.remove('active');
+  });
+
+  document.getElementById('mf-setup-start-btn').addEventListener('click', () => {
+    const micId = document.getElementById('mf-mic-select').value;
+    const speakerId = document.getElementById('mf-speaker-select').value;
+    document.getElementById('music-fireworks-setup').classList.remove('active');
+    startMusicSyncFireworks(micId, speakerId);
+  });
+
+  async function startMusicSyncFireworks(micId, speakerId){
+    try{
+      msStream = await navigator.mediaDevices.getUserMedia({
+        audio: micId ? { deviceId: { exact: micId } } : true
+      });
+    }catch(err){
+      alert('マイクを開始できませんでした。マイクの許可設定をご確認ください。');
+      return;
+    }
+
+    msAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(speakerId && msAudioCtx.setSinkId){
+      try{ await msAudioCtx.setSinkId(speakerId); }catch(err){ /* 対応していない環境では、既定の出力先のまま続ける */ }
+    }
+    const source = msAudioCtx.createMediaStreamSource(msStream);
+    msAnalyser = msAudioCtx.createAnalyser();
+    msAnalyser.fftSize = 1024;
+    msAnalyser.smoothingTimeConstant = 0.65;
+    source.connect(msAnalyser);
+    msFreqData = new Uint8Array(msAnalyser.frequencyBinCount);
+
+    msCanvas = document.getElementById('music-fireworks-canvas');
+    msCtx = msCanvas.getContext('2d');
+    msResizeCanvas_();
+    window.addEventListener('resize', msResizeCanvas_);
+
+    msShells = []; msSparks = [];
+    msBeatHistory = [];
+    document.getElementById('music-fireworks-overlay').classList.add('active');
+    msActive = true;
+    msLoop_();
+  }
+
+  function msResizeCanvas_(){
+    if(!msCanvas) return;
+    msDPR = Math.min(window.devicePixelRatio || 1, 2);
+    msW = msCanvas.clientWidth = window.innerWidth;
+    msH = msCanvas.clientHeight = window.innerHeight;
+    msCanvas.width = msW * msDPR;
+    msCanvas.height = msH * msDPR;
+    msCtx.setTransform(msDPR,0,0,msDPR,0,0);
+  }
+
+  function stopMusicSyncFireworks(){
+    msActive = false;
+    if(msAnimFrame) cancelAnimationFrame(msAnimFrame);
+    msAnimFrame = null;
+    window.removeEventListener('resize', msResizeCanvas_);
+    if(msStream){ msStream.getTracks().forEach(t => t.stop()); msStream = null; }
+    if(msAudioCtx){ msAudioCtx.close().catch(() => {}); msAudioCtx = null; }
+    msAnalyser = null;
+    msShells = []; msSparks = [];
+    document.getElementById('music-fireworks-overlay').classList.remove('active');
+    document.getElementById('music-beat-flash').style.opacity = '0';
+  }
+
+  // 帯域ごとの色設定:低音=赤橙(重厚)、中音=青緑紫(標準)、高音=金銀白(キラキラ)
+  const MS_LOW_COLORS  = [['#ff5a3c','#ffb199'], ['#ff8a3c','#ffd199']];
+  const MS_MID_COLORS  = [['#5ecbff','#c2eaff'], ['#7bff9e','#d4ffe0'], ['#e070ff','#f2c2ff']];
+  const MS_HIGH_COLORS = [['#ffd75e','#fff4c2'], ['#e8e8e8','#ffffff'], ['#ffffff','#dbe9ff']];
+
+  function msRandRange_(a,b){ return a + Math.random()*(b-a); }
+
+  function msLaunch_(band, energy){
+    const x = msRandRange_(msW*0.12, msW*0.88);
+    const y = msRandRange_(msH*0.15, msH*0.5);
+    msShells.push({ x, y: msH+10, targetX:x, targetY:y, life:0, riseTime: msRandRange_(18,30), band, energy });
+  }
+
+  function msBurst_(x, y, band, energy){
+    let colors, count, speedBase, size, decay;
+    const e = energy/255;
+    if(band === 'low'){
+      colors = MS_LOW_COLORS[Math.floor(Math.random()*MS_LOW_COLORS.length)];
+      count = 120 + Math.floor(e*70); speedBase = msRandRange_(3.4,5.2); size = msRandRange_(2.4,3.8); decay = msRandRange_(0.008,0.012);
+    }else if(band === 'mid'){
+      colors = MS_MID_COLORS[Math.floor(Math.random()*MS_MID_COLORS.length)];
+      count = 70 + Math.floor(e*40); speedBase = msRandRange_(2.6,4.0); size = msRandRange_(1.8,2.8); decay = msRandRange_(0.010,0.016);
+    }else{
+      colors = MS_HIGH_COLORS[Math.floor(Math.random()*MS_HIGH_COLORS.length)];
+      count = 45 + Math.floor(e*30); speedBase = msRandRange_(1.6,2.8); size = msRandRange_(0.8,1.5); decay = msRandRange_(0.020,0.030);
+    }
+    const [core, edge] = colors;
+    for(let i=0;i<count;i++){
+      const angle = (Math.PI*2*i)/count + Math.random()*0.2;
+      const speed = speedBase * (0.55 + Math.random()*0.6);
+      msSparks.push({
+        x, y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, life:1, decay,
+        color: Math.random() < 0.75 ? core : edge, size,
+        twinkle: band === 'high', trail:[]
+      });
+    }
+    msSparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: band==='low'?26:14, flash:true, trail:[] });
+    playFireworksBurstSound_();
+  }
+
+  function msAnalyzeAndSchedule_(){
+    msAnalyser.getByteFrequencyData(msFreqData);
+    const nyquist = msAudioCtx.sampleRate / 2;
+    const binHz = nyquist / msFreqData.length;
+    function bandEnergy(loHz, hiHz){
+      const loBin = Math.max(0, Math.floor(loHz/binHz));
+      const hiBin = Math.min(msFreqData.length-1, Math.ceil(hiHz/binHz));
+      let sum=0, count=0;
+      for(let i=loBin;i<=hiBin;i++){ sum += msFreqData[i]; count++; }
+      return count ? sum/count : 0;
+    }
+    const lowE = bandEnergy(20,150), midE = bandEnergy(150,2000), highE = bandEnergy(2000,8000);
+    const overallE = (lowE+midE+highE)/3;
+
+    // ビート(重低音のピーク)検出:直近の平均より、明らかに大きく飛び出た瞬間を「ビート」とみなす
+    msBeatHistory.push(lowE);
+    if(msBeatHistory.length > 40) msBeatHistory.shift();
+    const avg = msBeatHistory.reduce((a,b)=>a+b,0) / msBeatHistory.length;
+    const now = performance.now();
+    const isBeat = lowE > avg*1.35 && lowE > 55 && (now - msLastBeatAt > 200);
+
+    if(isBeat){
+      msLastBeatAt = now;
+      msLaunch_('low', lowE);
+      const flashEl = document.getElementById('music-beat-flash');
+      flashEl.style.transition = 'none';
+      flashEl.style.opacity = String(Math.min(0.22, (lowE/255)*0.28));
+      requestAnimationFrame(() => {
+        flashEl.style.transition = 'opacity 0.35s ease-out';
+        flashEl.style.opacity = '0';
+      });
+    }
+
+    // 曲の盛り上がり(全体音量)に応じて、中音・高音の発射確率を変える(サビで密度が上がる)
+    const density = overallE/255; // 0〜1
+    if(Math.random() < 0.02 + density*0.22){
+      msLaunch_(midE >= highE ? 'mid' : 'high', Math.max(midE,highE));
+    }
+    if(density > 0.55 && Math.random() < 0.12){ // 特に盛り上がっている時は、追加でもう1発
+      msLaunch_('mid', midE);
+    }
+  }
+
+  function msUpdateAndDraw_(){
+    // 背景を「消さず」薄く重ねるだけにして、下のスライドショーが透けて見えるようにする
+    msCtx.clearRect(0,0,msW,msH);
+
+    for(let i=msShells.length-1;i>=0;i--){
+      const s = msShells[i];
+      s.life++;
+      const t = s.life / s.riseTime;
+      const ease = 1 - Math.pow(1-t, 2);
+      s.x = s.x + (s.targetX - s.x) * 0.04;
+      s.y = (msH+10) + (s.targetY - (msH+10)) * ease;
+      if(t >= 1){ msBurst_(s.targetX, s.targetY, s.band, s.energy); msShells.splice(i,1); }
+    }
+
+    msCtx.globalCompositeOperation = 'lighter';
+    for(const s of msShells){
+      msCtx.fillStyle = 'rgba(255,214,150,0.85)';
+      msCtx.beginPath(); msCtx.arc(s.x, s.y, 2, 0, Math.PI*2); msCtx.fill();
+    }
+    for(let i=msSparks.length-1;i>=0;i--){
+      const p = msSparks[i];
+      p.trail.push({x:p.x, y:p.y});
+      if(p.trail.length > (p.twinkle ? 3 : 5)) p.trail.shift();
+      p.vy += 0.055; p.vx *= 0.985; p.vy *= 0.985;
+      p.x += p.vx; p.y += p.vy;
+      p.life -= p.decay;
+      if(p.life <= 0){ msSparks.splice(i,1); continue; }
+
+      // 高音域(パチパチ)は、明滅させてキラキラ感を出す
+      const twinkleMul = p.twinkle ? (0.4 + Math.random()*0.6) : 1;
+      const v = p.color.replace('#','');
+      const r = parseInt(v.substr(0,2),16), g = parseInt(v.substr(2,2),16), b = parseInt(v.substr(4,2),16);
+      for(let j=0;j<p.trail.length;j++){
+        const tp = p.trail[j]; const a = ((j+1)/p.trail.length) * p.life * twinkleMul;
+        msCtx.fillStyle = `rgba(${r},${g},${b},${a*0.6})`;
+        msCtx.beginPath(); msCtx.arc(tp.x, tp.y, (p.flash? p.size*0.6 : p.size)*a, 0, Math.PI*2); msCtx.fill();
+      }
+      msCtx.fillStyle = `rgba(${r},${g},${b},${p.life*twinkleMul})`;
+      msCtx.beginPath(); msCtx.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2); msCtx.fill();
+    }
+    msCtx.globalCompositeOperation = 'source-over';
+  }
+
+  function msLoop_(){
+    if(!msActive) return;
+    msAnalyzeAndSchedule_();
+    msUpdateAndDraw_();
+    msAnimFrame = requestAnimationFrame(msLoop_);
+  }
+
   // どの演出(お知らせ・特別ゲスト歓迎・CM・ライブ映像)が出ていても、まとめて強制的に閉じて通常表示に戻す
   function forceResumeSlideshow(){
     clearTimeout(window.__vipTimer);
     clearTimeout(window.__noticeTimer);
+    clearTimeout(window.__fireworksTimer);
+
+    // 音楽連動花火は、スライドショー自体を止めていないので、単独で停止するだけでよい
+    if(msActive) stopMusicSyncFireworks();
 
     const vipOverlay = document.getElementById('vip-overlay');
     if(vipOverlay) vipOverlay.classList.remove('active');
@@ -4898,6 +5508,11 @@ if(isDisplay){
 
     if(document.getElementById('live-overlay').classList.contains('active')){
       disconnectLiveCamera(); // これ自体がscheduleNext()を呼ぶので、下の重複呼び出しは避ける
+      return;
+    }
+
+    if(document.getElementById('fireworks-overlay').classList.contains('active')){
+      stopFireworks_(); // これ自体がscheduleNext()を呼ぶので、下の重複呼び出しは避ける
       return;
     }
 
@@ -5201,6 +5816,15 @@ if(isDisplay){
     if(msg.type === 'setLiveCameraMuted'){
       const v = document.getElementById('live-overlay-video');
       if(v) v.muted = !!msg.muted;
+    }
+    if(msg.type === 'showFireworks'){
+      showFireworks(msg.duration);
+    }
+    if(msg.type === 'startMusicFireworksSetup'){
+      showMusicFireworksSetup();
+    }
+    if(msg.type === 'stopMusicFireworks'){
+      stopMusicSyncFireworks();
     }
     if(msg.type === 'forceResume'){
       forceResumeSlideshow();
@@ -6300,6 +6924,31 @@ if(isDisplay){
     if(!name) return;
     if(childWin && !childWin.closed){
       childWin.postMessage({ type: 'showVipWelcome', text: `ようこそ!\n${name}`, duration: 6 }, '*');
+    }
+  });
+
+  document.getElementById('fireworks-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'showFireworks', duration: 12 }, '*');
+    }
+  });
+
+  let musicFireworksOn = false;
+  document.getElementById('music-fireworks-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
+    const btn = document.getElementById('music-fireworks-btn');
+    musicFireworksOn = !musicFireworksOn;
+    if(musicFireworksOn){
+      childWin.postMessage({ type: 'startMusicFireworksSetup' }, '*'); // 会場側でマイク選択画面を開く
+      btn.textContent = '🎵 音楽連動花火 OFF';
+      btn.classList.add('active');
+    }else{
+      childWin.postMessage({ type: 'stopMusicFireworks' }, '*');
+      btn.textContent = '🎵 音楽連動花火 ON';
+      btn.classList.remove('active');
     }
   });
 
