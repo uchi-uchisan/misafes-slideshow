@@ -5473,16 +5473,20 @@ if(isDisplay){
     }
     const lowE = bandEnergy(20,150), midE = bandEnergy(150,2000), highE = bandEnergy(2000,8000);
     const overallE = (lowE+midE+highE)/3;
-
-    // ビート(重低音のピーク)検出:直近の平均より、明らかに大きく飛び出た瞬間を「ビート」とみなす
-    msBeatHistory.push(lowE);
-    if(msBeatHistory.length > 40) msBeatHistory.shift();
-    const avg = msBeatHistory.reduce((a,b)=>a+b,0) / msBeatHistory.length;
     const now = performance.now();
-    const isBeat = lowE > avg*1.35 && lowE > 55 && (now - msLastBeatAt > 200);
 
-    if(isBeat){
-      msLastBeatAt = now;
+    // 無音(または、それに近い状態)なら、これ以上は何もしない → 音が止まれば花火も止まる
+    const SILENCE_THRESHOLD = 12;
+    if(overallE < SILENCE_THRESHOLD){
+      msBeatHistory.push(lowE); if(msBeatHistory.length > 40) msBeatHistory.shift();
+      msMidHistory.push(midE); if(msMidHistory.length > 40) msMidHistory.shift();
+      msHighHistory.push(highE); if(msHighHistory.length > 40) msHighHistory.shift();
+      return; // 発射も判定も行わない
+    }
+
+    // 低音(ビート):一番反応を強く・優先的に扱う
+    const isLowPeak = value_isLowPeak_(lowE, now);
+    if(isLowPeak){
       msLaunch_('low', lowE);
       const flashEl = document.getElementById('music-beat-flash');
       flashEl.style.transition = 'none';
@@ -5493,14 +5497,45 @@ if(isDisplay){
       });
     }
 
-    // 曲の盛り上がり(全体音量)に応じて、中音・高音の発射確率を変える(サビで密度が上がる)
-    const density = overallE/255; // 0〜1
-    if(Math.random() < 0.02 + density*0.22){
+    // 中音(ボーカル・メロディのピーク)
+    if(value_isMidPeak_(midE, now)) msLaunch_('mid', midE);
+
+    // 高音(シンバル・ハイハットのピーク)
+    if(value_isHighPeak_(highE, now)) msLaunch_('high', highE);
+
+    // 曲の盛り上がり(全体音量)が高いほど、ピークがなくても控えめに追加発射する(サビの密度感を出す)
+    const density = overallE/255;
+    if(density > 0.4 && Math.random() < (density-0.4)*0.35){
       msLaunch_(midE >= highE ? 'mid' : 'high', Math.max(midE,highE));
     }
-    if(density > 0.55 && Math.random() < 0.12){ // 特に盛り上がっている時は、追加でもう1発
-      msLaunch_('mid', midE);
-    }
+  }
+
+  // 帯域ごとに専用の履歴・直近発射時刻を持たせ、「直近平均より明らかに飛び出た瞬間」をピークとして検出する
+  let msMidHistory = [], msHighHistory = [];
+  let msLastMidAt = 0, msLastHighAt = 0;
+  function value_isLowPeak_(lowE, now){
+    msBeatHistory.push(lowE);
+    if(msBeatHistory.length > 40) msBeatHistory.shift();
+    const avg = msBeatHistory.reduce((a,b)=>a+b,0) / msBeatHistory.length;
+    const isPeak = lowE > avg*1.3 && lowE > 50 && (now - msLastBeatAt > 200);
+    if(isPeak) msLastBeatAt = now;
+    return isPeak;
+  }
+  function value_isMidPeak_(midE, now){
+    msMidHistory.push(midE);
+    if(msMidHistory.length > 40) msMidHistory.shift();
+    const avg = msMidHistory.reduce((a,b)=>a+b,0) / msMidHistory.length;
+    const isPeak = midE > avg*1.3 && midE > 40 && (now - msLastMidAt > 260);
+    if(isPeak) msLastMidAt = now;
+    return isPeak;
+  }
+  function value_isHighPeak_(highE, now){
+    msHighHistory.push(highE);
+    if(msHighHistory.length > 40) msHighHistory.shift();
+    const avg = msHighHistory.reduce((a,b)=>a+b,0) / msHighHistory.length;
+    const isPeak = highE > avg*1.3 && highE > 30 && (now - msLastHighAt > 150);
+    if(isPeak) msLastHighAt = now;
+    return isPeak;
   }
 
   function msUpdateAndDraw_(){
