@@ -5072,12 +5072,20 @@ if(isDisplay){
       osc.stop(t0 + dur + 0.05);
     }catch(err){}
   }
+  // 破裂音(バン)を、4種類の中からランダムに鳴らす(単調にならないようにするため)
+  const FIREWORKS_BURST_VARIANTS_ = [
+    { dur:0.9,  filterStart:1800, filterEnd:180, gain:0.5,  name:'重い、腹に響くドン' },
+    { dur:0.5,  filterStart:3200, filterEnd:400, gain:0.55, name:'短く鋭いパン' },
+    { dur:1.3,  filterStart:1200, filterEnd:90,  gain:0.42, name:'長く尾を引くドーン' },
+    { dur:0.35, filterStart:2400, filterEnd:900, gain:0.6,  name:'軽快なポン' }
+  ];
   function playFireworksBurstSound_(){
     try{
       const vol = window.__fireworksVolume;
       if(vol <= 0) return;
+      const v = FIREWORKS_BURST_VARIANTS_[Math.floor(Math.random()*FIREWORKS_BURST_VARIANTS_.length)];
       const ctx = getFireworksAudioCtx_();
-      const dur = 0.9;
+      const dur = v.dur;
       const bufferSize = ctx.sampleRate * dur;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
@@ -5088,10 +5096,10 @@ if(isDisplay){
       noise.buffer = buffer;
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1800, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + dur);
+      filter.frequency.setValueAtTime(v.filterStart, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(v.filterEnd, ctx.currentTime + dur);
       const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.5 * vol, ctx.currentTime);
+      gain.gain.setValueAtTime(v.gain * vol, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
       noise.connect(filter);
       filter.connect(gain);
@@ -5421,7 +5429,6 @@ if(isDisplay){
     const x = msRandRange_(msW*0.12, msW*0.88);
     const y = msRandRange_(msH*0.15, msH*0.5);
     msShells.push({ x, y: msH+10, targetX:x, targetY:y, life:0, riseTime: msRandRange_(18,30), band, energy });
-    if(band !== 'high') playFireworksWhistleSound_(); // 「ヒュー」という打ち上げ音(高音の細かい花火は、打ち上げ音を鳴らさずパチパチ感を優先)
   }
 
   function msBurst_(x, y, band, energy){
