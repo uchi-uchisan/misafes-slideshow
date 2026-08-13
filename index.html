@@ -436,6 +436,17 @@
     opacity:0;
     pointer-events:none;
   }
+  #drawing-overlay{
+    position:absolute; inset:0;
+    z-index:152;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .drawing-sprite{
+    position:absolute;
+    mix-blend-mode:multiply; /* 白い背景を「透明」のように見せ、絵の部分だけを浮かび上がらせる */
+    filter:drop-shadow(0 4px 10px rgba(0,0,0,0.25));
+  }
   .slide{
     position:absolute; inset:0;
     background-size:contain;
@@ -1207,6 +1218,22 @@
   #music-fireworks-btn.active{
     background:linear-gradient(135deg, rgba(255,215,94,0.4), rgba(94,203,255,0.4));
   }
+  #drawings-toggle-btn{
+    display:block;
+    width:100%;
+    padding:14px;
+    margin-bottom:16px;
+    background:linear-gradient(135deg, rgba(224,90,45,0.2), rgba(212,168,67,0.2));
+    border:1.5px solid var(--lantern);
+    color:var(--lantern-soft);
+    border-radius:10px;
+    font-size:14px;
+    font-weight:900;
+    cursor:pointer;
+  }
+  #drawings-toggle-btn.active{
+    background:linear-gradient(135deg, rgba(224,90,45,0.4), rgba(212,168,67,0.4));
+  }
   #lost-child-btn, #closing-notice-btn{
     display:block;
     width:100%;
@@ -1600,6 +1627,7 @@
       <span id="fireworks-volume-value">70%</span>
     </div>
     <button type="button" id="music-fireworks-btn">🎵 音楽連動花火 ON</button>
+    <button type="button" id="drawings-toggle-btn">✏️ みんなのお絵かきを動かす ON</button>
     <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:-4px 0 10px 2px;">
       <input type="checkbox" id="notice-speech-toggle" checked> 🔊 アナウンスを音声でも読み上げる
     </label>
@@ -2136,6 +2164,7 @@
     <canvas id="music-fireworks-canvas"></canvas>
   </div>
   <div id="music-beat-flash"></div>
+  <div id="drawing-overlay"></div>
   <div id="music-fireworks-setup">
     <div class="mf-setup-box">
       <div class="mf-setup-title">🎵 音楽連動花火の設定</div>
@@ -5688,6 +5717,105 @@ if(isDisplay){
     msAnimFrame = requestAnimationFrame(msLoop_);
   }
 
+  // ---------- みんなのお絵かき:白背景を「乗算」で透明に見せかけ、画面の中をふわふわ動かす ----------
+  let drawingsActive = false;
+  let drawingsPollTimer = null;
+  let drawingsAnimFrame = null;
+  const drawingSprites = []; // { el, x, y, vx, vy, size }
+  const seenDrawingTimes = new Set(); // 二重に追加しないための記録
+
+  async function fetchAndAddNewDrawings_(){
+    try{
+      const res = await fetch(LIVE_APPSCRIPT_BASE_URL + '?action=getDrawings', { cache: 'no-store' });
+      if(!res.ok) return;
+      const items = await res.json();
+      items.forEach(item => {
+        if(seenDrawingTimes.has(item.time)) return;
+        seenDrawingTimes.add(item.time);
+        addDrawingSprite_(item.url);
+      });
+    }catch(err){ /* 取得できなくても、次回のポーリングで再挑戦する */ }
+  }
+
+  const DRAWING_LIFETIME_MS = 15 * 1000; // この時間が経った絵は、フェードアウトして自動的に消える(15秒)
+  const DRAWING_FADE_MS = 2000; // 消える時の、フェードアウトにかける時間
+
+  function addDrawingSprite_(url){
+    const overlay = document.getElementById('drawing-overlay');
+    const img = document.createElement('img');
+    img.className = 'drawing-sprite';
+    img.style.transition = `opacity ${DRAWING_FADE_MS}ms ease`;
+    img.src = url;
+    img.onload = () => {
+      const w = overlay.clientWidth, h = overlay.clientHeight;
+      const size = Math.min(w, h) * (0.16 + Math.random() * 0.10); // 画面サイズに応じた、ほどよい大きさ
+      img.style.width = size + 'px';
+      const x = Math.random() * (w - size);
+      const y = Math.random() * (h - size);
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.4 + Math.random() * 0.5;
+      img.style.left = x + 'px';
+      img.style.top = y + 'px';
+      overlay.appendChild(img);
+      const spriteObj = {
+        el: img, x, y, size,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed
+      };
+      drawingSprites.push(spriteObj);
+
+      // 一定時間経ったら、ふわっと消して片付ける
+      setTimeout(() => {
+        img.style.opacity = '0';
+        setTimeout(() => {
+          const idx = drawingSprites.indexOf(spriteObj);
+          if(idx !== -1) drawingSprites.splice(idx, 1);
+          img.remove();
+        }, DRAWING_FADE_MS);
+      }, DRAWING_LIFETIME_MS);
+    };
+  }
+
+  function drawingsLoop_(){
+    if(!drawingsActive) return;
+    const overlay = document.getElementById('drawing-overlay');
+    const w = overlay.clientWidth, h = overlay.clientHeight;
+    drawingSprites.forEach(s => {
+      s.x += s.vx; s.y += s.vy;
+      // 画面の端まで来たら、跳ね返る(ふわふわ漂う感じにするため、たまに少しだけ角度を揺らす)
+      if(s.x <= 0 || s.x + s.size >= w) s.vx *= -1;
+      if(s.y <= 0 || s.y + s.size >= h) s.vy *= -1;
+      if(Math.random() < 0.01){
+        const wobble = (Math.random() - 0.5) * 0.3;
+        const speed = Math.hypot(s.vx, s.vy);
+        const angle = Math.atan2(s.vy, s.vx) + wobble;
+        s.vx = Math.cos(angle) * speed;
+        s.vy = Math.sin(angle) * speed;
+      }
+      s.x = Math.max(0, Math.min(w - s.size, s.x));
+      s.y = Math.max(0, Math.min(h - s.size, s.y));
+      s.el.style.left = s.x + 'px';
+      s.el.style.top = s.y + 'px';
+    });
+    drawingsAnimFrame = requestAnimationFrame(drawingsLoop_);
+  }
+
+  function startDrawingsAnimation(){
+    if(drawingsActive) return;
+    drawingsActive = true;
+    fetchAndAddNewDrawings_();
+    drawingsPollTimer = setInterval(fetchAndAddNewDrawings_, 20000); // 20秒おきに、新しい絵が届いていないか確認する
+    drawingsLoop_();
+  }
+
+  function stopDrawingsAnimation(){
+    drawingsActive = false;
+    clearInterval(drawingsPollTimer);
+    if(drawingsAnimFrame) cancelAnimationFrame(drawingsAnimFrame);
+    document.getElementById('drawing-overlay').innerHTML = '';
+    drawingSprites.length = 0;
+    seenDrawingTimes.clear();
+  }
+
   // どの演出(お知らせ・特別ゲスト歓迎・CM・ライブ映像)が出ていても、まとめて強制的に閉じて通常表示に戻す
   function forceResumeSlideshow(){
     clearTimeout(window.__vipTimer);
@@ -5930,13 +6058,38 @@ if(isDisplay){
   }
 
   // ---------- 初期化 ----------
-  function initializeFromPayload(payload){
+  // 解像度が大きすぎる写真は、ブラウザが正しく描画しきれないことがあるため、
+  // 表示に十分な大きさ(長辺2400px)まで、あらかじめ縮小しておく
+  async function createResizedImageUrl_(file, maxDim){
+    try{
+      const bitmap = await createImageBitmap(file);
+      if(bitmap.width <= maxDim && bitmap.height <= maxDim){
+        if(bitmap.close) bitmap.close();
+        return URL.createObjectURL(file); // 十分小さければ、余計な処理をせずそのまま使う
+      }
+      const scale = maxDim / Math.max(bitmap.width, bitmap.height);
+      const w = Math.round(bitmap.width * scale);
+      const h = Math.round(bitmap.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      if(bitmap.close) bitmap.close();
+      return await new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob ? URL.createObjectURL(blob) : URL.createObjectURL(file)), 'image/jpeg', 0.9);
+      });
+    }catch(err){
+      return URL.createObjectURL(file); // 縮小できなくても、元のファイルでそのまま表示は試みる
+    }
+  }
+
+  async function initializeFromPayload(payload){
     const { files, captions, styles, settings } = payload;
-    slides = files.map((f, i) => ({
-      url: URL.createObjectURL(f),
+    slides = await Promise.all(files.map(async (f, i) => ({
+      url: await createResizedImageUrl_(f, 2400),
       caption: captions[i] || '',
       style: styles[i] || null
-    }));
+    })));
 
     window.__interval = settings.interval;
     window.__insertOffset = settings.insertOffset || 1;
@@ -6035,21 +6188,29 @@ if(isDisplay){
     if(msg.type === 'stopMusicFireworks'){
       stopMusicSyncFireworks();
     }
+    if(msg.type === 'startDrawings'){
+      startDrawingsAnimation();
+    }
+    if(msg.type === 'stopDrawings'){
+      stopDrawingsAnimation();
+    }
     if(msg.type === 'forceResume'){
       forceResumeSlideshow();
     }
     if(msg.type === 'addPhotos'){
-      const startIndex = slides.length;
-      const newSlides = msg.files.map((f, i) => ({
-        url: URL.createObjectURL(f),
-        caption: msg.caption || '',
-        style: msg.style || null,
-        isApproved: true
-      }));
-      slides = slides.concat(newSlides);
-      const newIndices = newSlides.map((_, i) => startIndex + i);
-      order.splice(insertPos(), 0, ...(shuffleOn ? shuffleArray(newIndices) : newIndices));
-      updateCounter();
+      (async () => {
+        const startIndex = slides.length;
+        const newSlides = await Promise.all(msg.files.map(async (f) => ({
+          url: await createResizedImageUrl_(f, 2400),
+          caption: msg.caption || '',
+          style: msg.style || null,
+          isApproved: true
+        })));
+        slides = slides.concat(newSlides);
+        const newIndices = newSlides.map((_, i) => startIndex + i);
+        order.splice(insertPos(), 0, ...(shuffleOn ? shuffleArray(newIndices) : newIndices));
+        updateCounter();
+      })();
     }
     if(msg.type === 'addPhotoByUrl'){
       const startIndex = slides.length;
@@ -7167,6 +7328,25 @@ if(isDisplay){
     }else{
       childWin.postMessage({ type: 'stopMusicFireworks' }, '*');
       btn.textContent = '🎵 音楽連動花火 ON';
+      btn.classList.remove('active');
+    }
+  });
+
+  let drawingsOn = false;
+  document.getElementById('drawings-toggle-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
+    const btn = document.getElementById('drawings-toggle-btn');
+    drawingsOn = !drawingsOn;
+    if(drawingsOn){
+      childWin.postMessage({ type: 'startDrawings' }, '*');
+      btn.textContent = '✏️ みんなのお絵かきを動かす OFF';
+      btn.classList.add('active');
+    }else{
+      childWin.postMessage({ type: 'stopDrawings' }, '*');
+      btn.textContent = '✏️ みんなのお絵かきを動かす ON';
       btn.classList.remove('active');
     }
   });
