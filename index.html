@@ -1215,6 +1215,19 @@
   #music-fireworks-btn.active{
     background:linear-gradient(135deg, rgba(255,215,94,0.4), rgba(94,203,255,0.4));
   }
+  #ms-manual-launch-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:16px;
+    background:rgba(94,203,255,0.12);
+    border:1.5px solid rgba(94,203,255,0.5);
+    color:#9ad4ff;
+    border-radius:10px;
+    font-size:13.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
   #drawings-toggle-btn{
     display:block;
     width:100%;
@@ -1650,6 +1663,7 @@
       <input type="range" id="ms-intensity-slider" min="0" max="150" value="5" style="flex:1;">
       <span id="ms-intensity-value">5%</span>
     </div>
+    <button type="button" id="ms-manual-launch-btn">🎇 押すたびに1発打ち上げる</button>
     <button type="button" id="drawings-toggle-btn">✏️ みんなのお絵かきを動かす ON</button>
     <div class="cp-speed-row">
       <span>⏱ お絵かきの表示時間</span>
@@ -6337,6 +6351,12 @@ if(isDisplay){
     if(msg.type === 'setMusicFireworksIntensity'){
       window.__msManualIntensity = msg.value;
     }
+    if(msg.type === 'launchOneFirework'){
+      if(msActive){
+        const band = ['low','mid','high'][Math.floor(Math.random()*3)];
+        msLaunch_(band, 220, 1); // quietGate=1で、確実に見栄えのする1発にする
+      }
+    }
     if(msg.type === 'startDrawings'){
       startDrawingsAnimation();
     }
@@ -7266,6 +7286,12 @@ if(isDisplay){
     msIntensityValue.textContent = pct + '%';
     if(childWin && !childWin.closed){
       childWin.postMessage({ type: 'setMusicFireworksIntensity', value: pct / 100 }, '*');
+    }
+  });
+
+  document.getElementById('ms-manual-launch-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'launchOneFirework' }, '*');
     }
   });
 
