@@ -5606,6 +5606,7 @@ if(isDisplay){
   // 直近の方が明らかに大きい状態が続いていたら「サビ(盛り上がり)」とみなす
   let msLongTermEMA = 0, msShortTermEMA = 0;
   let msClimaxSince = 0;
+  let msRunningMaxE = 40; // これまでに観測した「一番大きな音量」(相対的な音量判定の基準にする)
 
   function msAnalyzeAndSchedule_(){
     msAnalyser.getByteFrequencyData(msFreqData);
@@ -5643,7 +5644,12 @@ if(isDisplay){
     }
     // 0.6秒以上「盛り上がった状態」が続いていたら、本格的にサビと判断する
     const isClimax = msClimaxSince !== 0 && (now - msClimaxSince > 600);
-    const density = overallE/255;
+
+    // これまでの最大音量を、ゆっくり追いかけて更新する(急に下げすぎない・徐々に下がっていく)
+    msRunningMaxE = Math.max(overallE, msRunningMaxE * 0.9985);
+    // 「絶対的な音量」ではなく、「これまでで一番大きかった音との相対値」で盛り上がりを判定する
+    // → スピーカーの音量設定や、音声取り込みレベルに関わらず、常に曲の中での相対的なメリハリになる
+    const density = Math.min(1, overallE / msRunningMaxE);
 
     // 「静けさゲート」:イントロやしっとりしたパートでは、ピークを検出しても、その一部だけ間引いて発射する
     // (盛り上がってきたら、ゲートが開いていき、最終的にはすべて素通りになる)
@@ -5704,7 +5710,7 @@ if(isDisplay){
     msBeatHistory.push(lowE);
     if(msBeatHistory.length > 40) msBeatHistory.shift();
     const avg = msBeatHistory.reduce((a,b)=>a+b,0) / msBeatHistory.length;
-    const isPeak = lowE > avg*1.3 && lowE > 50 && (now - msLastBeatAt > 200);
+    const isPeak = lowE > avg*1.3 && lowE > msRunningMaxE*0.20 && (now - msLastBeatAt > 200);
     if(isPeak) msLastBeatAt = now;
     return isPeak;
   }
@@ -5712,7 +5718,7 @@ if(isDisplay){
     msMidHistory.push(midE);
     if(msMidHistory.length > 40) msMidHistory.shift();
     const avg = msMidHistory.reduce((a,b)=>a+b,0) / msMidHistory.length;
-    const isPeak = midE > avg*1.18 && midE > 32 && (now - msLastMidAt > 160); // 歌声を優先したいので、他の帯域より敏感にする
+    const isPeak = midE > avg*1.18 && midE > msRunningMaxE*0.13 && (now - msLastMidAt > 160); // 歌声を優先したいので、他の帯域より敏感にする
     if(isPeak) msLastMidAt = now;
     return isPeak;
   }
@@ -5720,7 +5726,7 @@ if(isDisplay){
     msHighHistory.push(highE);
     if(msHighHistory.length > 40) msHighHistory.shift();
     const avg = msHighHistory.reduce((a,b)=>a+b,0) / msHighHistory.length;
-    const isPeak = highE > avg*1.3 && highE > 30 && (now - msLastHighAt > 150);
+    const isPeak = highE > avg*1.3 && highE > msRunningMaxE*0.12 && (now - msLastHighAt > 150);
     if(isPeak) msLastHighAt = now;
     return isPeak;
   }
