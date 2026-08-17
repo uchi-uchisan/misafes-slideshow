@@ -5657,28 +5657,30 @@ if(isDisplay){
 
     // 今、鳴っている帯域がいくつあるか(≒楽器の数)を数える。多いほど「厚みのある演奏」とみなす
     const lowActive = lowE > msRunningMaxLow * 0.32;
-    const midActive = midE > msRunningMaxMid * 0.32;
+    // 歌声かどうかの見分けは完璧にはできないため、「かなり目立って鳴っている時だけ」を歌とみなす
+    // (ギターやキーボードなど、同じ中音域の伴奏と混同しないよう、しきい値を高めにしている)
+    const midActive = midE > msRunningMaxMid * 0.52;
     const highActive = highE > msRunningMaxHigh * 0.32;
     const activeBandCount = (lowActive?1:0) + (midActive?1:0) + (highActive?1:0);
 
     // 楽器の少なさ(活発な帯域の少なさ)で、大きく抑える
     let arrangementScale;
-    if(activeBandCount <= 1) arrangementScale = 0.08;       // 楽器がほぼ1つだけ:かなり静かに
-    else if(activeBandCount === 2) arrangementScale = 0.4;  // 楽器2つ程度:控えめに
+    if(activeBandCount <= 1) arrangementScale = 0.04;       // 楽器がほぼ1つだけ:著しく静かに
+    else if(activeBandCount === 2) arrangementScale = 0.25; // 楽器2つ程度:かなり控えめに
     else arrangementScale = 1;                                // 3帯域とも鳴っている:通常通り
 
-    // 歌(中音域)が鳴っていない間奏・イントロなどは、特に強く抑える
-    const vocalScale = midActive ? 1 : 0.2;
+    // 歌が鳴っていない間奏・イントロなどは、著しく抑える
+    const vocalScale = midActive ? 1 : 0.04;
 
     // 「静けさゲート」:イントロやしっとりしたパートでは、ピークを検出しても、その大半を間引いて発射する
     // (盛り上がってきたら、ゲートが開いていき、最終的にはすべて素通りになる)
     let baseGate;
-    if(density < 0.22) baseGate = 0.12;
-    else if(density < 0.38) baseGate = 0.35;
+    if(density < 0.22) baseGate = 0.08;
+    else if(density < 0.38) baseGate = 0.3;
     else if(density < 0.55) baseGate = 0.7;
     else baseGate = 1;
 
-    const quietGate = isClimax ? 1 : Math.max(0.03, baseGate * arrangementScale * vocalScale);
+    const quietGate = isClimax ? 1 : Math.max(0.008, baseGate * arrangementScale * vocalScale);
 
     // 低音(ビート):一番反応を強く・優先的に扱う
     const isLowPeak = value_isLowPeak_(lowE, now);
