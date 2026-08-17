@@ -1650,7 +1650,6 @@
     </div>
     <input type="file" id="cp-sponsor-file-input" accept="video/*" style="display:none;">
 
-    <button type="button" id="vip-welcome-btn">🎉 特別ゲスト歓迎(その場で1タップ)</button>
     <button type="button" id="fireworks-btn">🎆 花火演出</button>
     <div class="cp-speed-row">
       <span>🔊 花火の音量</span>
@@ -1673,6 +1672,7 @@
 
     <button type="button" id="announce-section-toggle" class="cp-section-toggle">📢 アナウンス機能 ▼</button>
     <div id="announce-section">
+      <button type="button" id="vip-welcome-btn">🎉 特別ゲスト歓迎(その場で1タップ)</button>
       <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:8px 0 10px 2px;">
         <input type="checkbox" id="notice-speech-toggle" checked> 🔊 アナウンスを音声でも読み上げる
       </label>
@@ -5316,12 +5316,12 @@ if(isDisplay){
     function launchFirework(targetX, targetY, isWillow, isFinale){
       const startX = targetX + randRange(-20,20);
       shells.push({ x:startX, y:H+10, targetX, targetY, life:0, riseTime:randRange(42,62), trail:[], isWillow, isFinale });
-      playFireworksLaunchSound_();
+      // 打ち上げ音(ヒュー)は使わず、破裂音(バン)だけに統一する
     }
     function burst(x, y, isWillow, isFinale){
       const [core, edge] = COLORS[Math.floor(Math.random()*COLORS.length)];
-      const count = isFinale ? 180 + Math.floor(Math.random()*40) : (90 + Math.floor(Math.random()*50));
-      const speedBase = (isFinale ? randRange(3.6, 5.4) : randRange(2.8, 4.6)) * (isWillow ? 0.75 : 1);
+      const count = isFinale ? 230 + Math.floor(Math.random()*50) : (130 + Math.floor(Math.random()*60));
+      const speedBase = (isFinale ? randRange(3.8, 5.8) : randRange(3.0, 5.0)) * (isWillow ? 0.75 : 1);
       for(let i=0;i<count;i++){
         const angle = (Math.PI*2*i)/count + Math.random()*0.15;
         const speed = speedBase * (0.6 + Math.random()*0.5);
@@ -5429,6 +5429,11 @@ if(isDisplay){
     if(fireworksAnimFrame) cancelAnimationFrame(fireworksAnimFrame);
     fireworksAnimFrame = null;
     document.getElementById('fireworks-overlay').classList.remove('active');
+
+    // 最後に描いた1コマが、そのままキャンバスに焼き付いて残ってしまうことがあるため、確実に消す
+    const canvas = document.getElementById('fireworks-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
       const el = document.getElementById(id);
@@ -5816,6 +5821,42 @@ if(isDisplay){
       msCtx.beginPath(); msCtx.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2); msCtx.fill();
     }
     msCtx.globalCompositeOperation = 'source-over';
+  }
+
+  // 音楽連動花火が動いていなくても、ボタン1つで花火を1発打ち上げられるようにする
+  let standaloneFireworkActive = false;
+  function launchStandaloneFirework_(){
+    if(msActive){
+      // すでに音楽連動花火が動いているなら、その中に1発追加するだけでよい
+      const band = ['low','mid','high'][Math.floor(Math.random()*3)];
+      msLaunch_(band, 220, 1);
+      return;
+    }
+
+    // 動いていない場合は、この1発のためだけに、軽量にキャンバスを用意する
+    if(!standaloneFireworkActive){
+      standaloneFireworkActive = true;
+      msCanvas = document.getElementById('music-fireworks-canvas');
+      msCtx = msCanvas.getContext('2d');
+      msResizeCanvas_();
+      document.getElementById('music-fireworks-overlay').classList.add('active');
+      msShells = []; msSparks = [];
+
+      const loop = () => {
+        msUpdateAndDraw_();
+        if(msShells.length > 0 || msSparks.length > 0){
+          requestAnimationFrame(loop);
+        }else{
+          // すべての花火が消えたら、後片付けする
+          standaloneFireworkActive = false;
+          document.getElementById('music-fireworks-overlay').classList.remove('active');
+        }
+      };
+      requestAnimationFrame(loop);
+    }
+
+    const band = ['low','mid','high'][Math.floor(Math.random()*3)];
+    msLaunch_(band, 220, 1);
   }
 
   function msLoop_(){
@@ -6352,10 +6393,7 @@ if(isDisplay){
       window.__msManualIntensity = msg.value;
     }
     if(msg.type === 'launchOneFirework'){
-      if(msActive){
-        const band = ['low','mid','high'][Math.floor(Math.random()*3)];
-        msLaunch_(band, 220, 1); // quietGate=1で、確実に見栄えのする1発にする
-      }
+      launchStandaloneFirework_();
     }
     if(msg.type === 'startDrawings'){
       startDrawingsAnimation();
