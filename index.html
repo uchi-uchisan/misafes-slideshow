@@ -1647,8 +1647,8 @@
     <button type="button" id="music-fireworks-btn">🎵 音楽連動花火 ON</button>
     <div class="cp-speed-row">
       <span>🎆 花火の量(手動調整)</span>
-      <input type="range" id="ms-intensity-slider" min="0" max="150" value="100" style="flex:1;">
-      <span id="ms-intensity-value">100%</span>
+      <input type="range" id="ms-intensity-slider" min="0" max="150" value="5" style="flex:1;">
+      <span id="ms-intensity-value">5%</span>
     </div>
     <button type="button" id="drawings-toggle-btn">✏️ みんなのお絵かきを動かす ON</button>
     <div class="cp-speed-row">
@@ -5687,7 +5687,7 @@ if(isDisplay){
 
     const autoGate = isClimax ? 1 : Math.max(0.008, baseGate * arrangementScale * vocalScale);
     // 操作パネルの「花火の量」スライダー(手動調整)を、自動判定に掛け合わせる
-    const manualScale = window.__msManualIntensity !== undefined ? window.__msManualIntensity : 1;
+    const manualScale = window.__msManualIntensity !== undefined ? window.__msManualIntensity : 0.05;
     const quietGate = Math.min(1, autoGate * manualScale);
 
     // 低音(ビート):一番反応を強く・優先的に扱う
@@ -5716,12 +5716,12 @@ if(isDisplay){
 
     // サビの間は、ピークがなくても、歌声(中音)を中心に、控えめな連続発射を追加する
     const climaxBoost = isClimax ? 0.5 : 0;
-    if(density > 0.35 && Math.random() < (density-0.35)*0.3 + climaxBoost*0.5){
+    if(density > 0.35 && Math.random() < ((density-0.35)*0.3 + climaxBoost*0.5) * manualScale){
       msLaunch_('mid', midE, quietGate); // 歌声に寄り添う形にするため、ここは常に中音を優先する
     }
 
     // サビが本格的に盛り上がっている間は、複数発同時の「スターマイン」状態にする
-    if(isClimax && density > 0.5 && Math.random() < 0.10){
+    if(isClimax && density > 0.5 && Math.random() < 0.10 * manualScale){
       const burstCount = window.__msLightMode ? 1 : (2 + Math.floor(Math.random() * 2)); // 軽量モードでは1発ずつに抑える
       for(let i = 0; i < burstCount; i++){
         setTimeout(() => {
