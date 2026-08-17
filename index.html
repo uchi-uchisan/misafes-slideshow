@@ -5607,6 +5607,7 @@ if(isDisplay){
   let msLongTermEMA = 0, msShortTermEMA = 0;
   let msClimaxSince = 0;
   let msRunningMaxE = 40; // これまでに観測した「一番大きな音量」(相対的な音量判定の基準にする)
+  let msRunningMaxLow = 40, msRunningMaxMid = 40, msRunningMaxHigh = 40; // 帯域ごとの最大値(楽器数・歌の有無を判定するため)
 
   function msAnalyzeAndSchedule_(){
     msAnalyser.getByteFrequencyData(msFreqData);
@@ -5647,18 +5648,37 @@ if(isDisplay){
 
     // これまでの最大音量を、ゆっくり追いかけて更新する(急に下げすぎない・徐々に下がっていく)
     msRunningMaxE = Math.max(overallE, msRunningMaxE * 0.9985);
+    msRunningMaxLow = Math.max(lowE, msRunningMaxLow * 0.9985);
+    msRunningMaxMid = Math.max(midE, msRunningMaxMid * 0.9985);
+    msRunningMaxHigh = Math.max(highE, msRunningMaxHigh * 0.9985);
+
     // 「絶対的な音量」ではなく、「これまでで一番大きかった音との相対値」で盛り上がりを判定する
-    // → スピーカーの音量設定や、音声取り込みレベルに関わらず、常に曲の中での相対的なメリハリになる
     const density = Math.min(1, overallE / msRunningMaxE);
 
-    // 「静けさゲート」:イントロやしっとりしたパートでは、ピークを検出しても、その一部だけ間引いて発射する
+    // 今、鳴っている帯域がいくつあるか(≒楽器の数)を数える。多いほど「厚みのある演奏」とみなす
+    const lowActive = lowE > msRunningMaxLow * 0.32;
+    const midActive = midE > msRunningMaxMid * 0.32;
+    const highActive = highE > msRunningMaxHigh * 0.32;
+    const activeBandCount = (lowActive?1:0) + (midActive?1:0) + (highActive?1:0);
+
+    // 楽器の少なさ(活発な帯域の少なさ)で、大きく抑える
+    let arrangementScale;
+    if(activeBandCount <= 1) arrangementScale = 0.08;       // 楽器がほぼ1つだけ:かなり静かに
+    else if(activeBandCount === 2) arrangementScale = 0.4;  // 楽器2つ程度:控えめに
+    else arrangementScale = 1;                                // 3帯域とも鳴っている:通常通り
+
+    // 歌(中音域)が鳴っていない間奏・イントロなどは、特に強く抑える
+    const vocalScale = midActive ? 1 : 0.2;
+
+    // 「静けさゲート」:イントロやしっとりしたパートでは、ピークを検出しても、その大半を間引いて発射する
     // (盛り上がってきたら、ゲートが開いていき、最終的にはすべて素通りになる)
-    let quietGate;
-    if(isClimax) quietGate = 1;
-    else if(density < 0.22) quietGate = 0.18;      // イントロ・しっとりパート:ほとんど間引く
-    else if(density < 0.38) quietGate = 0.45;      // 中くらいの盛り上がり:半分程度
-    else if(density < 0.55) quietGate = 0.75;
-    else quietGate = 1;                             // サビ相当の音量:すべて素通り
+    let baseGate;
+    if(density < 0.22) baseGate = 0.12;
+    else if(density < 0.38) baseGate = 0.35;
+    else if(density < 0.55) baseGate = 0.7;
+    else baseGate = 1;
+
+    const quietGate = isClimax ? 1 : Math.max(0.03, baseGate * arrangementScale * vocalScale);
 
     // 低音(ビート):一番反応を強く・優先的に扱う
     const isLowPeak = value_isLowPeak_(lowE, now);
@@ -5676,9 +5696,8 @@ if(isDisplay){
       });
     }
 
-    // 中音(歌声・メロディのピーク):一番大事にしたい帯域なので、優先的に・敏感に反応させる
-    // (ただし静かなパートでは、他の帯域よりは間引きを弱めにして、歌声の存在感は残す)
-    if(value_isMidPeak_(midE, now) && Math.random() < Math.min(1, quietGate + 0.25)){
+    // 中音(歌声・メロディのピーク):歌がない間は、quietGate自体がすでに強く抑えているので、そのまま従う
+    if(value_isMidPeak_(midE, now) && Math.random() < quietGate){
       msLaunch_('mid', midE, quietGate);
     }
 
