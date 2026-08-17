@@ -5563,27 +5563,28 @@ if(isDisplay){
 
   function msRandRange_(a,b){ return a + Math.random()*(b-a); }
 
-  function msLaunch_(band, energy){
+  function msLaunch_(band, energy, quietGate){
     const x = msRandRange_(msW*0.12, msW*0.88);
     const y = msRandRange_(msH*0.15, msH*0.5);
-    msShells.push({ x, y: msH+10, targetX:x, targetY:y, life:0, riseTime: msRandRange_(18,30), band, energy });
+    msShells.push({ x, y: msH+10, targetX:x, targetY:y, life:0, riseTime: msRandRange_(18,30), band, energy, quietGate: quietGate !== undefined ? quietGate : 1 });
   }
 
-  function msBurst_(x, y, band, energy){
+  function msBurst_(x, y, band, energy, quietGate){
     let colors, count, speedBase, size, decay;
     const e = energy/255;
     const lightScale = window.__msLightMode ? 0.4 : 1; // 軽量モードでは、粒の数を大幅に減らす
+    const quietScale = 0.55 + (quietGate !== undefined ? quietGate : 1) * 0.45; // 静かな時は、心持ち小ぶりな花火にする
     // 軽量モードでは、画面内の粒の総数にも上限を設け、負荷が積み重なりすぎないようにする
     if(window.__msLightMode && msSparks.length > 250) return;
     if(band === 'low'){
       colors = MS_LOW_COLORS[Math.floor(Math.random()*MS_LOW_COLORS.length)];
-      count = Math.round((120 + Math.floor(e*70)) * lightScale); speedBase = msRandRange_(3.4,5.2); size = msRandRange_(2.4,3.8); decay = msRandRange_(0.008,0.012);
+      count = Math.round((120 + Math.floor(e*70)) * lightScale * quietScale); speedBase = msRandRange_(3.4,5.2) * quietScale; size = msRandRange_(2.4,3.8); decay = msRandRange_(0.008,0.012);
     }else if(band === 'mid'){
       colors = MS_MID_COLORS[Math.floor(Math.random()*MS_MID_COLORS.length)];
-      count = Math.round((70 + Math.floor(e*40)) * lightScale); speedBase = msRandRange_(2.6,4.0); size = msRandRange_(1.8,2.8); decay = msRandRange_(0.010,0.016);
+      count = Math.round((70 + Math.floor(e*40)) * lightScale * quietScale); speedBase = msRandRange_(2.6,4.0) * quietScale; size = msRandRange_(1.8,2.8); decay = msRandRange_(0.010,0.016);
     }else{
       colors = MS_HIGH_COLORS[Math.floor(Math.random()*MS_HIGH_COLORS.length)];
-      count = Math.round((45 + Math.floor(e*30)) * lightScale); speedBase = msRandRange_(1.6,2.8); size = msRandRange_(0.8,1.5); decay = msRandRange_(0.020,0.030);
+      count = Math.round((45 + Math.floor(e*30)) * lightScale * quietScale); speedBase = msRandRange_(1.6,2.8) * quietScale; size = msRandRange_(0.8,1.5); decay = msRandRange_(0.020,0.030);
     }
     const [core, edge] = colors;
     const maxTrail = window.__msLightMode ? 2 : 5; // 軽量モードでは、光の尾も短くして負荷を減らす
@@ -5642,17 +5643,27 @@ if(isDisplay){
     }
     // 0.6秒以上「盛り上がった状態」が続いていたら、本格的にサビと判断する
     const isClimax = msClimaxSince !== 0 && (now - msClimaxSince > 600);
+    const density = overallE/255;
+
+    // 「静けさゲート」:イントロやしっとりしたパートでは、ピークを検出しても、その一部だけ間引いて発射する
+    // (盛り上がってきたら、ゲートが開いていき、最終的にはすべて素通りになる)
+    let quietGate;
+    if(isClimax) quietGate = 1;
+    else if(density < 0.22) quietGate = 0.18;      // イントロ・しっとりパート:ほとんど間引く
+    else if(density < 0.38) quietGate = 0.45;      // 中くらいの盛り上がり:半分程度
+    else if(density < 0.55) quietGate = 0.75;
+    else quietGate = 1;                             // サビ相当の音量:すべて素通り
 
     // 低音(ビート):一番反応を強く・優先的に扱う
     const isLowPeak = value_isLowPeak_(lowE, now);
-    if(isLowPeak){
-      msLaunch_('low', lowE);
+    if(isLowPeak && Math.random() < quietGate){
+      msLaunch_('low', lowE, quietGate);
       if(isClimax){ // サビの間は、ビートに合わせてもう1発追加で畳み掛ける
-        setTimeout(() => msLaunch_('low', lowE), 90);
+        setTimeout(() => msLaunch_('low', lowE, quietGate), 90);
       }
       const flashEl = document.getElementById('music-beat-flash');
       flashEl.style.transition = 'none';
-      flashEl.style.opacity = String(Math.min(0.22, (lowE/255)*0.28));
+      flashEl.style.opacity = String(Math.min(0.22, (lowE/255)*0.28) * (0.4 + quietGate*0.6));
       requestAnimationFrame(() => {
         flashEl.style.transition = 'opacity 0.35s ease-out';
         flashEl.style.opacity = '0';
@@ -5660,16 +5671,18 @@ if(isDisplay){
     }
 
     // 中音(歌声・メロディのピーク):一番大事にしたい帯域なので、優先的に・敏感に反応させる
-    if(value_isMidPeak_(midE, now)) msLaunch_('mid', midE);
+    // (ただし静かなパートでは、他の帯域よりは間引きを弱めにして、歌声の存在感は残す)
+    if(value_isMidPeak_(midE, now) && Math.random() < Math.min(1, quietGate + 0.25)){
+      msLaunch_('mid', midE, quietGate);
+    }
 
     // 高音(シンバル・ハイハットのピーク)
-    if(value_isHighPeak_(highE, now)) msLaunch_('high', highE);
+    if(value_isHighPeak_(highE, now) && Math.random() < quietGate) msLaunch_('high', highE, quietGate);
 
     // サビの間は、ピークがなくても、歌声(中音)を中心に、控えめな連続発射を追加する
-    const density = overallE/255;
     const climaxBoost = isClimax ? 0.5 : 0;
     if(density > 0.35 && Math.random() < (density-0.35)*0.3 + climaxBoost*0.5){
-      msLaunch_('mid', midE); // 歌声に寄り添う形にするため、ここは常に中音を優先する
+      msLaunch_('mid', midE, quietGate); // 歌声に寄り添う形にするため、ここは常に中音を優先する
     }
 
     // サビが本格的に盛り上がっている間は、複数発同時の「スターマイン」状態にする
@@ -5723,7 +5736,7 @@ if(isDisplay){
       const ease = 1 - Math.pow(1-t, 2);
       s.x = s.x + (s.targetX - s.x) * 0.04;
       s.y = (msH+10) + (s.targetY - (msH+10)) * ease;
-      if(t >= 1){ msBurst_(s.targetX, s.targetY, s.band, s.energy); msShells.splice(i,1); }
+      if(t >= 1){ msBurst_(s.targetX, s.targetY, s.band, s.energy, s.quietGate); msShells.splice(i,1); }
     }
 
     msCtx.globalCompositeOperation = 'lighter';
