@@ -2194,6 +2194,10 @@
     <div class="mf-setup-box">
       <div class="mf-setup-title">🎵 音楽連動花火の設定</div>
 
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:rgba(233,228,216,0.75); margin-bottom:14px;">
+        <input type="checkbox" id="mf-light-mode-toggle"> 🪶 軽量モード(パソコンのスペックが低い場合はオンにしてください)
+      </label>
+
       <button id="mf-setup-tab-audio-btn">🖥️ ブラウザのタブ音声を直接使う(一番正確)</button>
       <div class="mf-setup-note" style="margin-bottom:16px;">YouTube Musicなどを、このパソコンの<b>別タブ</b>で再生している場合におすすめです。次の画面で「そのタブ」を選び、「タブの音声を共有」にチェックを入れてください。</div>
 
@@ -5460,6 +5464,7 @@ if(isDisplay){
   });
 
   document.getElementById('mf-setup-start-btn').addEventListener('click', () => {
+    window.__msLightMode = document.getElementById('mf-light-mode-toggle').checked;
     const micId = document.getElementById('mf-mic-select').value;
     const speakerId = document.getElementById('mf-speaker-select').value;
     document.getElementById('music-fireworks-setup').classList.remove('active');
@@ -5467,6 +5472,7 @@ if(isDisplay){
   });
 
   document.getElementById('mf-setup-tab-audio-btn').addEventListener('click', () => {
+    window.__msLightMode = document.getElementById('mf-light-mode-toggle').checked;
     const speakerId = document.getElementById('mf-speaker-select').value;
     document.getElementById('music-fireworks-setup').classList.remove('active');
     startMusicSyncFromTabAudio(speakerId);
@@ -5529,7 +5535,7 @@ if(isDisplay){
 
   function msResizeCanvas_(){
     if(!msCanvas) return;
-    msDPR = Math.min(window.devicePixelRatio || 1, 2);
+    msDPR = window.__msLightMode ? 1 : Math.min(window.devicePixelRatio || 1, 2);
     msW = msCanvas.clientWidth = window.innerWidth;
     msH = msCanvas.clientHeight = window.innerHeight;
     msCanvas.width = msW * msDPR;
@@ -5566,27 +5572,31 @@ if(isDisplay){
   function msBurst_(x, y, band, energy){
     let colors, count, speedBase, size, decay;
     const e = energy/255;
+    const lightScale = window.__msLightMode ? 0.4 : 1; // 軽量モードでは、粒の数を大幅に減らす
+    // 軽量モードでは、画面内の粒の総数にも上限を設け、負荷が積み重なりすぎないようにする
+    if(window.__msLightMode && msSparks.length > 250) return;
     if(band === 'low'){
       colors = MS_LOW_COLORS[Math.floor(Math.random()*MS_LOW_COLORS.length)];
-      count = 120 + Math.floor(e*70); speedBase = msRandRange_(3.4,5.2); size = msRandRange_(2.4,3.8); decay = msRandRange_(0.008,0.012);
+      count = Math.round((120 + Math.floor(e*70)) * lightScale); speedBase = msRandRange_(3.4,5.2); size = msRandRange_(2.4,3.8); decay = msRandRange_(0.008,0.012);
     }else if(band === 'mid'){
       colors = MS_MID_COLORS[Math.floor(Math.random()*MS_MID_COLORS.length)];
-      count = 70 + Math.floor(e*40); speedBase = msRandRange_(2.6,4.0); size = msRandRange_(1.8,2.8); decay = msRandRange_(0.010,0.016);
+      count = Math.round((70 + Math.floor(e*40)) * lightScale); speedBase = msRandRange_(2.6,4.0); size = msRandRange_(1.8,2.8); decay = msRandRange_(0.010,0.016);
     }else{
       colors = MS_HIGH_COLORS[Math.floor(Math.random()*MS_HIGH_COLORS.length)];
-      count = 45 + Math.floor(e*30); speedBase = msRandRange_(1.6,2.8); size = msRandRange_(0.8,1.5); decay = msRandRange_(0.020,0.030);
+      count = Math.round((45 + Math.floor(e*30)) * lightScale); speedBase = msRandRange_(1.6,2.8); size = msRandRange_(0.8,1.5); decay = msRandRange_(0.020,0.030);
     }
     const [core, edge] = colors;
+    const maxTrail = window.__msLightMode ? 2 : 5; // 軽量モードでは、光の尾も短くして負荷を減らす
     for(let i=0;i<count;i++){
       const angle = (Math.PI*2*i)/count + Math.random()*0.2;
       const speed = speedBase * (0.55 + Math.random()*0.6);
       msSparks.push({
         x, y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, life:1, decay,
         color: Math.random() < 0.75 ? core : edge, size,
-        twinkle: band === 'high', trail:[]
+        twinkle: band === 'high', trail:[], maxTrail
       });
     }
-    msSparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: band==='low'?26:14, flash:true, trail:[] });
+    msSparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: band==='low'?26:14, flash:true, trail:[], maxTrail });
     // 機械的な音に感じられたため、帯域を問わず「バン」系の破裂音(4種のバリエーション)に統一する
     playFireworksBurstSound_();
   }
@@ -5661,6 +5671,17 @@ if(isDisplay){
     if(density > 0.35 && Math.random() < (density-0.35)*0.3 + climaxBoost*0.5){
       msLaunch_('mid', midE); // 歌声に寄り添う形にするため、ここは常に中音を優先する
     }
+
+    // サビが本格的に盛り上がっている間は、複数発同時の「スターマイン」状態にする
+    if(isClimax && density > 0.5 && Math.random() < 0.10){
+      const burstCount = window.__msLightMode ? 1 : (2 + Math.floor(Math.random() * 2)); // 軽量モードでは1発ずつに抑える
+      for(let i = 0; i < burstCount; i++){
+        setTimeout(() => {
+          const band = Math.random() < 0.4 ? 'low' : (Math.random() < 0.6 ? 'mid' : 'high');
+          msLaunch_(band, overallE * 255);
+        }, i * 110);
+      }
+    }
   }
 
   // 帯域ごとに専用の履歴・直近発射時刻を持たせ、「直近平均より明らかに飛び出た瞬間」をピークとして検出する
@@ -5713,7 +5734,8 @@ if(isDisplay){
     for(let i=msSparks.length-1;i>=0;i--){
       const p = msSparks[i];
       p.trail.push({x:p.x, y:p.y});
-      if(p.trail.length > (p.twinkle ? 3 : 5)) p.trail.shift();
+      const maxTrailLen = p.maxTrail || (p.twinkle ? 3 : 5);
+      if(p.trail.length > maxTrailLen) p.trail.shift();
       p.vy += 0.055; p.vx *= 0.985; p.vy *= 0.985;
       p.x += p.vx; p.y += p.vy;
       p.life -= p.decay;
