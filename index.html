@@ -1725,6 +1725,9 @@
     <input type="file" id="cp-sponsor-file-input" accept="video/*" style="display:none;">
 
     <button type="button" id="fireworks-btn">🎆 花火演出</button>
+    <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:-4px 0 10px 2px;">
+      <input type="checkbox" id="fw-light-mode-toggle"> 🪶 軽量モード(パソコンのスペックが低い場合はオンにしてください)
+    </label>
     <div class="cp-speed-row">
       <span>🔊 花火の音量</span>
       <input type="range" id="fireworks-volume-slider" min="0" max="100" value="70" style="flex:1;">
@@ -5419,7 +5422,8 @@ if(isDisplay){
     }
     function burst(x, y, isWillow, isFinale){
       const [core, edge] = COLORS[Math.floor(Math.random()*COLORS.length)];
-      const count = isFinale ? 300 + Math.floor(Math.random()*60) : (180 + Math.floor(Math.random()*70));
+      const fwLightScale = window.__fwLightMode ? 0.4 : 1;
+      const count = Math.round((isFinale ? 300 + Math.floor(Math.random()*60) : (180 + Math.floor(Math.random()*70))) * fwLightScale);
       const speedBase = (isFinale ? randRange(3.8, 5.8) : randRange(3.0, 5.0)) * (isWillow ? 0.75 : 1);
       for(let i=0;i<count;i++){
         const angle = (Math.PI*2*i)/count + Math.random()*0.15;
@@ -5468,7 +5472,7 @@ if(isDisplay){
       return `rgba(${parseInt(v.substr(0,2),16)},${parseInt(v.substr(2,2),16)},${parseInt(v.substr(4,2),16)},${a})`;
     }
     function draw(){
-      ctx.fillStyle = 'rgba(26,20,32,0.32)'; // 残像は残しつつ、確実に消えていくようフェードを少し強める
+      ctx.fillStyle = window.__fwLightMode ? 'rgba(26,20,32,0.55)' : 'rgba(26,20,32,0.42)'; // 重なりすぎて明るさが洗い流されない問題への対策として、フェードを強める
       ctx.fillRect(0,0,W,H);
       ctx.globalCompositeOperation = 'lighter';
       for(const s of shells){
@@ -5513,7 +5517,7 @@ if(isDisplay){
       if(Math.random() < 0.3){ // たまに畳み掛けるように2発同時発射
         setTimeout(() => launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), Math.random() < 0.25), 120);
       }
-      const t = setTimeout(scheduleLaunch, randRange(300, 700));
+      const t = setTimeout(scheduleLaunch, window.__fwLightMode ? randRange(700, 1300) : randRange(350, 750));
       fireworksLaunchTimers.push(t);
     };
     scheduleLaunch();
@@ -6490,6 +6494,7 @@ if(isDisplay){
       if(v) v.muted = !!msg.muted;
     }
     if(msg.type === 'showFireworks'){
+      window.__fwLightMode = !!msg.lightMode;
       showFireworks(msg.duration);
     }
     if(msg.type === 'setFireworksVolume'){
@@ -7414,7 +7419,8 @@ if(isDisplay){
 
   document.getElementById('fireworks-btn').addEventListener('click', () => {
     if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'showFireworks', duration: 12 }, '*');
+      const lightMode = document.getElementById('fw-light-mode-toggle').checked;
+      childWin.postMessage({ type: 'showFireworks', duration: 12, lightMode }, '*');
     }
   });
 
