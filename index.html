@@ -5679,6 +5679,7 @@ if(isDisplay){
     msActive = false;
     if(msAnimFrame) cancelAnimationFrame(msAnimFrame);
     msAnimFrame = null;
+    if(msCtx) msCtx.clearRect(0, 0, msW, msH); // 念のため、明示的にキャンバスをクリアしておく
     window.removeEventListener('resize', msResizeCanvas_);
     if(msStream){ msStream.getTracks().forEach(t => t.stop()); msStream = null; }
     if(msAudioCtx){ msAudioCtx.close().catch(() => {}); msAudioCtx = null; }
