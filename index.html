@@ -360,6 +360,15 @@
     padding:24px;
   }
   #music-fireworks-setup.active{ display:flex; }
+  #notice-input-modal{
+    position:fixed; inset:0;
+    z-index:500;
+    display:none;
+    align-items:center; justify-content:center;
+    background:rgba(6,8,18,0.92);
+    padding:24px;
+  }
+  #notice-input-modal.active{ display:flex; }
   .mf-setup-box{
     width:min(440px, 100%);
     background:var(--night);
@@ -419,6 +428,28 @@
     cursor:pointer;
   }
   #mf-setup-cancel-btn{
+    display:block; width:100%;
+    padding:10px;
+    background:transparent;
+    border:1px solid rgba(233,228,216,0.3);
+    color:rgba(233,228,216,0.7);
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  #notice-input-ok-btn{
+    display:block; width:100%;
+    padding:12px;
+    margin-top:6px;
+    margin-bottom:8px;
+    background:linear-gradient(135deg, rgba(94,203,255,0.25), rgba(224,112,255,0.25));
+    border:1.5px solid #9ad4ff;
+    color:#c7e8ff;
+    border-radius:8px;
+    font-size:14px; font-weight:700;
+    cursor:pointer;
+  }
+  #notice-input-cancel-btn{
     display:block; width:100%;
     padding:10px;
     background:transparent;
@@ -775,6 +806,8 @@
   #announce-modal.active, #caption-modal.active, #restyle-modal.active, #ticker-modal.active{ display:flex; }
   #announce-modal .box, #caption-modal .box, #restyle-modal .box, #ticker-modal .box{
     width:min(480px, 90vw);
+    max-height:88vh;
+    overflow-y:auto;
     background:var(--night);
     border:1px solid rgba(212,168,67,0.4);
     border-radius:16px;
@@ -1086,6 +1119,31 @@
     padding:24px;
   }
   #cp-sponsor-modal.active{ display:flex; }
+  #cp-sponsor-live-bar{
+    display:none;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    background:rgba(224,90,45,0.15);
+    border:1.5px solid var(--lantern);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:16px;
+    font-size:12.5px;
+    color:rgba(233,228,216,0.9);
+  }
+  #cp-sponsor-live-bar.active{ display:flex; }
+  #cp-sponsor-live-bar span{ flex:1; font-weight:700; }
+  #cp-sponsor-live-end-btn{
+    padding:8px 12px;
+    background:rgba(224,45,45,0.2);
+    border:1px solid rgba(224,45,45,0.6);
+    color:#ff8080;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+  }
   #live-preview-modal{
     position:fixed; inset:0;
     background:rgba(6,8,18,0.92);
@@ -1606,6 +1664,22 @@
   </div>
 </div>
 
+<div id="notice-input-modal">
+  <div class="mf-setup-box">
+    <div class="mf-setup-title" id="notice-input-title">📢 アナウンス内容の入力</div>
+    <div class="mf-setup-row">
+      <label>先頭に表示するマーク(絵文字・空でもOK)</label>
+      <input type="text" id="notice-input-icon" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:16px; box-sizing:border-box;">
+    </div>
+    <div class="mf-setup-row">
+      <label>アナウンス内容(Enterキーで改行できます)</label>
+      <textarea id="notice-input-text" rows="4" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:14px; font-family:inherit; resize:vertical; box-sizing:border-box;"></textarea>
+    </div>
+    <button id="notice-input-ok-btn">この内容で表示する</button>
+    <button id="notice-input-cancel-btn">✕ キャンセル</button>
+  </div>
+</div>
+
 <!-- ==================== 操作パネル(この親ウィンドウに残る側) ==================== -->
 <div id="control-panel">
   <div class="cp-wrap">
@@ -1663,12 +1737,14 @@
       <span id="ms-intensity-value">5%</span>
     </div>
     <button type="button" id="ms-manual-launch-btn">🎇 押すたびに1発打ち上げる</button>
+    <!-- 「みんなのお絵かきを動かす」機能は、いったん非表示にしています(コードは残してあるので、また使う時はここのコメントを外してください)
     <button type="button" id="drawings-toggle-btn">✏️ みんなのお絵かきを動かす ON</button>
     <div class="cp-speed-row">
       <span>⏱ お絵かきの表示時間</span>
       <input type="range" id="drawing-lifetime-slider" min="5" max="60" value="20" style="flex:1;">
       <span id="drawing-lifetime-value">20秒</span>
     </div>
+    -->
 
     <button type="button" id="announce-section-toggle" class="cp-section-toggle">📢 アナウンス機能 ▼</button>
     <div id="announce-section">
@@ -1727,6 +1803,14 @@
         <button id="cp-sponsor-close-btn">✕ 閉じる</button>
       </div>
     </div>
+  </div>
+
+  <div id="cp-sponsor-live-bar">
+    <span>📢 会場でYouTube(広告)を再生中</span>
+    <label style="display:flex; align-items:center; gap:5px;">
+      <input type="checkbox" id="cp-sponsor-live-mute" checked> 🔇 音を消す
+    </label>
+    <button id="cp-sponsor-live-end-btn">⏹ 終了する</button>
   </div>
 
   <div id="preview-modal">
@@ -4837,12 +4921,14 @@ if(isDisplay){
       const videoId = extractYouTubeId_(sponsor.url);
       const startParam = startSecs > 0 ? `&start=${startSecs}` : '';
       const iframe = document.createElement('iframe');
-      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0${startParam}`;
+      iframe.id = 'sponsor-youtube-iframe';
+      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&enablejsapi=1${startParam}`;
       iframe.allow = 'autoplay; encrypted-media';
       iframe.allowFullscreen = true;
       inner.appendChild(iframe);
     }else{
       const video = document.createElement('video');
+      video.id = 'sponsor-video-el';
       video.src = URL.createObjectURL(sponsor.file); // 表示ウィンドウ側で、受け取ったファイルから改めてURLを作る
       video.autoplay = true;
       video.controls = true;
@@ -5156,6 +5242,7 @@ if(isDisplay){
   let fireworksAnimFrame = null;
   let fireworksLaunchTimers = [];
   let fireworksAudioCtx = null;
+  let fireworksSessionActive = false; // 二重起動防止(連打すると、古いループが行方不明になり残像の原因になるため)
 
   function getFireworksAudioCtx_(){
     if(!fireworksAudioCtx){
@@ -5225,25 +5312,34 @@ if(isDisplay){
   }
 
   // 破裂音(パン・ドンなど)とは別の、打ち上げ時の「ヒュー」音のバリエーション
+  // 打ち上げ時の「シュー」音:電子音っぽくならないよう、ノイズを帯域フィルターで加工して作る
   function playFireworksWhistleSound_(){
     try{
       const vol = window.__fireworksVolume;
       if(vol <= 0) return;
       const ctx = getFireworksAudioCtx_();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      const dur = 0.6;
+      const bufferSize = Math.floor(ctx.sampleRate * dur);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for(let i=0;i<bufferSize;i++){
+        data[i] = (Math.random()*2 - 1) * Math.pow(i/bufferSize, 0.5) * Math.pow(1 - i/bufferSize, 0.6);
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.Q.value = 0.9;
       const t0 = ctx.currentTime;
-      const dur = 0.7;
-      osc.frequency.setValueAtTime(1600, t0);
-      osc.frequency.exponentialRampToValueAtTime(3200, t0 + dur*0.85); // 甲高く「ヒュルルル」と駆け上がる
-      gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(0.035 * vol, t0 + 0.08);
+      filter.frequency.setValueAtTime(700, t0);
+      filter.frequency.exponentialRampToValueAtTime(2600, t0 + dur*0.85); // 低い「シュー」から、駆け上がるように高くなる
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.9 * vol, t0);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-      osc.start(t0);
-      osc.stop(t0 + dur + 0.05);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start(t0);
     }catch(err){}
   }
 
@@ -5281,6 +5377,9 @@ if(isDisplay){
   }
 
   function showFireworks(duration){
+    if(fireworksSessionActive) return; // すでに動いている間は、連打しても新しいループを作らない
+    fireworksSessionActive = true;
+
     const overlay = document.getElementById('fireworks-overlay');
     const canvas = document.getElementById('fireworks-canvas');
     const ctx = canvas.getContext('2d');
@@ -5316,11 +5415,11 @@ if(isDisplay){
     function launchFirework(targetX, targetY, isWillow, isFinale){
       const startX = targetX + randRange(-20,20);
       shells.push({ x:startX, y:H+10, targetX, targetY, life:0, riseTime:randRange(42,62), trail:[], isWillow, isFinale });
-      // 打ち上げ音(ヒュー)は使わず、破裂音(バン)だけに統一する
+      playFireworksWhistleSound_(); // ノイズベースの、自然な「シュー」という打ち上げ音
     }
     function burst(x, y, isWillow, isFinale){
       const [core, edge] = COLORS[Math.floor(Math.random()*COLORS.length)];
-      const count = isFinale ? 230 + Math.floor(Math.random()*50) : (130 + Math.floor(Math.random()*60));
+      const count = isFinale ? 300 + Math.floor(Math.random()*60) : (180 + Math.floor(Math.random()*70));
       const speedBase = (isFinale ? randRange(3.8, 5.8) : randRange(3.0, 5.0)) * (isWillow ? 0.75 : 1);
       for(let i=0;i<count;i++){
         const angle = (Math.PI*2*i)/count + Math.random()*0.15;
@@ -5369,7 +5468,7 @@ if(isDisplay){
       return `rgba(${parseInt(v.substr(0,2),16)},${parseInt(v.substr(2,2),16)},${parseInt(v.substr(4,2),16)},${a})`;
     }
     function draw(){
-      ctx.fillStyle = 'rgba(26,20,32,0.24)'; // 通常より残像を長めにして、賑やかに見せる
+      ctx.fillStyle = 'rgba(26,20,32,0.32)'; // 残像は残しつつ、確実に消えていくようフェードを少し強める
       ctx.fillRect(0,0,W,H);
       ctx.globalCompositeOperation = 'lighter';
       for(const s of shells){
@@ -5414,7 +5513,7 @@ if(isDisplay){
       if(Math.random() < 0.3){ // たまに畳み掛けるように2発同時発射
         setTimeout(() => launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), Math.random() < 0.25), 120);
       }
-      const t = setTimeout(scheduleLaunch, randRange(400, 900));
+      const t = setTimeout(scheduleLaunch, randRange(300, 700));
       fireworksLaunchTimers.push(t);
     };
     scheduleLaunch();
@@ -5424,6 +5523,7 @@ if(isDisplay){
   }
 
   function stopFireworks_(){
+    fireworksSessionActive = false;
     fireworksLaunchTimers.forEach(t => clearTimeout(t));
     fireworksLaunchTimers = [];
     if(fireworksAnimFrame) cancelAnimationFrame(fireworksAnimFrame);
@@ -6358,6 +6458,18 @@ if(isDisplay){
     if(msg.type === 'playSponsor'){
       playSponsorVideo(msg.sponsor, msg.startTime);
     }
+    if(msg.type === 'setSponsorVideoMuted'){
+      const iframe = document.getElementById('sponsor-youtube-iframe');
+      if(iframe && iframe.contentWindow){
+        const func = msg.muted ? 'mute' : 'unMute';
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*');
+      }
+      const videoEl = document.getElementById('sponsor-video-el');
+      if(videoEl) videoEl.muted = msg.muted;
+    }
+    if(msg.type === 'stopSponsorVideo'){
+      closeSponsorVideo();
+    }
     if(msg.type === 'showVipWelcome'){
       showVipWelcome(msg.text, msg.duration);
     }
@@ -7271,6 +7383,24 @@ if(isDisplay){
       childWin.postMessage({ type: 'playSponsor', sponsor: cpSponsorCurrent, startTime }, '*');
     }
     closeSponsorInPanel(); // 手元の確認再生は終了する(会場側だけが続きから再生される)
+
+    // 会場で再生中であることが分かるよう、操作パネルにバーを表示する
+    const liveBar = document.getElementById('cp-sponsor-live-bar');
+    document.getElementById('cp-sponsor-live-mute').checked = true;
+    liveBar.classList.add('active');
+  });
+
+  document.getElementById('cp-sponsor-live-mute').addEventListener('change', (e) => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'setSponsorVideoMuted', muted: e.target.checked }, '*');
+    }
+  });
+
+  document.getElementById('cp-sponsor-live-end-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'stopSponsorVideo' }, '*');
+    }
+    document.getElementById('cp-sponsor-live-bar').classList.remove('active');
   });
 
   // 「特別ゲスト歓迎」:名前を入力するだけで、即座に華やかな歓迎スライドを差し込む
@@ -7375,22 +7505,41 @@ if(isDisplay){
     }
   });
 
-  document.getElementById('lost-child-btn').addEventListener('click', () => {
-    const text = prompt('お知らせ内容を入力してください(例:みずいろの帽子の女の子をお預かりしています。お心当たりの方は本部テントまでお越しください)');
+  // ---------- アナウンス内容の入力(改行できるよう、prompt()の代わりに専用モーダルを使う) ----------
+  const noticeInputModal = document.getElementById('notice-input-modal');
+  const noticeInputTextEl = document.getElementById('notice-input-text');
+  const noticeInputIconEl = document.getElementById('notice-input-icon');
+  let noticeInputOnConfirm = null;
+
+  function openNoticeInput_(defaultText, defaultIcon, duration){
+    noticeInputTextEl.value = defaultText;
+    noticeInputIconEl.value = defaultIcon;
+    noticeInputOnConfirm = (text, icon) => {
+      if(childWin && !childWin.closed){
+        childWin.postMessage({ type: 'showNotice', text, icon, duration }, '*');
+      }
+    };
+    noticeInputModal.classList.add('active');
+    noticeInputTextEl.focus();
+  }
+
+  document.getElementById('notice-input-ok-btn').addEventListener('click', () => {
+    const text = noticeInputTextEl.value.trim();
     if(!text) return;
-    const icon = prompt('先頭に表示するマーク(絵文字)を入力してください。不要な場合は空のままOKを押してください', '🔍') || '';
-    if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'showNotice', text, icon, duration: 20 }, '*');
-    }
+    const icon = noticeInputIconEl.value.trim();
+    noticeInputModal.classList.remove('active');
+    if(noticeInputOnConfirm) noticeInputOnConfirm(text, icon);
+  });
+  document.getElementById('notice-input-cancel-btn').addEventListener('click', () => {
+    noticeInputModal.classList.remove('active');
+  });
+
+  document.getElementById('lost-child-btn').addEventListener('click', () => {
+    openNoticeInput_('みずいろの帽子の女の子をお預かりしています。お心当たりの方は本部テントまでお越しください', '🔍', 20);
   });
 
   document.getElementById('closing-notice-btn').addEventListener('click', () => {
-    const text = prompt('お知らせ内容を入力してください', 'まもなくお祭りは終了です\nお忘れ物のないようお気をつけください');
-    if(!text) return;
-    const icon = prompt('先頭に表示するマーク(絵文字)を入力してください。不要な場合は空のままOKを押してください', '⏰') || '';
-    if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'showNotice', text, icon, duration: 15 }, '*');
-    }
+    openNoticeInput_('まもなくお祭りは終了です\nお忘れ物のないようお気をつけください', '⏰', 15);
   });
 
   // ---------- ライブ映像:直接、会場に接続する(シンプル方式) ----------
@@ -7434,6 +7583,7 @@ if(isDisplay){
     const liveBtn = document.getElementById('live-camera-toggle-btn');
     liveBtn.textContent = '📹 ライブ映像に接続(実験的機能)';
     liveBtn.classList.remove('connected');
+    document.getElementById('cp-sponsor-live-bar').classList.remove('active');
   });
 
   document.getElementById('sponsor-add-file-btn').addEventListener('click', () => sponsorFileInput.click());
