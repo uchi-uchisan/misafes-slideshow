@@ -5476,8 +5476,7 @@ if(isDisplay){
       return `rgba(${parseInt(v.substr(0,2),16)},${parseInt(v.substr(2,2),16)},${parseInt(v.substr(4,2),16)},${a})`;
     }
     function draw(){
-      ctx.fillStyle = window.__fwLightMode ? 'rgba(26,20,32,0.55)' : 'rgba(26,20,32,0.42)'; // 重なりすぎて明るさが洗い流されない問題への対策として、フェードを強める
-      ctx.fillRect(0,0,W,H);
+      ctx.clearRect(0, 0, W, H); // 画面全体を、毎フレーム完全にクリアする(残像が起きようのない方式)
       ctx.globalCompositeOperation = 'lighter';
       for(const s of shells){
         for(let j=0;j<s.trail.length;j++){
