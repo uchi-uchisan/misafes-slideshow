@@ -5453,18 +5453,13 @@ if(isDisplay){
         const t = s.life / s.riseTime;
         const ease = 1 - Math.pow(1-t, 2);
         s.x = s.x + (s.targetX - s.x) * 0.03;
-        const prevY = s.y;
         s.y = (H+10) + ((s.targetY) - (H+10)) * ease;
-        s.trail.push({x:s.x, y:prevY});
-        if(s.trail.length > 8) s.trail.shift();
         if(t >= 1){ burst(s.targetX, s.targetY, s.isWillow, s.isFinale); shells.splice(i,1); }
       }
     }
     function updateSparks(){
       for(let i=sparks.length-1;i>=0;i--){
         const p = sparks[i];
-        p.trail.push({x:p.x, y:p.y});
-        if(p.trail.length > (p.gravityMul > 1 ? 9 : 5)) p.trail.shift(); // 柳は尾を長めに残す
         p.vy += GRAVITY * (p.gravityMul || 1); p.vx *= 0.985; p.vy *= 0.985;
         p.x += p.vx; p.y += p.vy;
         p.life -= p.decay;
@@ -5476,21 +5471,13 @@ if(isDisplay){
       return `rgba(${parseInt(v.substr(0,2),16)},${parseInt(v.substr(2,2),16)},${parseInt(v.substr(4,2),16)},${a})`;
     }
     function draw(){
-      ctx.clearRect(0, 0, W, H); // 画面全体を、毎フレーム完全にクリアする(残像が起きようのない方式)
+      ctx.clearRect(0,0,W,H); // 尾を引かせず、毎フレーム完全にクリアしてから現在位置だけを描く
       ctx.globalCompositeOperation = 'lighter';
       for(const s of shells){
-        for(let j=0;j<s.trail.length;j++){
-          const tp = s.trail[j]; const a = (j+1)/s.trail.length;
-          ctx.fillStyle = `rgba(255,214,150,${a*0.8})`;
-          ctx.beginPath(); ctx.arc(tp.x, tp.y, 1.8*a, 0, Math.PI*2); ctx.fill();
-        }
+        ctx.fillStyle = 'rgba(255,214,150,0.9)';
+        ctx.beginPath(); ctx.arc(s.x, s.y, 2, 0, Math.PI*2); ctx.fill();
       }
       for(const p of sparks){
-        for(let j=0;j<p.trail.length;j++){
-          const tp = p.trail[j]; const a = ((j+1)/p.trail.length) * p.life;
-          ctx.fillStyle = hexToRgba(p.color, a*0.6);
-          ctx.beginPath(); ctx.arc(tp.x, tp.y, (p.flash? p.size*0.6 : p.size)*a, 0, Math.PI*2); ctx.fill();
-        }
         ctx.fillStyle = hexToRgba(p.color, p.life);
         ctx.beginPath(); ctx.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2); ctx.fill();
       }
@@ -5678,7 +5665,6 @@ if(isDisplay){
     msActive = false;
     if(msAnimFrame) cancelAnimationFrame(msAnimFrame);
     msAnimFrame = null;
-    if(msCtx) msCtx.clearRect(0, 0, msW, msH); // 念のため、明示的にキャンバスをクリアしておく
     window.removeEventListener('resize', msResizeCanvas_);
     if(msStream){ msStream.getTracks().forEach(t => t.stop()); msStream = null; }
     if(msAudioCtx){ msAudioCtx.close().catch(() => {}); msAudioCtx = null; }
@@ -5908,9 +5894,6 @@ if(isDisplay){
     }
     for(let i=msSparks.length-1;i>=0;i--){
       const p = msSparks[i];
-      p.trail.push({x:p.x, y:p.y});
-      const maxTrailLen = p.maxTrail || (p.twinkle ? 3 : 5);
-      if(p.trail.length > maxTrailLen) p.trail.shift();
       p.vy += 0.055; p.vx *= 0.985; p.vy *= 0.985;
       p.x += p.vx; p.y += p.vy;
       p.life -= p.decay;
@@ -5920,11 +5903,6 @@ if(isDisplay){
       const twinkleMul = p.twinkle ? (0.4 + Math.random()*0.6) : 1;
       const v = p.color.replace('#','');
       const r = parseInt(v.substr(0,2),16), g = parseInt(v.substr(2,2),16), b = parseInt(v.substr(4,2),16);
-      for(let j=0;j<p.trail.length;j++){
-        const tp = p.trail[j]; const a = ((j+1)/p.trail.length) * p.life * twinkleMul;
-        msCtx.fillStyle = `rgba(${r},${g},${b},${a*0.6})`;
-        msCtx.beginPath(); msCtx.arc(tp.x, tp.y, (p.flash? p.size*0.6 : p.size)*a, 0, Math.PI*2); msCtx.fill();
-      }
       msCtx.fillStyle = `rgba(${r},${g},${b},${p.life*twinkleMul})`;
       msCtx.beginPath(); msCtx.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2); msCtx.fill();
     }
