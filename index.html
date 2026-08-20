@@ -7464,33 +7464,40 @@ if(isDisplay){
   });
 
   let drawingsOn = false;
-  document.getElementById('drawings-toggle-btn').addEventListener('click', () => {
-    if(!childWin || childWin.closed){
-      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
-      return;
-    }
-    const btn = document.getElementById('drawings-toggle-btn');
-    drawingsOn = !drawingsOn;
-    if(drawingsOn){
-      childWin.postMessage({ type: 'startDrawings' }, '*');
-      btn.textContent = '✏️ みんなのお絵かきを動かす OFF';
-      btn.classList.add('active');
-    }else{
-      childWin.postMessage({ type: 'stopDrawings' }, '*');
-      btn.textContent = '✏️ みんなのお絵かきを動かす ON';
-      btn.classList.remove('active');
-    }
-  });
+  // 「みんなのお絵かきを動かす」機能は、現在HTML側でコメントアウトして非表示にしているため、
+  // 要素が存在する場合のみイベントを設定する(存在チェックを省くと、ここでエラーになり、
+  // それ以降の初期化処理が止まってしまうため)
+  const drawingsToggleBtn = document.getElementById('drawings-toggle-btn');
+  if(drawingsToggleBtn){
+    drawingsToggleBtn.addEventListener('click', () => {
+      if(!childWin || childWin.closed){
+        alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+        return;
+      }
+      drawingsOn = !drawingsOn;
+      if(drawingsOn){
+        childWin.postMessage({ type: 'startDrawings' }, '*');
+        drawingsToggleBtn.textContent = '✏️ みんなのお絵かきを動かす OFF';
+        drawingsToggleBtn.classList.add('active');
+      }else{
+        childWin.postMessage({ type: 'stopDrawings' }, '*');
+        drawingsToggleBtn.textContent = '✏️ みんなのお絵かきを動かす ON';
+        drawingsToggleBtn.classList.remove('active');
+      }
+    });
+  }
 
   const drawingLifetimeSlider = document.getElementById('drawing-lifetime-slider');
   const drawingLifetimeValue = document.getElementById('drawing-lifetime-value');
-  drawingLifetimeSlider.addEventListener('input', () => {
-    const secs = parseInt(drawingLifetimeSlider.value, 10);
-    drawingLifetimeValue.textContent = secs + '秒';
-    if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'setDrawingLifetime', seconds: secs }, '*');
-    }
-  });
+  if(drawingLifetimeSlider && drawingLifetimeValue){
+    drawingLifetimeSlider.addEventListener('input', () => {
+      const secs = parseInt(drawingLifetimeSlider.value, 10);
+      drawingLifetimeValue.textContent = secs + '秒';
+      if(childWin && !childWin.closed){
+        childWin.postMessage({ type: 'setDrawingLifetime', seconds: secs }, '*');
+      }
+    });
+  }
 
   document.getElementById('announce-section-toggle').addEventListener('click', () => {
     const section = document.getElementById('announce-section');
