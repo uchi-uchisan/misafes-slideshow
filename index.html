@@ -5425,10 +5425,10 @@ if(isDisplay){
       const fwLightScale = window.__fwLightMode ? 0.4 : 1;
       // 画面内の粒の「総数」に上限を設け、重なりすぎて明るさが洗い流されない状態を防ぐ
       // (軽量モードでは、より低い上限にする)
-      const sparkCap = window.__fwLightMode ? 350 : 900;
+      const sparkCap = window.__fwLightMode ? 500 : 1400;
       if(sparks.length > sparkCap) return;
-      const count = Math.round((isFinale ? 300 + Math.floor(Math.random()*60) : (180 + Math.floor(Math.random()*70))) * fwLightScale);
-      const speedBase = (isFinale ? randRange(3.8, 5.8) : randRange(3.0, 5.0)) * (isWillow ? 0.75 : 1);
+      const count = Math.round((isFinale ? 420 + Math.floor(Math.random()*90) : (240 + Math.floor(Math.random()*90))) * fwLightScale);
+      const speedBase = (isFinale ? randRange(4.2, 6.4) : randRange(3.2, 5.4)) * (isWillow ? 0.75 : 1);
       for(let i=0;i<count;i++){
         const angle = (Math.PI*2*i)/count + Math.random()*0.15;
         const speed = speedBase * (0.6 + Math.random()*0.5);
@@ -5439,11 +5439,11 @@ if(isDisplay){
           decay: isWillow ? randRange(0.004, 0.007) : randRange(0.009, 0.016),
           gravityMul: isWillow ? 2.2 : 1,
           color: Math.random() < 0.75 ? core : edge,
-          size: (isFinale ? randRange(2.2, 3.6) : randRange(1.8, 3.0)),
+          size: (isFinale ? randRange(2.6, 4.2) : randRange(1.8, 3.0)),
           trail:[]
         });
       }
-      sparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: isFinale ? 32 : 22, flash:true, trail:[] });
+      sparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: isFinale ? 40 : 22, flash:true, trail:[] });
       playFireworksBurstSound_();
     }
     function updateShells(){
@@ -5496,18 +5496,24 @@ if(isDisplay){
     let finaleFired = false;
     const scheduleLaunch = () => {
       const elapsed = Date.now() - startedAt;
-      // 終了2秒前になったら、通常の連射を止めて、大玉のフィナーレを1発だけ打ち上げる
-      if(!finaleFired && elapsed >= totalMs - 2000){
+      // 終了4秒前になったら、通常の連射を止めて、大玉を連続で打ち上げる「スターマイン」フィナーレにする
+      if(!finaleFired && elapsed >= totalMs - 4000){
         finaleFired = true;
-        launchFirework(W*0.5, H*0.32, false, true);
+        const finaleCount = window.__fwLightMode ? 4 : 8; // 軽量モードでは、フィナーレの発数も抑える
+        for(let i = 0; i < finaleCount; i++){
+          const t = setTimeout(() => {
+            launchFirework(randRange(W*0.25, W*0.75), randRange(H*0.22, H*0.4), Math.random() < 0.2, true);
+          }, i * (window.__fwLightMode ? 380 : 260));
+          fireworksLaunchTimers.push(t);
+        }
         return; // ここでスケジュールを止める(この後はstopFireworks_で全体が終了する)
       }
       const isWillow = Math.random() < 0.25; // 4回に1回くらいの頻度で、柳タイプを混ぜる
       launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), isWillow);
-      if(Math.random() < 0.3){ // たまに畳み掛けるように2発同時発射
+      if(Math.random() < 0.4){ // 畳み掛けるように2発同時発射する頻度を上げる
         setTimeout(() => launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), Math.random() < 0.25), 120);
       }
-      const t = setTimeout(scheduleLaunch, window.__fwLightMode ? randRange(700, 1300) : randRange(350, 750));
+      const t = setTimeout(scheduleLaunch, window.__fwLightMode ? randRange(600, 1100) : randRange(280, 620));
       fireworksLaunchTimers.push(t);
     };
     scheduleLaunch();
@@ -7402,7 +7408,7 @@ if(isDisplay){
   document.getElementById('fireworks-btn').addEventListener('click', () => {
     if(childWin && !childWin.closed){
       const lightMode = document.getElementById('fw-light-mode-toggle').checked;
-      childWin.postMessage({ type: 'showFireworks', duration: 12, lightMode }, '*');
+      childWin.postMessage({ type: 'showFireworks', duration: 25, lightMode }, '*');
     }
   });
 
