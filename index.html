@@ -5423,6 +5423,10 @@ if(isDisplay){
     function burst(x, y, isWillow, isFinale){
       const [core, edge] = COLORS[Math.floor(Math.random()*COLORS.length)];
       const fwLightScale = window.__fwLightMode ? 0.4 : 1;
+      // 画面内の粒の「総数」に上限を設け、重なりすぎて明るさが洗い流されない状態を防ぐ
+      // (軽量モードでは、より低い上限にする)
+      const sparkCap = window.__fwLightMode ? 350 : 900;
+      if(sparks.length > sparkCap) return;
       const count = Math.round((isFinale ? 300 + Math.floor(Math.random()*60) : (180 + Math.floor(Math.random()*70))) * fwLightScale);
       const speedBase = (isFinale ? randRange(3.8, 5.8) : randRange(3.0, 5.0)) * (isWillow ? 0.75 : 1);
       for(let i=0;i<count;i++){
