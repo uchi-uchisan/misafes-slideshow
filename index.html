@@ -1755,6 +1755,14 @@
       <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:8px 0 10px 2px;">
         <input type="checkbox" id="notice-speech-toggle" checked> 🔊 アナウンスを音声でも読み上げる
       </label>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:0 0 6px 2px;">
+        <input type="checkbox" id="voicevox-toggle"> 🎤 VOICEVOXで読み上げる(要:パソコンでVOICEVOXを起動しておく。繋がらない場合は自動的に通常の読み上げに切り替わります)
+      </label>
+      <div class="cp-speed-row" id="voicevox-speaker-row" style="display:none;">
+        <span>話者ID</span>
+        <input type="number" id="voicevox-speaker-id" value="2" min="0" max="99" style="width:60px; padding:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink);">
+        <span style="font-size:11px; color:rgba(233,228,216,0.5);">(VOICEVOX側の話者一覧で確認できます。既定は2番:四国めたん ノーマル)</span>
+      </div>
       <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
       <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
     </div>
@@ -5077,23 +5085,73 @@ if(isDisplay){
   }
 
   // お知らせ文を、ブラウザ標準の音声合成で読み上げる(window.__noticeSpeechOn がfalseなら何もしない)
-  function speakNoticeText_(text){
-    if(window.__noticeSpeechOn === false) return; // 明示的にオフにされていなければ、既定で読み上げる
+  // ブラウザ標準の読み上げ(VOICEVOXが使えない時の、確実な代替手段)
+  function speakWithBrowserTts_(text){
     if(!('speechSynthesis' in window)) return;
     try{
-      window.speechSynthesis.cancel(); // 前の読み上げが残っていたら止める
+      window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'ja-JP';
       utter.rate = 0.95;
       utter.pitch = 1.0;
-      // 日本語の音声があれば、明示的に選ぶ(環境によっては省略しても自動選択される)
-      const voices = window.speechSynthesis.getVoices();
-      const jaVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
-      if(jaVoice) utter.voice = jaVoice;
-      setTimeout(() => window.speechSynthesis.speak(utter), 900); // チャイムの音と重ならないよう、少し間を置く
+      const voices = window.speechSynthesis.getVoices().filter(v => v.lang && v.lang.startsWith('ja'));
+      const preferred = voices.find(v => /natural|neural/i.test(v.name))
+        || voices.find(v => /google/i.test(v.name))
+        || voices[0];
+      if(preferred) utter.voice = preferred;
+      window.speechSynthesis.speak(utter);
     }catch(err){
       // 読み上げに失敗しても、文字の表示・チャイムはそのまま続ける
     }
+  }
+
+  // VOICEVOX(パソコン内で起動している場合のみ)を使って読み上げる。
+  // 繋がらなければ、静かにあきらめて、ブラウザ標準の読み上げに切り替える。
+  const VOICEVOX_URL = 'http://127.0.0.1:50021';
+  async function speakWithVoicevox_(text){
+    const speakerId = window.__voicevoxSpeakerId !== undefined ? window.__voicevoxSpeakerId : 2; // 既定:四国めたん(ノーマル)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒以内に応答がなければ、あきらめて標準読み上げに切り替える
+    try{
+      const queryRes = await fetch(
+        `${VOICEVOX_URL}/audio_query?text=${encodeURIComponent(text)}&speaker=${speakerId}`,
+        { method: 'POST', signal: controller.signal }
+      );
+      if(!queryRes.ok) throw new Error('audio_query失敗');
+      const queryJson = await queryRes.json();
+
+      const synthRes = await fetch(
+        `${VOICEVOX_URL}/synthesis?speaker=${speakerId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(queryJson),
+          signal: controller.signal
+        }
+      );
+      if(!synthRes.ok) throw new Error('synthesis失敗');
+      clearTimeout(timeoutId);
+
+      const blob = await synthRes.blob();
+      const audio = new Audio(URL.createObjectURL(blob));
+      audio.play();
+      return true; // 成功
+    }catch(err){
+      clearTimeout(timeoutId);
+      return false; // 失敗(VOICEVOXが起動していない、繋がらない、等)
+    }
+  }
+
+  async function speakNoticeText_(text){
+    if(window.__noticeSpeechOn === false) return; // 明示的にオフにされていなければ、既定で読み上げる
+    await new Promise(r => setTimeout(r, 900)); // チャイムの音と重ならないよう、少し間を置く
+
+    if(window.__useVoicevox){
+      const ok = await speakWithVoicevox_(text);
+      if(ok) return; // VOICEVOXでの読み上げに成功したら、ここで終わり
+      // 失敗した場合は、そのままブラウザ標準の読み上げに切り替える(下に続く)
+    }
+    speakWithBrowserTts_(text);
   }
 
   // ---------- ライブ映像(自作・実験的機能):露店からの映像を受信して全画面表示する ----------
@@ -5425,10 +5483,10 @@ if(isDisplay){
       const fwLightScale = window.__fwLightMode ? 0.4 : 1;
       // 画面内の粒の「総数」に上限を設け、重なりすぎて明るさが洗い流されない状態を防ぐ
       // (軽量モードでは、より低い上限にする)
-      const sparkCap = window.__fwLightMode ? 500 : 1400;
+      const sparkCap = window.__fwLightMode ? 350 : 900;
       if(sparks.length > sparkCap) return;
-      const count = Math.round((isFinale ? 420 + Math.floor(Math.random()*90) : (240 + Math.floor(Math.random()*90))) * fwLightScale);
-      const speedBase = (isFinale ? randRange(4.2, 6.4) : randRange(3.2, 5.4)) * (isWillow ? 0.75 : 1);
+      const count = Math.round((isFinale ? 300 + Math.floor(Math.random()*60) : (180 + Math.floor(Math.random()*70))) * fwLightScale);
+      const speedBase = (isFinale ? randRange(3.8, 5.8) : randRange(3.0, 5.0)) * (isWillow ? 0.75 : 1);
       for(let i=0;i<count;i++){
         const angle = (Math.PI*2*i)/count + Math.random()*0.15;
         const speed = speedBase * (0.6 + Math.random()*0.5);
@@ -5439,11 +5497,11 @@ if(isDisplay){
           decay: isWillow ? randRange(0.004, 0.007) : randRange(0.009, 0.016),
           gravityMul: isWillow ? 2.2 : 1,
           color: Math.random() < 0.75 ? core : edge,
-          size: (isFinale ? randRange(2.6, 4.2) : randRange(1.8, 3.0)),
+          size: (isFinale ? randRange(2.2, 3.6) : randRange(1.8, 3.0)),
           trail:[]
         });
       }
-      sparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: isFinale ? 40 : 22, flash:true, trail:[] });
+      sparks.push({ x, y, vx:0, vy:0, life:1, decay:0.06, color:'#ffffff', size: isFinale ? 32 : 22, flash:true, trail:[] });
       playFireworksBurstSound_();
     }
     function updateShells(){
@@ -5453,13 +5511,18 @@ if(isDisplay){
         const t = s.life / s.riseTime;
         const ease = 1 - Math.pow(1-t, 2);
         s.x = s.x + (s.targetX - s.x) * 0.03;
+        const prevY = s.y;
         s.y = (H+10) + ((s.targetY) - (H+10)) * ease;
+        s.trail.push({x:s.x, y:prevY});
+        if(s.trail.length > 8) s.trail.shift();
         if(t >= 1){ burst(s.targetX, s.targetY, s.isWillow, s.isFinale); shells.splice(i,1); }
       }
     }
     function updateSparks(){
       for(let i=sparks.length-1;i>=0;i--){
         const p = sparks[i];
+        p.trail.push({x:p.x, y:p.y});
+        if(p.trail.length > (p.gravityMul > 1 ? 9 : 5)) p.trail.shift(); // 柳は尾を長めに残す
         p.vy += GRAVITY * (p.gravityMul || 1); p.vx *= 0.985; p.vy *= 0.985;
         p.x += p.vx; p.y += p.vy;
         p.life -= p.decay;
@@ -5471,13 +5534,21 @@ if(isDisplay){
       return `rgba(${parseInt(v.substr(0,2),16)},${parseInt(v.substr(2,2),16)},${parseInt(v.substr(4,2),16)},${a})`;
     }
     function draw(){
-      ctx.clearRect(0,0,W,H); // 尾を引かせず、毎フレーム完全にクリアしてから現在位置だけを描く
+      ctx.clearRect(0, 0, W, H); // 画面全体を、毎フレーム完全にクリアする(残像が起きようのない方式)
       ctx.globalCompositeOperation = 'lighter';
       for(const s of shells){
-        ctx.fillStyle = 'rgba(255,214,150,0.9)';
-        ctx.beginPath(); ctx.arc(s.x, s.y, 2, 0, Math.PI*2); ctx.fill();
+        for(let j=0;j<s.trail.length;j++){
+          const tp = s.trail[j]; const a = (j+1)/s.trail.length;
+          ctx.fillStyle = `rgba(255,214,150,${a*0.8})`;
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, 1.8*a, 0, Math.PI*2); ctx.fill();
+        }
       }
       for(const p of sparks){
+        for(let j=0;j<p.trail.length;j++){
+          const tp = p.trail[j]; const a = ((j+1)/p.trail.length) * p.life;
+          ctx.fillStyle = hexToRgba(p.color, a*0.6);
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, (p.flash? p.size*0.6 : p.size)*a, 0, Math.PI*2); ctx.fill();
+        }
         ctx.fillStyle = hexToRgba(p.color, p.life);
         ctx.beginPath(); ctx.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2); ctx.fill();
       }
@@ -5496,24 +5567,18 @@ if(isDisplay){
     let finaleFired = false;
     const scheduleLaunch = () => {
       const elapsed = Date.now() - startedAt;
-      // 終了4秒前になったら、通常の連射を止めて、大玉を連続で打ち上げる「スターマイン」フィナーレにする
-      if(!finaleFired && elapsed >= totalMs - 4000){
+      // 終了2秒前になったら、通常の連射を止めて、大玉のフィナーレを1発だけ打ち上げる
+      if(!finaleFired && elapsed >= totalMs - 2000){
         finaleFired = true;
-        const finaleCount = window.__fwLightMode ? 4 : 8; // 軽量モードでは、フィナーレの発数も抑える
-        for(let i = 0; i < finaleCount; i++){
-          const t = setTimeout(() => {
-            launchFirework(randRange(W*0.25, W*0.75), randRange(H*0.22, H*0.4), Math.random() < 0.2, true);
-          }, i * (window.__fwLightMode ? 380 : 260));
-          fireworksLaunchTimers.push(t);
-        }
+        launchFirework(W*0.5, H*0.32, false, true);
         return; // ここでスケジュールを止める(この後はstopFireworks_で全体が終了する)
       }
       const isWillow = Math.random() < 0.25; // 4回に1回くらいの頻度で、柳タイプを混ぜる
       launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), isWillow);
-      if(Math.random() < 0.4){ // 畳み掛けるように2発同時発射する頻度を上げる
+      if(Math.random() < 0.3){ // たまに畳み掛けるように2発同時発射
         setTimeout(() => launchFirework(randRange(W*0.15, W*0.85), randRange(H*0.15, H*0.55), Math.random() < 0.25), 120);
       }
-      const t = setTimeout(scheduleLaunch, window.__fwLightMode ? randRange(600, 1100) : randRange(280, 620));
+      const t = setTimeout(scheduleLaunch, window.__fwLightMode ? randRange(700, 1300) : randRange(350, 750));
       fireworksLaunchTimers.push(t);
     };
     scheduleLaunch();
@@ -5671,6 +5736,7 @@ if(isDisplay){
     msActive = false;
     if(msAnimFrame) cancelAnimationFrame(msAnimFrame);
     msAnimFrame = null;
+    if(msCtx) msCtx.clearRect(0, 0, msW, msH); // 念のため、明示的にキャンバスをクリアしておく
     window.removeEventListener('resize', msResizeCanvas_);
     if(msStream){ msStream.getTracks().forEach(t => t.stop()); msStream = null; }
     if(msAudioCtx){ msAudioCtx.close().catch(() => {}); msAudioCtx = null; }
@@ -5900,6 +5966,9 @@ if(isDisplay){
     }
     for(let i=msSparks.length-1;i>=0;i--){
       const p = msSparks[i];
+      p.trail.push({x:p.x, y:p.y});
+      const maxTrailLen = p.maxTrail || (p.twinkle ? 3 : 5);
+      if(p.trail.length > maxTrailLen) p.trail.shift();
       p.vy += 0.055; p.vx *= 0.985; p.vy *= 0.985;
       p.x += p.vx; p.y += p.vy;
       p.life -= p.decay;
@@ -5909,6 +5978,11 @@ if(isDisplay){
       const twinkleMul = p.twinkle ? (0.4 + Math.random()*0.6) : 1;
       const v = p.color.replace('#','');
       const r = parseInt(v.substr(0,2),16), g = parseInt(v.substr(2,2),16), b = parseInt(v.substr(4,2),16);
+      for(let j=0;j<p.trail.length;j++){
+        const tp = p.trail[j]; const a = ((j+1)/p.trail.length) * p.life * twinkleMul;
+        msCtx.fillStyle = `rgba(${r},${g},${b},${a*0.6})`;
+        msCtx.beginPath(); msCtx.arc(tp.x, tp.y, (p.flash? p.size*0.6 : p.size)*a, 0, Math.PI*2); msCtx.fill();
+      }
       msCtx.fillStyle = `rgba(${r},${g},${b},${p.life*twinkleMul})`;
       msCtx.beginPath(); msCtx.arc(p.x, p.y, p.flash ? p.size*p.life : p.size, 0, Math.PI*2); msCtx.fill();
     }
@@ -6087,6 +6161,29 @@ if(isDisplay){
     });
     drawingsAnimFrame = requestAnimationFrame(drawingsLoop_);
   }
+
+  // ---------- 遠隔承認(PC以外の端末からの承認):既存のPC操作パネル経由の承認とは別の、並行した経路 ----------
+  // ページを開いている間は常に、数秒おきに新しい遠隔承認がないか確認し続ける
+  const seenRemoteApprovals = new Set();
+  async function pollRemoteApprovals_(){
+    try{
+      const res = await fetch(LIVE_APPSCRIPT_BASE_URL + '?action=getRemoteApprovals', { cache: 'no-store' });
+      if(!res.ok) return;
+      const items = await res.json();
+      items.forEach(item => {
+        const key = item.time;
+        if(seenRemoteApprovals.has(key)) return;
+        seenRemoteApprovals.add(key);
+        if(!item.photoUrl) return; // 写真がない投稿は、遠隔承認の対象外にしておく
+        const startIndex = slides.length;
+        slides.push({ url: item.photoUrl, caption: item.caption || '', style: item.style || null, isApproved: true });
+        order.splice(insertPos(), 0, startIndex);
+        updateCounter();
+      });
+    }catch(err){ /* 取得できなくても、次回のポーリングで再挑戦する */ }
+  }
+  setInterval(pollRemoteApprovals_, 6000);
+  pollRemoteApprovals_();
 
   function startDrawingsAnimation(){
     if(drawingsActive) return;
@@ -6470,6 +6567,10 @@ if(isDisplay){
     }
     if(msg.type === 'setNoticeSpeech'){
       window.__noticeSpeechOn = msg.on;
+    }
+    if(msg.type === 'setVoicevoxSettings'){
+      window.__useVoicevox = msg.useVoicevox;
+      window.__voicevoxSpeakerId = msg.speakerId;
     }
     if(msg.type === 'connectLiveCamera'){
       connectLiveCamera(msg.muted);
@@ -7408,7 +7509,7 @@ if(isDisplay){
   document.getElementById('fireworks-btn').addEventListener('click', () => {
     if(childWin && !childWin.closed){
       const lightMode = document.getElementById('fw-light-mode-toggle').checked;
-      childWin.postMessage({ type: 'showFireworks', duration: 25, lightMode }, '*');
+      childWin.postMessage({ type: 'showFireworks', duration: 12, lightMode }, '*');
     }
   });
 
@@ -7505,6 +7606,23 @@ if(isDisplay){
       childWin.postMessage({ type: 'setNoticeSpeech', on: e.target.checked }, '*');
     }
   });
+
+  const voicevoxToggle = document.getElementById('voicevox-toggle');
+  const voicevoxSpeakerRow = document.getElementById('voicevox-speaker-row');
+  const voicevoxSpeakerId = document.getElementById('voicevox-speaker-id');
+
+  function sendVoicevoxSettings_(){
+    voicevoxSpeakerRow.style.display = voicevoxToggle.checked ? 'flex' : 'none';
+    if(childWin && !childWin.closed){
+      childWin.postMessage({
+        type: 'setVoicevoxSettings',
+        useVoicevox: voicevoxToggle.checked,
+        speakerId: parseInt(voicevoxSpeakerId.value, 10) || 2
+      }, '*');
+    }
+  }
+  voicevoxToggle.addEventListener('change', sendVoicevoxSettings_);
+  voicevoxSpeakerId.addEventListener('change', sendVoicevoxSettings_);
 
   // ---------- アナウンス内容の入力(改行できるよう、prompt()の代わりに専用モーダルを使う) ----------
   const noticeInputModal = document.getElementById('notice-input-modal');
