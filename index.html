@@ -7868,6 +7868,22 @@ if(isDisplay){
         settings
       }, '*');
       document.getElementById('cp-status').textContent = '🟢 表示ウィンドウに接続しました';
+
+      // 接続が確立したこのタイミングで、現在の設定を確実に送っておく
+      // (チェックボックスをこの前に操作していた場合、その変更が表示ウィンドウにまだ届いていないことがあるため)
+      const noticeSpeechToggleEl = document.getElementById('notice-speech-toggle');
+      if(noticeSpeechToggleEl){
+        childWin.postMessage({ type: 'setNoticeSpeech', on: noticeSpeechToggleEl.checked }, '*');
+      }
+      const voicevoxToggleEl = document.getElementById('voicevox-toggle');
+      const voicevoxSpeakerSelectEl = document.getElementById('voicevox-speaker-select');
+      if(voicevoxToggleEl && voicevoxSpeakerSelectEl){
+        childWin.postMessage({
+          type: 'setVoicevoxSettings',
+          useVoicevox: voicevoxToggleEl.checked,
+          speakerId: parseInt(voicevoxSpeakerSelectEl.value, 10) || 2
+        }, '*');
+      }
     }
     window.addEventListener('message', onReady);
 
