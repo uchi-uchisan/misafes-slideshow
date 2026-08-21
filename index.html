@@ -1758,10 +1758,12 @@
       <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:0 0 6px 2px;">
         <input type="checkbox" id="voicevox-toggle"> 🎤 VOICEVOXで読み上げる(要:パソコンでVOICEVOXを起動しておく。繋がらない場合は自動的に通常の読み上げに切り替わります)
       </label>
-      <div class="cp-speed-row" id="voicevox-speaker-row" style="display:none;">
-        <span>話者ID</span>
-        <input type="number" id="voicevox-speaker-id" value="2" min="0" max="99" style="width:60px; padding:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink);">
-        <span style="font-size:11px; color:rgba(233,228,216,0.5);">(VOICEVOX側の話者一覧で確認できます。既定は2番:四国めたん ノーマル)</span>
+      <div id="voicevox-speaker-row" style="display:none; margin-bottom:10px;">
+        <button type="button" id="voicevox-fetch-speakers-btn" style="width:100%; padding:8px; margin-bottom:6px; background:rgba(212,168,67,0.1); border:1px solid rgba(212,168,67,0.4); color:var(--gold); border-radius:6px; font-size:12px; cursor:pointer;">🔄 VOICEVOXから音声一覧を取得する</button>
+        <select id="voicevox-speaker-select" style="width:100%; padding:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink); font-size:12.5px;">
+          <option value="2">(未取得)既定:四国めたん ノーマル</option>
+        </select>
+        <div id="voicevox-fetch-status" style="font-size:11px; color:rgba(233,228,216,0.5); margin-top:4px;"></div>
       </div>
       <button type="button" id="lost-child-btn">🔍 迷子・呼び出しアナウンス</button>
       <button type="button" id="closing-notice-btn">⏰ 終了案内アナウンス</button>
@@ -7615,20 +7617,45 @@ if(isDisplay){
 
   const voicevoxToggle = document.getElementById('voicevox-toggle');
   const voicevoxSpeakerRow = document.getElementById('voicevox-speaker-row');
-  const voicevoxSpeakerId = document.getElementById('voicevox-speaker-id');
+  const voicevoxSpeakerSelect = document.getElementById('voicevox-speaker-select');
+  const voicevoxFetchBtn = document.getElementById('voicevox-fetch-speakers-btn');
+  const voicevoxFetchStatus = document.getElementById('voicevox-fetch-status');
 
   function sendVoicevoxSettings_(){
-    voicevoxSpeakerRow.style.display = voicevoxToggle.checked ? 'flex' : 'none';
+    voicevoxSpeakerRow.style.display = voicevoxToggle.checked ? 'block' : 'none';
     if(childWin && !childWin.closed){
       childWin.postMessage({
         type: 'setVoicevoxSettings',
         useVoicevox: voicevoxToggle.checked,
-        speakerId: parseInt(voicevoxSpeakerId.value, 10) || 2
+        speakerId: parseInt(voicevoxSpeakerSelect.value, 10) || 2
       }, '*');
     }
   }
   voicevoxToggle.addEventListener('change', sendVoicevoxSettings_);
-  voicevoxSpeakerId.addEventListener('change', sendVoicevoxSettings_);
+  voicevoxSpeakerSelect.addEventListener('change', sendVoicevoxSettings_);
+
+  // VOICEVOXから、実際に使える音声の一覧(名前+正しいID)を取得して、プルダウンに反映する
+  voicevoxFetchBtn.addEventListener('click', async () => {
+    voicevoxFetchStatus.textContent = '取得中…';
+    try{
+      const res = await fetch('http://127.0.0.1:50021/speakers');
+      if(!res.ok) throw new Error('status=' + res.status);
+      const speakers = await res.json();
+      voicevoxSpeakerSelect.innerHTML = '';
+      speakers.forEach(sp => {
+        sp.styles.forEach(style => {
+          const opt = document.createElement('option');
+          opt.value = style.id;
+          opt.textContent = `${sp.name} - ${style.name}(ID:${style.id})`;
+          voicevoxSpeakerSelect.appendChild(opt);
+        });
+      });
+      voicevoxFetchStatus.textContent = `✅ ${speakers.length}件のキャラクターを取得しました。下のプルダウンから選んでください`;
+      sendVoicevoxSettings_(); // 一覧の先頭が選ばれた状態で、設定を反映しておく
+    }catch(err){
+      voicevoxFetchStatus.textContent = '取得できませんでした。VOICEVOXが起動しているか確認してください';
+    }
+  });
 
   // ---------- アナウンス内容の入力(改行できるよう、prompt()の代わりに専用モーダルを使う) ----------
   const noticeInputModal = document.getElementById('notice-input-modal');
