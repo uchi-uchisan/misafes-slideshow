@@ -5113,13 +5113,16 @@ if(isDisplay){
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒以内に応答がなければ、あきらめて標準読み上げに切り替える
     try{
+      console.log('[VOICEVOX診断] audio_queryへ接続を試みます…');
       const queryRes = await fetch(
         `${VOICEVOX_URL}/audio_query?text=${encodeURIComponent(text)}&speaker=${speakerId}`,
         { method: 'POST', signal: controller.signal }
       );
-      if(!queryRes.ok) throw new Error('audio_query失敗');
+      console.log('[VOICEVOX診断] audio_queryの応答:', queryRes.status);
+      if(!queryRes.ok) throw new Error('audio_query失敗:status=' + queryRes.status);
       const queryJson = await queryRes.json();
 
+      console.log('[VOICEVOX診断] synthesisへ接続を試みます…');
       const synthRes = await fetch(
         `${VOICEVOX_URL}/synthesis?speaker=${speakerId}`,
         {
@@ -5129,14 +5132,17 @@ if(isDisplay){
           signal: controller.signal
         }
       );
-      if(!synthRes.ok) throw new Error('synthesis失敗');
+      console.log('[VOICEVOX診断] synthesisの応答:', synthRes.status);
+      if(!synthRes.ok) throw new Error('synthesis失敗:status=' + synthRes.status);
       clearTimeout(timeoutId);
 
       const blob = await synthRes.blob();
       const audio = new Audio(URL.createObjectURL(blob));
       audio.play();
+      console.log('[VOICEVOX診断] 再生を開始しました');
       return true; // 成功
     }catch(err){
+      console.log('[VOICEVOX診断] エラーが発生しました:', err.name, err.message);
       clearTimeout(timeoutId);
       return false; // 失敗(VOICEVOXが起動していない、繋がらない、等)
     }
