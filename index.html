@@ -1686,6 +1686,10 @@
       <label>アナウンス内容(Enterキーで改行できます)</label>
       <textarea id="notice-input-text" rows="4" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:14px; font-family:inherit; resize:vertical; box-sizing:border-box;"></textarea>
     </div>
+    <div class="mf-setup-row">
+      <label>読み方(空なら、上の文章をそのまま読み上げます。発音がおかしい時だけ、ひらがなで読み方を入力してください。例:「こんにちは」→「こんにちわ」)</label>
+      <input type="text" id="notice-input-reading" placeholder="例:こんにちわ" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:14px; box-sizing:border-box;">
+    </div>
     <button id="notice-input-ok-btn">この内容で表示する</button>
     <button id="notice-input-cancel-btn">✕ キャンセル</button>
   </div>
@@ -5051,7 +5055,7 @@ if(isDisplay){
   }
 
   // ---------- お知らせ(迷子・呼び出し・終了案内など):落ち着いた見た目で、少し長めに表示する ----------
-  function showNotice(text, icon, duration){
+  function showNotice(text, icon, duration, reading){
     const overlay = document.getElementById('notice-overlay');
     const textEl = document.getElementById('notice-overlay-text');
     const iconEl = document.getElementById('notice-overlay-icon');
@@ -5070,7 +5074,7 @@ if(isDisplay){
     }
     textEl.textContent = text;
     overlay.classList.add('active');
-    speakNoticeText_(text);
+    speakNoticeText_(reading && reading.trim() ? reading.trim() : text); // 読み方が指定されていれば、そちらを読み上げに使う
 
     clearTimeout(window.__noticeTimer);
     window.__noticeTimer = setTimeout(() => {
@@ -6595,7 +6599,7 @@ if(isDisplay){
       showVipWelcome(msg.text, msg.duration);
     }
     if(msg.type === 'showNotice'){
-      showNotice(msg.text, msg.icon, msg.duration);
+      showNotice(msg.text, msg.icon, msg.duration, msg.reading);
     }
     if(msg.type === 'setNoticeSpeech'){
       window.__noticeSpeechOn = msg.on;
@@ -6871,6 +6875,15 @@ if(isDisplay){
     try{
       const rawItems = await fetchPendingItems();
 
+      // PC・遠隔どちらで承認されたものも、同じ場所に記録されているので、ここで一緒に確認する
+      try{
+        const approvalsRes = await fetch(LIVE_APPSCRIPT_BASE_URL + '?action=getRemoteApprovals', { cache: 'no-store' });
+        if(approvalsRes.ok){
+          const approvals = await approvalsRes.json();
+          approvals.forEach(a => { if(a.photoKey) approvedKeys.add(a.photoKey); });
+        }
+      }catch(err){ /* 取得できなくても、次回の更新で再挑戦する */ }
+
       // 投稿数の節目(50件・100件…)に達したら、自動でお祝い演出を出す
       const total = rawItems.length;
       if(milestoneBaseline === null){
@@ -6886,7 +6899,7 @@ if(isDisplay){
       }
 
       const items = rawItems.filter(item => {
-        const key = item.time + '|' + item.message;
+        const key = item.time;
         return (item.message || item.photoUrl) && !approvedKeys.has(key) && !skippedKeys.has(key);
       });
 
@@ -6898,9 +6911,10 @@ if(isDisplay){
 
       listEl.innerHTML = '';
       items.forEach(item => {
-        const key = item.time + '|' + item.message;
+        const key = item.time;
         const el = document.createElement('div');
         el.className = 'pending-item';
+        el.dataset.key = key; // 高速チェックで、この項目を素早く探せるようにする
         const msgHtml = item.message
           ? `<div class="pending-msg">${escapeHtmlCP(item.message)}</div>`
           : (item.photoUrl ? '' : `<div class="pending-msg">(メッセージなし)</div>`);
@@ -6949,8 +6963,31 @@ if(isDisplay){
     if(listBtnEl){
       listBtnEl.disabled = true;
       listBtnEl.textContent = delayed ? '✓ 時間差で表示予定' : '✓ 反映済み(操作不要)';
+      // 一覧の中の該当項目を、少し見せてからすぐ非表示にする(次の自動更新を待たない)
+      const itemEl = listBtnEl.closest('.pending-item');
+      if(itemEl){
+        setTimeout(() => {
+          itemEl.style.transition = 'opacity 0.3s ease';
+          itemEl.style.opacity = '0';
+          setTimeout(() => itemEl.remove(), 300);
+        }, 400);
+      }
     }
     style = style || { size: 26, color: '#2a2118', bg: 'paper', pos: 'bottom' };
+
+    // PCでの承認も、遠隔承認と同じ場所に記録しておく(遠隔側の一覧にも反映されるようにするため)
+    fetch(LIVE_APPSCRIPT_BASE_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'remoteApprovePhoto',
+        photoKey: key,
+        photoUrl: item.photoUrl || '',
+        caption: item.message || '',
+        style: style
+      })
+    }).catch(() => {});
 
     if(delayed){
       delayedQueue.push({ item, style });
@@ -6968,6 +7005,29 @@ if(isDisplay){
         // 写真と同じ「スライドの1枚」として、表示間隔と同じ秒数で流す
         childWin.postMessage({ type: 'addTextSlide', text: item.message, style }, '*');
       }
+    }
+  }
+
+  // 中断・再開後、過去に承認した写真(記録はスプレッドシート側に残っている)を、
+  // ランダムで流れる写真の中に、あらためて紛れ込ませ直す
+  let restoringApprovedPhotos = false;
+  async function restorePreviouslyApprovedPhotos_(){
+    if(restoringApprovedPhotos) return; // 連続で呼ばれても、二重に復元しないようにする
+    restoringApprovedPhotos = true;
+    try{
+      const res = await fetch(LIVE_APPSCRIPT_BASE_URL + '?action=getRemoteApprovals', { cache: 'no-store' });
+      if(!res.ok) return;
+      const approvals = await res.json();
+      approvals.forEach(a => {
+        if(a.photoKey) approvedKeys.add(a.photoKey); // 承認待ち一覧に、二重に出てこないようにする
+        if(a.photoUrl && childWin && !childWin.closed){
+          childWin.postMessage({ type: 'addPhotoByUrl', url: a.photoUrl, caption: a.caption || '', style: a.style || null }, '*');
+        }
+      });
+    }catch(err){
+      // 復元できなくても、通常のスライドショー自体は問題なく続ける
+    }finally{
+      restoringApprovedPhotos = false;
     }
   }
 
@@ -7698,14 +7758,16 @@ if(isDisplay){
   const noticeInputModal = document.getElementById('notice-input-modal');
   const noticeInputTextEl = document.getElementById('notice-input-text');
   const noticeInputIconEl = document.getElementById('notice-input-icon');
+  const noticeInputReadingEl = document.getElementById('notice-input-reading');
   let noticeInputOnConfirm = null;
 
   function openNoticeInput_(defaultText, defaultIcon, duration){
     noticeInputTextEl.value = defaultText;
     noticeInputIconEl.value = defaultIcon;
-    noticeInputOnConfirm = (text, icon) => {
+    noticeInputReadingEl.value = '';
+    noticeInputOnConfirm = (text, icon, reading) => {
       if(childWin && !childWin.closed){
-        childWin.postMessage({ type: 'showNotice', text, icon, duration }, '*');
+        childWin.postMessage({ type: 'showNotice', text, icon, duration, reading }, '*');
       }
     };
     noticeInputModal.classList.add('active');
@@ -7716,8 +7778,9 @@ if(isDisplay){
     const text = noticeInputTextEl.value.trim();
     if(!text) return;
     const icon = noticeInputIconEl.value.trim();
+    const reading = noticeInputReadingEl.value.trim();
     noticeInputModal.classList.remove('active');
-    if(noticeInputOnConfirm) noticeInputOnConfirm(text, icon);
+    if(noticeInputOnConfirm) noticeInputOnConfirm(text, icon, reading);
   });
   document.getElementById('notice-input-cancel-btn').addEventListener('click', () => {
     noticeInputModal.classList.remove('active');
@@ -7884,6 +7947,10 @@ if(isDisplay){
           speakerId: parseInt(voicevoxSpeakerSelectEl.value, 10) || 2
         }, '*');
       }
+
+      // 中断・再開になった場合でも、それまでに承認して追加した写真が消えてしまわないよう、
+      // 過去の承認履歴(写真のみ)を取得して、スライドショーに紛れ込ませ直す
+      restorePreviouslyApprovedPhotos_();
     }
     window.addEventListener('message', onReady);
 
@@ -7897,10 +7964,40 @@ if(isDisplay){
       }
     }, 1000);
 
-    // 承認待ち投稿を定期的に取得(15秒ごと)
+    // 承認待ち投稿を定期的に取得(8秒ごと、一覧全体をまるごと更新)
     fetchPendingSubmissions();
     clearInterval(pendingPollTimer);
-    pendingPollTimer = setInterval(fetchPendingSubmissions, 15000);
+    pendingPollTimer = setInterval(fetchPendingSubmissions, 8000);
+
+    // それとは別に、「承認状況」だけを、より軽く・素早く確認する(2.5秒ごと)
+    // (PC・遠隔、どちらで承認されても、素早くお互いに反映されるようにするため)
+    clearInterval(window.__fastApprovalPollTimer);
+    window.__fastApprovalPollTimer = setInterval(async () => {
+      try{
+        const res = await fetch(LIVE_APPSCRIPT_BASE_URL + '?action=getRemoteApprovals', { cache: 'no-store' });
+        if(!res.ok) return;
+        const approvals = await res.json();
+        approvals.forEach(a => {
+          if(!a.photoKey || approvedKeys.has(a.photoKey)) return;
+          approvedKeys.add(a.photoKey);
+          // すでに一覧に表示されている項目なら、すぐその場でフェードアウトして消す
+          const itemEl = document.querySelector(`.pending-item[data-key="${CSS.escape(a.photoKey)}"]`);
+          if(itemEl){
+            itemEl.style.transition = 'opacity 0.3s ease';
+            itemEl.style.opacity = '0';
+            setTimeout(() => {
+              itemEl.remove();
+              const countEl = document.getElementById('pending-count');
+              const remaining = document.querySelectorAll('.pending-item').length;
+              if(countEl) countEl.textContent = remaining + '件';
+              if(remaining === 0){
+                document.getElementById('pending-list').innerHTML = '<div class="pending-empty">今のところ新しい投稿はありません</div>';
+              }
+            }, 300);
+          }
+        });
+      }catch(err){ /* 次回のチェックで再挑戦する */ }
+    }, 2500);
 
     // ギャラリーの「いいね」が多い写真を、5分おきに1枚だけスライドに挟み込む
     clearInterval(window.__galleryHighlightTimer);
