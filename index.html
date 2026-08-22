@@ -4888,13 +4888,14 @@ if(isDisplay){
     const txt = document.createElement('div');
     txt.className = 'text-slide-content';
     txt.textContent = data.caption;
-    txt.style.color = st.color;
+    const txtColor = st.color === 'custom' ? (st.colorCustom || '#f5ece0') : st.color; // 写真キャプションと同じ「custom」指定に対応させる
+    txt.style.color = txtColor;
     const displaySize = st.size * 1.7;
     txt.style.fontSize = displaySize + 'px';
     if(st.font) txt.style.fontFamily = DISPLAY_FONT_STACKS[st.font] || DISPLAY_FONT_STACKS.yomogi;
     txt.classList.toggle('deco-outline', st.deco === 'outline');
     if(st.deco === 'outline'){
-      const o = getOutlineStyle(displaySize, st.color, st.outlineColor);
+      const o = getOutlineStyle(displaySize, txtColor, st.outlineColor);
       txt.style.webkitTextStroke = o.stroke;
       txt.style.textShadow = o.shadow;
     }else{
