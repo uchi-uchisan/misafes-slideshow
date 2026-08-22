@@ -1679,10 +1679,6 @@
   <div class="mf-setup-box">
     <div class="mf-setup-title" id="notice-input-title">📢 アナウンス内容の入力</div>
     <div class="mf-setup-row">
-      <label>先頭に表示するマーク(絵文字・空でもOK)</label>
-      <input type="text" id="notice-input-icon" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:16px; box-sizing:border-box;">
-    </div>
-    <div class="mf-setup-row">
       <label>アナウンス内容(Enterキーで改行できます)</label>
       <textarea id="notice-input-text" rows="4" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:14px; font-family:inherit; resize:vertical; box-sizing:border-box;"></textarea>
     </div>
@@ -1772,6 +1768,11 @@
       <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:8px 0 10px 2px;">
         <input type="checkbox" id="notice-speech-toggle" checked> 🔊 アナウンスを音声でも読み上げる
       </label>
+      <div class="cp-speed-row" style="margin-bottom:10px;">
+        <span>🔊 アナウンスの音量</span>
+        <input type="range" id="notice-volume-slider" min="0" max="100" value="100" style="flex:1;">
+        <span id="notice-volume-value">100%</span>
+      </div>
       <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:0 0 6px 2px;">
         <input type="checkbox" id="voicevox-toggle"> 🎤 VOICEVOXで読み上げる(要:パソコンでVOICEVOXを起動しておく。繋がらない場合は自動的に通常の読み上げに切り替わります)
       </label>
@@ -5125,6 +5126,7 @@ if(isDisplay){
       utter.lang = 'ja-JP';
       utter.rate = 0.95;
       utter.pitch = 1.0;
+      utter.volume = window.__noticeVolume !== undefined ? window.__noticeVolume : 1;
       const voices = window.speechSynthesis.getVoices().filter(v => v.lang && v.lang.startsWith('ja'));
       const preferred = voices.find(v => /natural|neural/i.test(v.name))
         || voices.find(v => /google/i.test(v.name))
@@ -5169,6 +5171,7 @@ if(isDisplay){
 
       const blob = await synthRes.blob();
       const audio = new Audio(URL.createObjectURL(blob));
+      audio.volume = window.__noticeVolume !== undefined ? window.__noticeVolume : 1;
       audio.play();
       console.log('[VOICEVOX診断] 再生を開始しました');
       return true; // 成功
@@ -5192,10 +5195,20 @@ if(isDisplay){
     return { useVoicevox: !!window.__useVoicevox, speakerId: window.__voicevoxSpeakerId || 2 };
   }
 
+  // 音量も、VOICEVOX設定と同じくlocalStorageから直接読み取る(postMessageのタイミングに左右されないため)
+  function getNoticeVolume_(){
+    try{
+      const raw = localStorage.getItem('misafes_notice_volume');
+      if(raw !== null) return parseFloat(raw);
+    }catch(err){}
+    return window.__noticeVolume !== undefined ? window.__noticeVolume : 1;
+  }
+
   async function speakNoticeText_(text){
     if(window.__noticeSpeechOn === false) return; // 明示的にオフにされていなければ、既定で読み上げる
     await new Promise(r => setTimeout(r, 900)); // チャイムの音と重ならないよう、少し間を置く
 
+    window.__noticeVolume = getNoticeVolume_(); // speakWithBrowserTts_/speakWithVoicevox_が参照する値を、直前に確実に更新しておく
     const voicevoxSettings = getVoicevoxSettings_();
     if(voicevoxSettings.useVoicevox){
       const ok = await speakWithVoicevox_(text, voicevoxSettings.speakerId);
@@ -6619,6 +6632,9 @@ if(isDisplay){
     if(msg.type === 'setNoticeSpeech'){
       window.__noticeSpeechOn = msg.on;
     }
+    if(msg.type === 'setNoticeVolume'){
+      window.__noticeVolume = msg.volume;
+    }
     if(msg.type === 'setVoicevoxSettings'){
       window.__useVoicevox = msg.useVoicevox;
       window.__voicevoxSpeakerId = msg.speakerId;
@@ -7725,6 +7741,18 @@ if(isDisplay){
     }
   });
 
+  const noticeVolumeSlider = document.getElementById('notice-volume-slider');
+  const noticeVolumeValue = document.getElementById('notice-volume-value');
+  noticeVolumeSlider.addEventListener('input', () => {
+    const pct = parseInt(noticeVolumeSlider.value, 10);
+    noticeVolumeValue.textContent = pct + '%';
+    // VOICEVOX設定と同じく、localStorage経由で即座に共有する(postMessageのタイミングに左右されないため)
+    try{ localStorage.setItem('misafes_notice_volume', String(pct / 100)); }catch(err){}
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'setNoticeVolume', volume: pct / 100 }, '*');
+    }
+  });
+
   const voicevoxToggle = document.getElementById('voicevox-toggle');
   const voicevoxSpeakerRow = document.getElementById('voicevox-speaker-row');
   const voicevoxSpeakerSelect = document.getElementById('voicevox-speaker-select');
@@ -7779,17 +7807,15 @@ if(isDisplay){
   // ---------- アナウンス内容の入力(改行できるよう、prompt()の代わりに専用モーダルを使う) ----------
   const noticeInputModal = document.getElementById('notice-input-modal');
   const noticeInputTextEl = document.getElementById('notice-input-text');
-  const noticeInputIconEl = document.getElementById('notice-input-icon');
   const noticeInputReadingEl = document.getElementById('notice-input-reading');
   let noticeInputOnConfirm = null;
 
-  function openNoticeInput_(defaultText, defaultIcon, duration){
+  function openNoticeInput_(defaultText, duration){
     noticeInputTextEl.value = defaultText;
-    noticeInputIconEl.value = defaultIcon;
     noticeInputReadingEl.value = '';
-    noticeInputOnConfirm = (text, icon, reading) => {
+    noticeInputOnConfirm = (text, reading) => {
       if(childWin && !childWin.closed){
-        childWin.postMessage({ type: 'showNotice', text, icon, duration, reading }, '*');
+        childWin.postMessage({ type: 'showNotice', text, duration, reading }, '*');
       }
     };
     noticeInputModal.classList.add('active');
@@ -7799,21 +7825,20 @@ if(isDisplay){
   document.getElementById('notice-input-ok-btn').addEventListener('click', () => {
     const text = noticeInputTextEl.value.trim();
     if(!text) return;
-    const icon = noticeInputIconEl.value.trim();
     const reading = noticeInputReadingEl.value.trim();
     noticeInputModal.classList.remove('active');
-    if(noticeInputOnConfirm) noticeInputOnConfirm(text, icon, reading);
+    if(noticeInputOnConfirm) noticeInputOnConfirm(text, reading);
   });
   document.getElementById('notice-input-cancel-btn').addEventListener('click', () => {
     noticeInputModal.classList.remove('active');
   });
 
   document.getElementById('lost-child-btn').addEventListener('click', () => {
-    openNoticeInput_('みずいろの帽子の女の子をお預かりしています。お心当たりの方は本部テントまでお越しください', '🔍', 20);
+    openNoticeInput_('みずいろの帽子の女の子をお預かりしています。お心当たりの方は本部テントまでお越しください', 20);
   });
 
   document.getElementById('closing-notice-btn').addEventListener('click', () => {
-    openNoticeInput_('まもなくお祭りは終了です\nお忘れ物のないようお気をつけください', '⏰', 15);
+    openNoticeInput_('まもなくお祭りは終了です\nお忘れ物のないようお気をつけください', 15);
   });
 
   // ---------- ライブ映像:直接、会場に接続する(シンプル方式) ----------
