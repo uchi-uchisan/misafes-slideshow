@@ -5138,8 +5138,8 @@ if(isDisplay){
   // VOICEVOX(パソコン内で起動している場合のみ)を使って読み上げる。
   // 繋がらなければ、静かにあきらめて、ブラウザ標準の読み上げに切り替える。
   const VOICEVOX_URL = 'http://127.0.0.1:50021';
-  async function speakWithVoicevox_(text){
-    const speakerId = window.__voicevoxSpeakerId !== undefined ? window.__voicevoxSpeakerId : 2; // 既定:四国めたん(ノーマル)
+  async function speakWithVoicevox_(text, speakerIdArg){
+    const speakerId = speakerIdArg !== undefined ? speakerIdArg : (window.__voicevoxSpeakerId !== undefined ? window.__voicevoxSpeakerId : 2); // 既定:四国めたん(ノーマル)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒以内に応答がなければ、あきらめて標準読み上げに切り替える
     try{
@@ -5178,12 +5178,26 @@ if(isDisplay){
     }
   }
 
+  // VOICEVOXの設定を、postMessageのタイミングに左右されない、localStorage(即座に共有される)から直接読み取る
+  function getVoicevoxSettings_(){
+    try{
+      const raw = localStorage.getItem('misafes_voicevox_settings');
+      if(raw){
+        const parsed = JSON.parse(raw);
+        return { useVoicevox: !!parsed.useVoicevox, speakerId: parsed.speakerId || 2 };
+      }
+    }catch(err){}
+    // localStorageが読めなかった場合のみ、postMessageで受け取った値を代わりに使う
+    return { useVoicevox: !!window.__useVoicevox, speakerId: window.__voicevoxSpeakerId || 2 };
+  }
+
   async function speakNoticeText_(text){
     if(window.__noticeSpeechOn === false) return; // 明示的にオフにされていなければ、既定で読み上げる
     await new Promise(r => setTimeout(r, 900)); // チャイムの音と重ならないよう、少し間を置く
 
-    if(window.__useVoicevox){
-      const ok = await speakWithVoicevox_(text);
+    const voicevoxSettings = getVoicevoxSettings_();
+    if(voicevoxSettings.useVoicevox){
+      const ok = await speakWithVoicevox_(text, voicevoxSettings.speakerId);
       if(ok) return; // VOICEVOXでの読み上げに成功したら、ここで終わり
       // 失敗した場合は、そのままブラウザ標準の読み上げに切り替える(下に続く)
     }
@@ -7718,6 +7732,13 @@ if(isDisplay){
 
   function sendVoicevoxSettings_(){
     voicevoxSpeakerRow.style.display = voicevoxToggle.checked ? 'block' : 'none';
+    // postMessageのタイミングのズレに左右されないよう、localStorage(同じサイト内で即座に共有される保存領域)にも書き込んでおく
+    try{
+      localStorage.setItem('misafes_voicevox_settings', JSON.stringify({
+        useVoicevox: voicevoxToggle.checked,
+        speakerId: parseInt(voicevoxSpeakerSelect.value, 10) || 2
+      }));
+    }catch(err){}
     if(childWin && !childWin.closed){
       childWin.postMessage({
         type: 'setVoicevoxSettings',
@@ -7980,6 +8001,16 @@ if(isDisplay){
         approvals.forEach(a => {
           if(!a.photoKey || approvedKeys.has(a.photoKey)) return;
           approvedKeys.add(a.photoKey);
+
+          // 今まさに編集中(プレビューモーダルが開いている)の項目が、他の場所ですでに承認されていた場合は、はっきり知らせる
+          if(a.photoKey === previewCurrentKey){
+            const flagBanner = document.getElementById('preview-flag-banner');
+            if(flagBanner){
+              flagBanner.innerHTML = '⚠️ この投稿は、他の場所(もう一方の承認画面)ですでに追加されました。ここで「追加する」を押しても、二重には追加されません';
+              flagBanner.classList.add('show');
+            }
+          }
+
           // すでに一覧に表示されている項目なら、すぐその場でフェードアウトして消す
           const itemEl = document.querySelector(`.pending-item[data-key="${CSS.escape(a.photoKey)}"]`);
           if(itemEl){
