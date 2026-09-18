@@ -271,6 +271,82 @@
     padding:40px;
   }
   #notice-overlay.active{ display:flex; }
+  #lottery-overlay{
+    position:absolute; inset:0;
+    z-index:212;
+    display:none;
+    flex-direction:column;
+    align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center, #2a1440 0%, #12081f 65%, #08050f 100%);
+  }
+  #lottery-overlay.active{ display:flex; }
+  #lottery-overlay-label{
+    font-family:"Zen Kaku Gothic New",sans-serif;
+    font-weight:900;
+    font-size:32px;
+    color:var(--gold);
+    letter-spacing:0.1em;
+    margin-bottom:20px;
+    text-shadow:0 0 20px rgba(212,168,67,0.7);
+  }
+  #lottery-overlay-number{
+    font-family:"Zen Kaku Gothic New",sans-serif;
+    font-weight:900;
+    font-size:min(28vw, 300px);
+    line-height:1;
+    color:#fff;
+    -webkit-text-stroke:4px #d4a843;
+    text-shadow:0 0 40px rgba(212,168,67,0.9), 0 0 80px rgba(224,90,45,0.6), 8px 8px 0 rgba(0,0,0,0.5);
+  }
+  #lottery-overlay-number.spinning{
+    animation:lottery-spin-shake 0.08s linear infinite;
+  }
+  #lottery-overlay-number.landed{
+    animation:lottery-land-pop 0.6s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes lottery-spin-shake{
+    0%{ transform:scale(1) rotate(-1deg); }
+    50%{ transform:scale(1.03) rotate(1deg); }
+    100%{ transform:scale(1) rotate(-1deg); }
+  }
+  @keyframes lottery-land-pop{
+    0%{ transform:scale(0.5); opacity:0; }
+    60%{ transform:scale(1.15); opacity:1; }
+    100%{ transform:scale(1); }
+  }
+  #lottery-overlay-hint{
+    margin-top:24px;
+    font-size:18px;
+    color:rgba(245,236,224,0.75);
+    letter-spacing:0.05em;
+  }
+  #disaster-telop{
+    position:absolute;
+    left:0; right:0;
+    bottom:0;
+    z-index:215;
+    display:none;
+    overflow:hidden;
+    background:linear-gradient(90deg, #7a1414, #a32020);
+    border-top:3px solid #ffd24d;
+    padding:14px 0;
+    white-space:nowrap;
+  }
+  #disaster-telop.active{ display:block; }
+  #disaster-telop-text{
+    display:inline-block;
+    padding-left:100%;
+    font-family:"Zen Kaku Gothic New",sans-serif;
+    font-weight:900;
+    font-size:clamp(18px, 2.6vw, 34px);
+    color:#fff;
+    text-shadow:0 2px 6px rgba(0,0,0,0.6);
+    animation:disaster-telop-scroll linear infinite;
+  }
+  @keyframes disaster-telop-scroll{
+    0%{ transform:translateX(0); }
+    100%{ transform:translateX(-100%); }
+  }
   #notice-overlay-icon{
     font-size:80px;
     margin-bottom:24px;
@@ -1336,6 +1412,75 @@
     margin-bottom:12px;
     margin-top:8px;
   }
+  #lottery-section{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height 0.3s ease;
+  }
+  #lottery-section.open{
+    max-height:500px;
+    margin-bottom:12px;
+    margin-top:8px;
+  }
+  #lottery-random-btn, #lottery-manual-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:6px;
+    background:rgba(74,26,77,0.25);
+    border:1.5px solid rgba(162,77,255,0.5);
+    color:#c9a2ff;
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #lottery-close-btn{
+    display:block;
+    width:100%;
+    padding:10px;
+    margin-top:4px;
+    background:transparent;
+    border:1px solid rgba(233,228,216,0.3);
+    color:rgba(233,228,216,0.7);
+    border-radius:8px;
+    font-size:12.5px;
+    cursor:pointer;
+  }
+  #disaster-section{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height 0.3s ease;
+  }
+  #disaster-section.open{
+    max-height:500px;
+    margin-bottom:12px;
+    margin-top:8px;
+  }
+  #disaster-start-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:6px;
+    background:rgba(163,32,32,0.25);
+    border:1.5px solid rgba(255,80,80,0.6);
+    color:#ff9a9a;
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #disaster-stop-btn{
+    display:block;
+    width:100%;
+    padding:10px;
+    background:transparent;
+    border:1px solid rgba(233,228,216,0.3);
+    color:rgba(233,228,216,0.7);
+    border-radius:8px;
+    font-size:12.5px;
+    cursor:pointer;
+  }
   #lost-child-btn, #closing-notice-btn{
     display:block;
     width:100%;
@@ -1601,6 +1746,15 @@
       <b id="photo-count">0枚</b>
     </div>
 
+    <div class="row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+      <label>🚨 防災関連の写真(任意)<span class="hint">「防災コーナー」で、これだけを流せます</span></label>
+      <input type="file" id="disaster-file-input" accept="image/*" multiple style="width:100%;">
+      <div class="count-row" style="width:100%;">
+        <span>選択中の防災写真</span>
+        <b id="disaster-photo-count">0枚</b>
+      </div>
+    </div>
+
     <div class="row">
       <label>表示間隔<span class="hint">1枚あたりの表示秒数</span></label>
       <div>
@@ -1685,6 +1839,11 @@
     <div class="mf-setup-row">
       <label>読み方(空なら、上の文章をそのまま読み上げます。発音がおかしい時だけ、ひらがなで読み方を入力してください。例:「こんにちは」→「こんにちわ」)</label>
       <input type="text" id="notice-input-reading" placeholder="例:こんにちわ" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:14px; box-sizing:border-box;">
+    </div>
+    <div class="mf-setup-row">
+      <label>音声ファイル(あらかじめ用意した音声があれば選んでください。指定すると、その場での読み上げの代わりに、この音声が再生されます)</label>
+      <input type="file" id="notice-input-audio" accept="audio/*" style="width:100%; padding:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:12.5px; box-sizing:border-box;">
+      <div id="notice-input-audio-name" style="font-size:11px; color:rgba(233,228,216,0.5); margin-top:4px;"></div>
     </div>
     <button id="notice-input-ok-btn">この内容で表示する</button>
     <button id="notice-input-cancel-btn">✕ キャンセル</button>
@@ -1813,6 +1972,41 @@
       <button type="button" id="ms-manual-launch-btn">🎇 押すたびに1発打ち上げる</button>
     </div>
 
+    <button type="button" id="lottery-section-toggle" class="cp-section-toggle">🎰 抽選会 ▼</button>
+    <div id="lottery-section">
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin:0 0 10px 2px;">
+        <input type="checkbox" id="lottery-fanfare-toggle" checked> 🔊 当選時にファンファーレを鳴らす
+      </label>
+      <div class="cp-speed-row">
+        <span>数字の範囲</span>
+        <input type="number" id="lottery-min-input" value="1" min="0" style="width:60px; padding:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink);">
+        <span>〜</span>
+        <input type="number" id="lottery-max-input" value="300" min="1" style="width:70px; padding:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink);">
+      </div>
+      <button type="button" id="lottery-random-btn">🎲 ランダムに抽選する</button>
+      <div class="note" style="margin:-4px 0 10px; font-size:11px;">上の範囲の中から、会場画面でランダムな数字を発表します。</div>
+
+      <div class="cp-speed-row">
+        <span>結果の数字を直接入力</span>
+        <input type="number" id="lottery-manual-input" placeholder="例:42" style="flex:1; padding:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink);">
+      </div>
+      <button type="button" id="lottery-manual-btn">📢 この数字を表示する</button>
+      <div class="note" style="margin:-4px 0 10px; font-size:11px;">別の抽選機(ガラガラ抽選器など)を使う場合は、こちらでその結果の数字を入力して、会場画面に表示できます。表示後は、待機画面のまま次の番号を待ちます。</div>
+
+      <button type="button" id="lottery-close-btn">✕ 抽選演出を閉じる</button>
+    </div>
+
+    <button type="button" id="disaster-section-toggle" class="cp-section-toggle">🚨 防災コーナー ▼</button>
+    <div id="disaster-section">
+      <div class="mf-setup-row">
+        <label>テロップ文言</label>
+        <textarea id="disaster-telop-input" rows="2" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:13px; font-family:inherit; resize:vertical; box-sizing:border-box;">これから、西日本豪雨の操山町内会、内水災害映像が流れます</textarea>
+      </div>
+      <button type="button" id="disaster-start-btn">🚨 防災コーナーを開始</button>
+      <button type="button" id="disaster-stop-btn">✕ 防災コーナーを終了(通常表示に戻す)</button>
+      <div class="note" style="margin:6px 0 10px; font-size:11px;">開始すると、設定画面で選んだ「防災関連の写真」だけが流れ、それ以外のスライドは一時的に表示されません。</div>
+    </div>
+
     <div class="cp-btn-grid">
       <button class="cp-btn wide" id="add-btn">＋ 写真を追加</button>
       <!-- 「お知らせを表示」機能は、いったん非表示にしています(また使う時はコメントを外してください)
@@ -1837,6 +2031,9 @@
       <div class="cp-sponsor-title" id="cp-sponsor-title"></div>
       <div class="cp-sponsor-stage" id="cp-sponsor-stage"></div>
       <div class="cp-sponsor-note">この確認画面は、あなただけに表示されています。来場者向けの会場モニターには一切映りません。広告が終わり、本編が始まったタイミングで「今から会場に映す」を押すと、そのまま今の再生位置から会場に切り替わります。</div>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.75); margin:-4px 0 10px 2px;">
+        <input type="checkbox" id="cp-sponsor-is-live"> 🔴 これはライブ配信です(開始位置を指定せず、そのままライブの今の場面から映します)
+      </label>
       <button id="cp-sponsor-handoff-btn">📢 今から会場に映す(このタイミングから)</button>
       <div class="cp-sponsor-btn-row">
         <label class="cp-sponsor-mute-label">
@@ -2318,6 +2515,12 @@
     <div class="vip-sparkle vip-sparkle-4">🎊</div>
     <div class="vip-sparkle vip-sparkle-5">✨</div>
   </div>
+  <div id="lottery-overlay">
+    <div id="lottery-overlay-label">🎰 抽選会</div>
+    <div id="lottery-overlay-number">?</div>
+    <div id="lottery-overlay-hint">当選番号を発表します…</div>
+  </div>
+  <div id="disaster-telop"><span id="disaster-telop-text"></span></div>
   <div id="notice-overlay">
     <div id="notice-overlay-icon">📢</div>
     <div id="notice-overlay-text"></div>
@@ -4743,6 +4946,7 @@ if(isDisplay){
   let stepCount = 0;
   let timer = null;
   let paused = false;
+  let disasterSlides = []; // 防災コーナー専用の写真(通常のローテーションとは別)
   let loopOn = true;
   let shuffleOn = false;
   let slideEls = [null, null];
@@ -4938,7 +5142,7 @@ if(isDisplay){
   }
 
   // ---------- スポンサー紹介の再生(操作パネルから手動で呼ばれる) ----------
-  function playSponsorVideo(sponsor, startTime){
+  function playSponsorVideo(sponsor, startTime, isLive){
     const overlay = document.getElementById('sponsor-overlay');
     const inner = document.getElementById('sponsor-overlay-inner');
     clearTimeout(timer); // 通常のスライド送りを一旦止める
@@ -4962,7 +5166,8 @@ if(isDisplay){
     const startSecs = Math.max(0, Math.floor(startTime || 0));
     if(sponsor.type === 'youtube'){
       const videoId = extractYouTubeId_(sponsor.url);
-      const startParam = startSecs > 0 ? `&start=${startSecs}` : '';
+      // ライブ配信は、開始位置(&start=)を指定すること自体がエラーの原因になるため、あえて付けない
+      const startParam = (!isLive && startSecs > 0) ? `&start=${startSecs}` : '';
       const iframe = document.createElement('iframe');
       iframe.id = 'sponsor-youtube-iframe';
       iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&enablejsapi=1${startParam}`;
@@ -5026,6 +5231,92 @@ if(isDisplay){
     }, (duration || 6) * 1000);
   }
 
+  // ---------- 抽選会:数字がスロットのように高速で切り替わり、最後にランダムな数字で止まる ----------
+  let lotterySpinTimer = null;
+  function openLotteryOverlay_(){
+    const overlay = document.getElementById('lottery-overlay');
+    clearTimeout(timer); // 通常のスライド送りを一旦止める
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = 'hidden';
+    });
+    overlay.classList.add('active');
+  }
+
+  function closeLotteryOverlay_(){
+    clearTimeout(lotterySpinTimer);
+    clearTimeout(lotteryStandbyTimer);
+    document.getElementById('lottery-overlay').classList.remove('active');
+    ['counter', 'ticker', 'qr-overlay', 'qr-overlay2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.visibility = '';
+    });
+    scheduleNext(); // 通常のスライドショーを再開する
+  }
+
+  function getLotteryFanfareOn_(){
+    try{
+      const raw = localStorage.getItem('misafes_lottery_fanfare');
+      if(raw !== null) return raw === 'true';
+    }catch(err){}
+    return true; // 既定はオン
+  }
+
+  let lotteryStandbyTimer = null;
+  function runLotteryRandom_(min, max){
+    clearTimeout(lotteryStandbyTimer);
+    openLotteryOverlay_();
+    const numEl = document.getElementById('lottery-overlay-number');
+    const hintEl = document.getElementById('lottery-overlay-hint');
+    numEl.classList.remove('landed');
+    numEl.classList.add('spinning');
+    hintEl.textContent = '当選番号を発表します…';
+
+    const finalNumber = Math.floor(Math.random() * (max - min + 1)) + min;
+    const spinDuration = 2200; // このミリ秒間、数字が高速で切り替わり続ける
+    const startTime = performance.now();
+
+    clearTimeout(lotterySpinTimer);
+    function spin(){
+      const elapsed = performance.now() - startTime;
+      if(elapsed >= spinDuration){
+        // 止まる瞬間:本当の当選番号を表示する
+        numEl.classList.remove('spinning');
+        numEl.textContent = String(finalNumber);
+        numEl.classList.add('landed');
+        hintEl.textContent = '🎉 おめでとうございます! 🎉';
+        if(getLotteryFanfareOn_()) playFanfareSound_();
+        return;
+      }
+      numEl.textContent = String(Math.floor(Math.random() * (max - min + 1)) + min);
+      // だんだんゆっくりになっていく(スロットが止まっていく感じを演出する)
+      const progress = elapsed / spinDuration;
+      const delay = 40 + progress * progress * 260;
+      lotterySpinTimer = setTimeout(spin, delay);
+    }
+    spin();
+  }
+
+  function showLotteryManualNumber_(number){
+    clearTimeout(lotteryStandbyTimer);
+    openLotteryOverlay_();
+    const numEl = document.getElementById('lottery-overlay-number');
+    const hintEl = document.getElementById('lottery-overlay-hint');
+    clearTimeout(lotterySpinTimer);
+    numEl.classList.remove('spinning');
+    numEl.textContent = String(number);
+    numEl.classList.add('landed');
+    hintEl.textContent = '🎉 おめでとうございます! 🎉';
+    if(getLotteryFanfareOn_()) playFanfareSound_();
+
+    // しばらく当選番号を見せたら、スライドショーには戻さず、画面はそのまま「次の番号を待つ」表示に切り替える
+    lotteryStandbyTimer = setTimeout(() => {
+      numEl.classList.remove('landed');
+      numEl.textContent = '?';
+      hintEl.textContent = '次の番号をお待ちください';
+    }, 8000);
+  }
+
   // 効果音ファイルを使わず、その場で簡単なファンファーレ風の音を鳴らす
   function playFanfareSound_(){
     try{
@@ -5057,7 +5348,7 @@ if(isDisplay){
   }
 
   // ---------- お知らせ(迷子・呼び出し・終了案内など):落ち着いた見た目で、少し長めに表示する ----------
-  function showNotice(text, icon, duration, reading){
+  function showNotice(text, icon, duration, reading, audioFile){
     const overlay = document.getElementById('notice-overlay');
     const textEl = document.getElementById('notice-overlay-text');
     const iconEl = document.getElementById('notice-overlay-icon');
@@ -5076,7 +5367,19 @@ if(isDisplay){
     }
     textEl.textContent = text;
     overlay.classList.add('active');
-    speakNoticeText_(reading && reading.trim() ? reading.trim() : text); // 読み方が指定されていれば、そちらを読み上げに使う
+
+    if(audioFile){
+      // あらかじめ用意された音声ファイルがあれば、その場での読み上げの代わりに、これを再生する
+      try{
+        const audio = new Audio(URL.createObjectURL(audioFile));
+        audio.volume = getNoticeVolume_();
+        setTimeout(() => audio.play(), 900); // チャイムの音と重ならないよう、少し間を置く
+      }catch(err){
+        speakNoticeText_(reading && reading.trim() ? reading.trim() : text); // 万が一再生できなければ、通常の読み上げに切り替える
+      }
+    }else{
+      speakNoticeText_(reading && reading.trim() ? reading.trim() : text); // 読み方が指定されていれば、そちらを読み上げに使う
+    }
 
     clearTimeout(window.__noticeTimer);
     window.__noticeTimer = setTimeout(() => {
@@ -6276,11 +6579,18 @@ if(isDisplay){
     // 音楽連動花火は、スライドショー自体を止めていないので、単独で停止するだけでよい
     if(msActive) stopMusicSyncFireworks();
 
+    // 防災コーナーが進行中なら、これも合わせて終了する
+    if(disasterModeActive) stopDisasterMode_();
+
     const vipOverlay = document.getElementById('vip-overlay');
     if(vipOverlay) vipOverlay.classList.remove('active');
 
     const noticeOverlay = document.getElementById('notice-overlay');
     if(noticeOverlay) noticeOverlay.classList.remove('active');
+
+    clearTimeout(lotterySpinTimer);
+    const lotteryOverlay = document.getElementById('lottery-overlay');
+    if(lotteryOverlay) lotteryOverlay.classList.remove('active');
 
     const sponsorOverlay = document.getElementById('sponsor-overlay');
     if(sponsorOverlay && sponsorOverlay.classList.contains('active')){
@@ -6345,6 +6655,57 @@ if(isDisplay){
     stepCount = Math.max(0, stepCount - 1);
     renderSlide(order[0]);
     updateCounter();
+    scheduleNext();
+  }
+
+  // ---------- 防災コーナー:防災関連の写真だけを流し、それ以外は表示しない ----------
+  let disasterModeActive = false;
+  let disasterOrder = [];
+  let disasterTimer = null;
+
+  function startDisasterMode_(telopText){
+    if(disasterSlides.length === 0){
+      alert('防災関連の写真が設定されていません。設定画面で「防災関連の写真」を選んでから、スライドショーを開始し直してください。');
+      return;
+    }
+    disasterModeActive = true;
+    clearTimeout(timer); // 通常のスライド送りを止める
+
+    const telop = document.getElementById('disaster-telop');
+    const telopTextEl = document.getElementById('disaster-telop-text');
+    telopTextEl.textContent = telopText || 'これから、防災関連の写真が流れます';
+    // 文字の長さに応じて、流れる速さ(かかる時間)を調整する(短い文章が速く流れすぎないように)
+    telopTextEl.style.animationDuration = Math.max(12, telopTextEl.textContent.length * 0.35) + 's';
+    telop.classList.add('active');
+
+    disasterOrder = disasterSlides.map((_, i) => i);
+    disasterStep_();
+  }
+
+  function disasterStep_(){
+    if(!disasterModeActive) return;
+    const idx = disasterOrder[0];
+    disasterOrder.push(disasterOrder.shift());
+
+    const target = 1 - activeSlide;
+    const el = slideEls[target];
+    el.innerHTML = '';
+    el.classList.remove('text-slide-card');
+    el.style.alignItems = '';
+    el.style.backgroundImage = `url("${disasterSlides[idx].url}")`;
+    el.classList.add('show');
+    slideEls[activeSlide].classList.remove('show');
+    activeSlide = target;
+
+    clearTimeout(disasterTimer);
+    disasterTimer = setTimeout(disasterStep_, (window.__interval || 5) * 1000);
+  }
+
+  function stopDisasterMode_(){
+    disasterModeActive = false;
+    clearTimeout(disasterTimer);
+    document.getElementById('disaster-telop').classList.remove('active');
+    renderSlide(order[0]); // 通常のスライドショーの、今の位置に戻す
     scheduleNext();
   }
 
@@ -6535,12 +6896,17 @@ if(isDisplay){
   }
 
   async function initializeFromPayload(payload){
-    const { files, captions, styles, settings } = payload;
+    const { files, captions, styles, settings, disasterFiles } = payload;
     slides = await Promise.all(files.map(async (f, i) => ({
       url: await createResizedImageUrl_(f, 2400),
       caption: captions[i] || '',
       style: styles[i] || null
     })));
+
+    // 防災コーナー専用の写真(通常のスライドとは別で管理する)
+    disasterSlides = disasterFiles && disasterFiles.length > 0
+      ? await Promise.all(disasterFiles.map(async f => ({ url: await createResizedImageUrl_(f, 2400) })))
+      : [];
 
     window.__interval = settings.interval;
     window.__insertOffset = settings.insertOffset || 1;
@@ -6609,7 +6975,7 @@ if(isDisplay){
       document.documentElement.style.setProperty('--qr-bottom-offset', msg.offset + 'px');
     }
     if(msg.type === 'playSponsor'){
-      playSponsorVideo(msg.sponsor, msg.startTime);
+      playSponsorVideo(msg.sponsor, msg.startTime, msg.isLive);
     }
     if(msg.type === 'setSponsorVideoMuted'){
       const iframe = document.getElementById('sponsor-youtube-iframe');
@@ -6626,8 +6992,23 @@ if(isDisplay){
     if(msg.type === 'showVipWelcome'){
       showVipWelcome(msg.text, msg.duration);
     }
+    if(msg.type === 'runLotteryRandom'){
+      runLotteryRandom_(msg.min, msg.max);
+    }
+    if(msg.type === 'showLotteryManualNumber'){
+      showLotteryManualNumber_(msg.number);
+    }
+    if(msg.type === 'closeLottery'){
+      closeLotteryOverlay_();
+    }
+    if(msg.type === 'startDisasterMode'){
+      startDisasterMode_(msg.telop);
+    }
+    if(msg.type === 'stopDisasterMode'){
+      stopDisasterMode_();
+    }
     if(msg.type === 'showNotice'){
-      showNotice(msg.text, msg.icon, msg.duration, msg.reading);
+      showNotice(msg.text, msg.icon, msg.duration, msg.reading, msg.audioFile);
     }
     if(msg.type === 'setNoticeSpeech'){
       window.__noticeSpeechOn = msg.on;
@@ -6805,6 +7186,18 @@ if(isDisplay){
   const skippedKeys = new Set();
   let pendingPollTimer = null;
 
+  // ---------- 合言葉(裏側の承認・取得系の操作を、正しい合言葉を持つ人だけに限定する) ----------
+  // このページのソースコード自体には、合言葉は一切書き込まれていません。
+  // 最初に1回だけ入力してもらい、この端末のブラウザだけに保存します。
+  function getAdminToken_(){
+    let token = localStorage.getItem('misafes_admin_token');
+    if(!token){
+      token = prompt('合言葉を入力してください(承認担当者のみ)') || '';
+      if(token) localStorage.setItem('misafes_admin_token', token);
+    }
+    return token;
+  }
+
   // ---------- 承認待ち投稿の自動チェック(顔検出・NGワード) ----------
   // ▼ NGワード一覧(ここに追加・編集してください。差別語・スラング等は、コミュニティに合わせてご自身で追加するのが確実です) ▼
   const NG_WORDS = [
@@ -6883,7 +7276,7 @@ if(isDisplay){
   async function fetchPendingItems(){
     // ① まずApps Script経由を試す(こちらが使えれば、スプレッドシートIDを外部に出さずに済む)
     try{
-      const res = await fetch(PENDING_APPSCRIPT_URL, { cache: 'no-store' });
+      const res = await fetch(PENDING_APPSCRIPT_URL + '&token=' + encodeURIComponent(getAdminToken_()), { cache: 'no-store' });
       if(!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       return json.map(r => ({ time: r.time || '', message: (r.message || '').trim(), photoUrl: (r.photoUrl || '').trim() }));
@@ -7016,7 +7409,8 @@ if(isDisplay){
         photoKey: key,
         photoUrl: item.photoUrl || '',
         caption: item.message || '',
-        style: style
+        style: style,
+        token: getAdminToken_()
       })
     }).catch(() => {});
 
@@ -7459,6 +7853,15 @@ if(isDisplay){
     startBtn.disabled = slides.length === 0;
   }
 
+  // ---------- 防災関連の写真(任意):「防災コーナー」で、これだけを流せる ----------
+  let disasterSetupFiles = [];
+  const disasterFileInput = document.getElementById('disaster-file-input');
+  const disasterPhotoCount = document.getElementById('disaster-photo-count');
+  disasterFileInput.addEventListener('change', () => {
+    disasterSetupFiles = Array.from(disasterFileInput.files).filter(f => f.type.startsWith('image/'));
+    disasterPhotoCount.textContent = disasterSetupFiles.length + '枚';
+  });
+
   intervalSlider.addEventListener('input', () => { intervalVal.textContent = intervalSlider.value + '秒'; });
   const qrOffsetSlider = document.getElementById('qr-offset-slider');
   const qrOffsetValue = document.getElementById('qr-offset-value');
@@ -7590,14 +7993,18 @@ if(isDisplay){
   // 「今から会場に映す」:確認画面の今の再生位置から、会場側の再生を始める
   document.getElementById('cp-sponsor-handoff-btn').addEventListener('click', () => {
     if(!cpSponsorCurrent) return;
+    const isLive = document.getElementById('cp-sponsor-is-live').checked;
     let startTime = 0;
-    if(cpSponsorCurrent.type === 'youtube' && cpSponsorYtPlayer && cpSponsorYtPlayer.getCurrentTime){
-      startTime = cpSponsorYtPlayer.getCurrentTime() || 0;
-    }else if(cpSponsorVideoEl){
-      startTime = cpSponsorVideoEl.currentTime || 0;
+    if(!isLive){
+      // ライブ配信の場合は、開始位置の指定自体がエラーの原因になるため、あえて指定しない
+      if(cpSponsorCurrent.type === 'youtube' && cpSponsorYtPlayer && cpSponsorYtPlayer.getCurrentTime){
+        startTime = cpSponsorYtPlayer.getCurrentTime() || 0;
+      }else if(cpSponsorVideoEl){
+        startTime = cpSponsorVideoEl.currentTime || 0;
+      }
     }
     if(childWin && !childWin.closed){
-      childWin.postMessage({ type: 'playSponsor', sponsor: cpSponsorCurrent, startTime }, '*');
+      childWin.postMessage({ type: 'playSponsor', sponsor: cpSponsorCurrent, startTime, isLive }, '*');
     }
     closeSponsorInPanel(); // 手元の確認再生は終了する(会場側だけが続きから再生される)
 
@@ -7735,6 +8142,73 @@ if(isDisplay){
     btn.textContent = section.classList.contains('open') ? '🎆 花火演出まとめ ▲' : '🎆 花火演出まとめ ▼';
   });
 
+  document.getElementById('lottery-section-toggle').addEventListener('click', () => {
+    const section = document.getElementById('lottery-section');
+    const btn = document.getElementById('lottery-section-toggle');
+    section.classList.toggle('open');
+    btn.textContent = section.classList.contains('open') ? '🎰 抽選会 ▲' : '🎰 抽選会 ▼';
+  });
+
+  document.getElementById('lottery-random-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
+    const min = parseInt(document.getElementById('lottery-min-input').value, 10) || 0;
+    const max = parseInt(document.getElementById('lottery-max-input').value, 10) || 100;
+    if(min >= max){
+      alert('範囲の指定が正しくありません(最小値は最大値より小さくしてください)');
+      return;
+    }
+    childWin.postMessage({ type: 'runLotteryRandom', min, max }, '*');
+  });
+
+  document.getElementById('lottery-manual-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
+    const input = document.getElementById('lottery-manual-input');
+    const number = input.value.trim();
+    if(!number){
+      alert('数字を入力してください');
+      return;
+    }
+    childWin.postMessage({ type: 'showLotteryManualNumber', number }, '*');
+  });
+
+  document.getElementById('lottery-close-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'closeLottery' }, '*');
+    }
+  });
+
+  document.getElementById('lottery-fanfare-toggle').addEventListener('change', (e) => {
+    try{ localStorage.setItem('misafes_lottery_fanfare', String(e.target.checked)); }catch(err){}
+  });
+
+  document.getElementById('disaster-section-toggle').addEventListener('click', () => {
+    const section = document.getElementById('disaster-section');
+    const btn = document.getElementById('disaster-section-toggle');
+    section.classList.toggle('open');
+    btn.textContent = section.classList.contains('open') ? '🚨 防災コーナー ▲' : '🚨 防災コーナー ▼';
+  });
+
+  document.getElementById('disaster-start-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
+    const telop = document.getElementById('disaster-telop-input').value.trim();
+    childWin.postMessage({ type: 'startDisasterMode', telop }, '*');
+  });
+
+  document.getElementById('disaster-stop-btn').addEventListener('click', () => {
+    if(childWin && !childWin.closed){
+      childWin.postMessage({ type: 'stopDisasterMode' }, '*');
+    }
+  });
+
   document.getElementById('notice-speech-toggle').addEventListener('change', (e) => {
     if(childWin && !childWin.closed){
       childWin.postMessage({ type: 'setNoticeSpeech', on: e.target.checked }, '*');
@@ -7808,14 +8282,24 @@ if(isDisplay){
   const noticeInputModal = document.getElementById('notice-input-modal');
   const noticeInputTextEl = document.getElementById('notice-input-text');
   const noticeInputReadingEl = document.getElementById('notice-input-reading');
+  const noticeInputAudioEl = document.getElementById('notice-input-audio');
+  const noticeInputAudioNameEl = document.getElementById('notice-input-audio-name');
   let noticeInputOnConfirm = null;
+
+  noticeInputAudioEl.addEventListener('change', () => {
+    const file = noticeInputAudioEl.files[0];
+    noticeInputAudioNameEl.textContent = file ? `選択中:${file.name}` : '';
+  });
 
   function openNoticeInput_(defaultText, duration){
     noticeInputTextEl.value = defaultText;
     noticeInputReadingEl.value = '';
-    noticeInputOnConfirm = (text, reading) => {
+    noticeInputAudioEl.value = '';
+    noticeInputAudioNameEl.textContent = '';
+    noticeInputOnConfirm = (text, reading, audioFile) => {
       if(childWin && !childWin.closed){
-        childWin.postMessage({ type: 'showNotice', text, duration, reading }, '*');
+        // File(Blob)は、postMessageでそのまま送れる(構造化複製に対応しているため)
+        childWin.postMessage({ type: 'showNotice', text, duration, reading, audioFile }, '*');
       }
     };
     noticeInputModal.classList.add('active');
@@ -7826,8 +8310,9 @@ if(isDisplay){
     const text = noticeInputTextEl.value.trim();
     if(!text) return;
     const reading = noticeInputReadingEl.value.trim();
+    const audioFile = noticeInputAudioEl.files[0] || null;
     noticeInputModal.classList.remove('active');
-    if(noticeInputOnConfirm) noticeInputOnConfirm(text, reading);
+    if(noticeInputOnConfirm) noticeInputOnConfirm(text, reading, audioFile);
   });
   document.getElementById('notice-input-cancel-btn').addEventListener('click', () => {
     noticeInputModal.classList.remove('active');
@@ -7975,6 +8460,7 @@ if(isDisplay){
         files: slides.map(s => s.file),
         captions: slides.map(s => s.caption),
         styles: slides.map(s => s.style || null),
+        disasterFiles: disasterSetupFiles,
         settings
       }, '*');
       document.getElementById('cp-status').textContent = '🟢 表示ウィンドウに接続しました';
@@ -8056,9 +8542,10 @@ if(isDisplay){
       }catch(err){ /* 次回のチェックで再挑戦する */ }
     }, 2500);
 
-    // ギャラリーの「いいね」が多い写真を、5分おきに1枚だけスライドに挟み込む
-    clearInterval(window.__galleryHighlightTimer);
-    window.__galleryHighlightTimer = setInterval(insertGalleryBestShot_, 5 * 60 * 1000);
+    // 「今、人気の1枚」の自動挿入機能は、意味が伝わりにくいとのことで、いったん無効化しています
+    // (また使う時は、下の2行のコメントを外してください)
+    // clearInterval(window.__galleryHighlightTimer);
+    // window.__galleryHighlightTimer = setInterval(insertGalleryBestShot_, 5 * 60 * 1000);
   });
 
   const insertedGalleryShots_ = new Set(); // 一度挿入した写真は、同じお祭りの間は重複させない
