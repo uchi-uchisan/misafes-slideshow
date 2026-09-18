@@ -7200,8 +7200,8 @@ if(isDisplay){
   const PENDING_APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec?action=getPending";
   // 会場側(display=1)にある同名の定数は、操作パネル側からは見えないため、同じURLをここにも定義する
   const LIVE_APPSCRIPT_BASE_URL = "https://script.google.com/macros/s/AKfycbzu8iWmrG1pRTN1JBiDFLdvfIDtckPsrRD2fT6vkNHunHJi2Nexo_KIvjveO5r7xP_ixw/exec";
-  // 上記が通信エラー等で使えない場合の予備(スプレッドシートを直接読む方法)
-  const PENDING_CSV_URL = "https://docs.google.com/spreadsheets/d/1m_2r8VBmrFw6aben2TeZN0tP4hzav0F2GjWxRgeL3Fo/gviz/tq?tqx=out:csv";
+  // ※以前は、Apps Scriptが使えない場合のバックアップとして、スプレッドシートを直接読む方法(PENDING_CSV_URL)も
+  //   用意していましたが、これは合言葉のチェックを完全に素通りしてしまう抜け道になるため、廃止しました。
   const approvedKeys = new Set();
   const skippedKeys = new Set();
   let pendingPollTimer = null;
@@ -7294,20 +7294,16 @@ if(isDisplay){
   }
 
   async function fetchPendingItems(){
-    // ① まずApps Script経由を試す(こちらが使えれば、スプレッドシートIDを外部に出さずに済む)
-    try{
-      const res = await fetch(PENDING_APPSCRIPT_URL + '&token=' + encodeURIComponent(getAdminToken_()), { cache: 'no-store' });
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const json = await res.json();
-      return json.map(r => ({ time: r.time || '', message: (r.message || '').trim(), photoUrl: (r.photoUrl || '').trim() }));
-    }catch(err){
-      // ② ダメだった場合のみ、従来のCSV直読みにフォールバック
-      const res = await fetch(PENDING_CSV_URL, { cache: 'no-store' });
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const text = await res.text();
-      const rows = parsePendingCSV(text);
-      return rows.map(r => ({ time: r[0] || '', message: (r[1] || '').trim(), photoUrl: (r[2] || '').trim() }));
+    // 合言葉を必要としない「直接読み」の抜け道を作らないため、Apps Script経由のみを使う
+    // (エラーの場合は、そのままエラーとして扱い、合言葉なしでの取得を許さない)
+    const res = await fetch(PENDING_APPSCRIPT_URL + '&token=' + encodeURIComponent(getAdminToken_()), { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if(!Array.isArray(json)){
+      // 合言葉が正しくない場合など、Apps Script側がエラー(オブジェクト)を返してきた場合
+      throw new Error((json && json.error) || '取得に失敗しました(合言葉をご確認ください)');
     }
+    return json.map(r => ({ time: r.time || '', message: (r.message || '').trim(), photoUrl: (r.photoUrl || '').trim() }));
   }
 
   let milestoneBaseline = null; // 最初にパネルを開いた時点の投稿数(これより後に増えた分だけを対象にする)
@@ -7395,6 +7391,11 @@ if(isDisplay){
         runBackgroundCheck(item, key, el.querySelector('.pending-thumb-wrap'));
       });
     }catch(err){
+      // 合言葉が間違っていた可能性が高い場合は、保存済みの(間違った)合言葉を消しておく
+      // → 次回の取得(数秒後の自動更新)で、あらためて正しい合言葉の入力を求められるようになる
+      if(String(err.message || '').includes('合言葉')){
+        localStorage.removeItem('misafes_admin_token');
+      }
       listEl.innerHTML = `<div class="pending-empty">読み込みに失敗しました(${err.message})</div>`;
     }
   }
