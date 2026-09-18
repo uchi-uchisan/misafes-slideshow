@@ -327,8 +327,8 @@
     z-index:215;
     display:none;
     overflow:hidden;
-    background:linear-gradient(90deg, #7a1414, #a32020);
-    border-top:3px solid #ffd24d;
+    background:#2a4d7a;
+    border-top:3px solid rgba(255,255,255,0.3);
     padding:14px 0;
     white-space:nowrap;
   }
@@ -2002,7 +2002,14 @@
         <label>テロップ文言</label>
         <textarea id="disaster-telop-input" rows="2" style="width:100%; padding:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:8px; color:var(--ink); font-size:13px; font-family:inherit; resize:vertical; box-sizing:border-box;">これから、西日本豪雨の操山町内会、内水災害映像が流れます</textarea>
       </div>
-      <button type="button" id="disaster-start-btn">🚨 防災コーナーを開始</button>
+      <div class="cp-speed-row" style="margin-bottom:10px;">
+        <span>テロップの背景色</span>
+        <input type="color" id="disaster-bg-color-input" value="#2a4d7a" style="width:44px; height:30px; padding:2px; background:transparent; border:1px solid rgba(212,168,67,0.3); border-radius:6px; cursor:pointer;">
+        <span>文字色</span>
+        <input type="color" id="disaster-text-color-input" value="#ffffff" style="width:44px; height:30px; padding:2px; background:transparent; border:1px solid rgba(212,168,67,0.3); border-radius:6px; cursor:pointer;">
+      </div>
+      <button type="button" id="disaster-telop-only-btn">📢 テロップだけ先に表示(写真は切り替えない)</button>
+      <button type="button" id="disaster-start-btn">🚨 防災コーナーを開始(写真も切り替える)</button>
       <button type="button" id="disaster-stop-btn">✕ 防災コーナーを終了(通常表示に戻す)</button>
       <div class="note" style="margin:6px 0 10px; font-size:11px;">開始すると、設定画面で選んだ「防災関連の写真」だけが流れ、それ以外のスライドは一時的に表示されません。</div>
     </div>
@@ -6663,20 +6670,30 @@ if(isDisplay){
   let disasterOrder = [];
   let disasterTimer = null;
 
-  function startDisasterMode_(telopText){
+  // テロップだけを表示する(通常のスライドショーは止めない。事前の予告に使う)
+  function showDisasterTelopOnly_(telopText, bgColor, textColor){
+    const telop = document.getElementById('disaster-telop');
+    const telopTextEl = document.getElementById('disaster-telop-text');
+    telopTextEl.textContent = telopText || 'これから、防災関連の写真が流れます';
+    // 文字の長さに応じて、流れる速さ(かかる時間)を調整する(短い文章が速く流れすぎないように)
+    telopTextEl.style.animationDuration = Math.max(12, telopTextEl.textContent.length * 0.35) + 's';
+    if(bgColor) telop.style.background = bgColor;
+    if(textColor) telopTextEl.style.color = textColor;
+    telop.classList.add('active');
+  }
+
+  function hideDisasterTelop_(){
+    document.getElementById('disaster-telop').classList.remove('active');
+  }
+
+  function startDisasterMode_(telopText, bgColor, textColor){
     if(disasterSlides.length === 0){
       alert('防災関連の写真が設定されていません。設定画面で「防災関連の写真」を選んでから、スライドショーを開始し直してください。');
       return;
     }
     disasterModeActive = true;
     clearTimeout(timer); // 通常のスライド送りを止める
-
-    const telop = document.getElementById('disaster-telop');
-    const telopTextEl = document.getElementById('disaster-telop-text');
-    telopTextEl.textContent = telopText || 'これから、防災関連の写真が流れます';
-    // 文字の長さに応じて、流れる速さ(かかる時間)を調整する(短い文章が速く流れすぎないように)
-    telopTextEl.style.animationDuration = Math.max(12, telopTextEl.textContent.length * 0.35) + 's';
-    telop.classList.add('active');
+    showDisasterTelopOnly_(telopText, bgColor, textColor); // テロップがまだ出ていなければ、ここで出す(すでに出ていれば、そのまま)
 
     disasterOrder = disasterSlides.map((_, i) => i);
     disasterStep_();
@@ -6704,7 +6721,7 @@ if(isDisplay){
   function stopDisasterMode_(){
     disasterModeActive = false;
     clearTimeout(disasterTimer);
-    document.getElementById('disaster-telop').classList.remove('active');
+    hideDisasterTelop_();
     renderSlide(order[0]); // 通常のスライドショーの、今の位置に戻す
     scheduleNext();
   }
@@ -7002,7 +7019,10 @@ if(isDisplay){
       closeLotteryOverlay_();
     }
     if(msg.type === 'startDisasterMode'){
-      startDisasterMode_(msg.telop);
+      startDisasterMode_(msg.telop, msg.bgColor, msg.textColor);
+    }
+    if(msg.type === 'showDisasterTelopOnly'){
+      showDisasterTelopOnly_(msg.telop, msg.bgColor, msg.textColor);
     }
     if(msg.type === 'stopDisasterMode'){
       stopDisasterMode_();
@@ -8194,13 +8214,26 @@ if(isDisplay){
     btn.textContent = section.classList.contains('open') ? '🚨 防災コーナー ▲' : '🚨 防災コーナー ▼';
   });
 
+  document.getElementById('disaster-telop-only-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
+    const telop = document.getElementById('disaster-telop-input').value.trim();
+    const bgColor = document.getElementById('disaster-bg-color-input').value;
+    const textColor = document.getElementById('disaster-text-color-input').value;
+    childWin.postMessage({ type: 'showDisasterTelopOnly', telop, bgColor, textColor }, '*');
+  });
+
   document.getElementById('disaster-start-btn').addEventListener('click', () => {
     if(!childWin || childWin.closed){
       alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
       return;
     }
     const telop = document.getElementById('disaster-telop-input').value.trim();
-    childWin.postMessage({ type: 'startDisasterMode', telop }, '*');
+    const bgColor = document.getElementById('disaster-bg-color-input').value;
+    const textColor = document.getElementById('disaster-text-color-input').value;
+    childWin.postMessage({ type: 'startDisasterMode', telop, bgColor, textColor }, '*');
   });
 
   document.getElementById('disaster-stop-btn').addEventListener('click', () => {
