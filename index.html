@@ -1755,6 +1755,12 @@
       </div>
     </div>
 
+    <div class="row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+      <label>🙏 協賛店の感謝スライド(任意)<span class="hint">ロゴを、落ち着いたトーンで定期的に挟み込みます</span></label>
+      <input type="file" id="sponsor-thanks-file-input" accept="image/*" style="width:100%; display:block;">
+      <input type="text" id="sponsor-thanks-text-input" placeholder="例:アーバンホール様、いつも綿菓子をご協賛いただきありがとうございます" style="width:100%; margin-top:6px;">
+    </div>
+
     <div class="row">
       <label>表示間隔<span class="hint">1枚あたりの表示秒数</span></label>
       <div>
@@ -6913,7 +6919,7 @@ if(isDisplay){
   }
 
   async function initializeFromPayload(payload){
-    const { files, captions, styles, settings, disasterFiles } = payload;
+    const { files, captions, styles, settings, disasterFiles, sponsorThanksFile, sponsorThanksText } = payload;
     slides = await Promise.all(files.map(async (f, i) => ({
       url: await createResizedImageUrl_(f, 2400),
       caption: captions[i] || '',
@@ -6924,6 +6930,25 @@ if(isDisplay){
     disasterSlides = disasterFiles && disasterFiles.length > 0
       ? await Promise.all(disasterFiles.map(async f => ({ url: await createResizedImageUrl_(f, 2400) })))
       : [];
+
+    // 協賛店の感謝スライド:落ち着いたトーンで、定期的に1枚だけローテーションに挟み込む
+    clearInterval(window.__sponsorThanksTimer);
+    if(sponsorThanksFile){
+      const sponsorThanksSlideIndex = slides.length;
+      const sponsorThanksUrl = await createResizedImageUrl_(sponsorThanksFile, 1600);
+      slides.push({
+        url: sponsorThanksUrl,
+        caption: sponsorThanksText || '',
+        style: { size: 22, color: 'custom', colorCustom: '#5a3a1a', shape: 'box', pos: 'bottom', deco: 'normal', font: 'gothic', bg: 'custom', bgCustom: '#f5ece0' }
+      });
+      window.__sponsorThanksTimer = setInterval(() => {
+        // すでに挿入待ちの状態でなければ、次の1枚として控えめに挟み込む(連続でスパムのように出ないよう配慮する)
+        if(!order.includes(sponsorThanksSlideIndex)){
+          order.splice(insertPos(), 0, sponsorThanksSlideIndex);
+          updateCounter();
+        }
+      }, 7 * 60 * 1000); // 7分おき
+    }
 
     window.__interval = settings.interval;
     window.__insertOffset = settings.insertOffset || 1;
@@ -7212,6 +7237,7 @@ if(isDisplay){
   function getAdminToken_(){
     let token = localStorage.getItem('misafes_admin_token');
     if(!token){
+      window.focus(); // 新しく開いた表示ウィンドウの後ろに隠れて見えなくならないよう、操作パネルを手前に呼び戻す
       token = prompt('合言葉を入力してください(承認担当者のみ)') || '';
       if(token) localStorage.setItem('misafes_admin_token', token);
     }
@@ -7883,6 +7909,13 @@ if(isDisplay){
     disasterPhotoCount.textContent = disasterSetupFiles.length + '枚';
   });
 
+  // ---------- 協賛店の感謝スライド(任意):ロゴを、落ち着いたトーンで定期的に挟み込む ----------
+  let sponsorThanksFile = null;
+  const sponsorThanksFileInput = document.getElementById('sponsor-thanks-file-input');
+  sponsorThanksFileInput.addEventListener('change', () => {
+    sponsorThanksFile = sponsorThanksFileInput.files[0] || null;
+  });
+
   intervalSlider.addEventListener('input', () => { intervalVal.textContent = intervalSlider.value + '秒'; });
   const qrOffsetSlider = document.getElementById('qr-offset-slider');
   const qrOffsetValue = document.getElementById('qr-offset-value');
@@ -8495,6 +8528,8 @@ if(isDisplay){
         captions: slides.map(s => s.caption),
         styles: slides.map(s => s.style || null),
         disasterFiles: disasterSetupFiles,
+        sponsorThanksFile: sponsorThanksFile,
+        sponsorThanksText: document.getElementById('sponsor-thanks-text-input').value.trim(),
         settings
       }, '*');
       document.getElementById('cp-status').textContent = '🟢 表示ウィンドウに接続しました';
