@@ -1531,6 +1531,19 @@
     opacity:0.4;
     cursor:not-allowed;
   }
+  .named-folder-swap-btn{
+    display:block;
+    width:100%;
+    padding:11px;
+    margin-bottom:6px;
+    background:rgba(74,120,163,0.18);
+    border:1.5px solid rgba(90,150,200,0.5);
+    color:#9fc4e8;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
   #lost-child-btn, #closing-notice-btn{
     display:block;
     width:100%;
@@ -1821,6 +1834,16 @@
       </div>
     </div>
 
+    <div class="row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+      <label>🗂️ 複数フォルダを、名前をつけて登録(任意)<span class="hint">再生中に、ボタン1つで切り替えられます</span></label>
+      <div style="display:flex; gap:6px; width:100%;">
+        <input type="text" id="named-folder-name-input" placeholder="名前(例:午後用)" style="flex:1;">
+        <button type="button" id="named-folder-add-btn" style="width:auto; padding:0 14px; white-space:nowrap;">フォルダを選んで登録</button>
+      </div>
+      <input type="file" id="named-folder-picker" webkitdirectory style="display:none;">
+      <div id="named-folder-list" style="width:100%; font-size:12px; color:rgba(233,228,216,0.75); margin-top:4px;"></div>
+    </div>
+
     <div class="row">
       <label>表示間隔<span class="hint">1枚あたりの表示秒数</span></label>
       <div>
@@ -2094,6 +2117,7 @@
 
     <button type="button" id="swap-section-toggle" class="cp-section-toggle">🔄 写真セットの切り替え ▼</button>
     <div id="swap-section">
+      <div id="named-folder-buttons" style="margin-bottom:10px;"></div>
       <button class="cp-btn wide" id="swap-folder-btn" style="margin-bottom:6px;">📁 フォルダを選んで、裏で準備する</button>
       <input type="file" id="swap-folder-input" webkitdirectory style="display:none;">
       <button class="cp-btn wide" id="swap-files-btn" style="margin-bottom:6px;">🖼️ 複数ファイルを選んで、裏で準備する</button>
@@ -8137,6 +8161,44 @@ if(isDisplay){
     return new File([blob], pdfFile.name.replace(/\.pdf$/i, '.png'), { type: 'image/png' });
   }
 
+  // ---------- 複数フォルダを、名前をつけて登録しておく(任意):再生中に、ボタン1つで切り替えられる ----------
+  let namedFolders = []; // { name, files }
+  const namedFolderNameInput = document.getElementById('named-folder-name-input');
+  const namedFolderPicker = document.getElementById('named-folder-picker');
+  const namedFolderList = document.getElementById('named-folder-list');
+
+  document.getElementById('named-folder-add-btn').addEventListener('click', () => {
+    if(!namedFolderNameInput.value.trim()){
+      alert('先に、名前を入力してください(例:午後用)');
+      return;
+    }
+    namedFolderPicker.click();
+  });
+  namedFolderPicker.addEventListener('change', () => {
+    const files = Array.from(namedFolderPicker.files).filter(f => f.type.startsWith('image/'));
+    namedFolderPicker.value = '';
+    const name = namedFolderNameInput.value.trim();
+    if(files.length === 0 || !name) return;
+    namedFolders.push({ name, files });
+    namedFolderNameInput.value = '';
+    renderNamedFolderList_();
+  });
+  function renderNamedFolderList_(){
+    if(namedFolders.length === 0){ namedFolderList.innerHTML = ''; return; }
+    namedFolderList.innerHTML = namedFolders.map((g, i) =>
+      `<div style="display:flex; align-items:center; justify-content:space-between; padding:4px 0;">
+        <span>📁 ${escapeHtmlCP(g.name)}(${g.files.length}枚)</span>
+        <button type="button" data-i="${i}" class="named-folder-remove" style="background:transparent; border:1px solid rgba(233,228,216,0.3); color:rgba(233,228,216,0.6); border-radius:5px; padding:2px 8px; font-size:11px; cursor:pointer;">✕</button>
+      </div>`
+    ).join('');
+    namedFolderList.querySelectorAll('.named-folder-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        namedFolders.splice(parseInt(btn.dataset.i, 10), 1);
+        renderNamedFolderList_();
+      });
+    });
+  }
+
   intervalSlider.addEventListener('input', () => { intervalVal.textContent = intervalSlider.value + '秒'; });
   const qrOffsetSlider = document.getElementById('qr-offset-slider');
   const qrOffsetValue = document.getElementById('qr-offset-value');
@@ -8737,6 +8799,7 @@ if(isDisplay){
 
     setupEl.style.display = 'none';
     controlPanel.classList.add('active');
+    renderNamedFolderSwapButtons_(); // 登録しておいた、名前付きフォルダのボタンを表示する
     document.getElementById('cp-status').textContent = '🟡 表示ウィンドウに接続しています...';
     cpSpeedSlider.value = settings.interval;
     cpSpeedValue.textContent = settings.interval + '秒';
@@ -9578,16 +9641,29 @@ if(isDisplay){
   const swapStatusNote = document.getElementById('swap-status-note');
   const swapCommitBtn = document.getElementById('swap-commit-btn');
 
-  function handleSwapPhotoSelection_(fileList){
+  function handleSwapPhotoSelection_(fileList, folderName){
     const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     if(imgs.length === 0) return;
     if(!childWin || childWin.closed){
       alert('会場側の表示ウィンドウが見つかりません。');
       return;
     }
-    swapStatusNote.textContent = `⏳ ${imgs.length}枚を、裏側で準備しています…`;
+    const label = folderName ? `「${folderName}」の${imgs.length}枚` : `${imgs.length}枚`;
+    swapStatusNote.textContent = `⏳ ${label}を、裏側で準備しています…`;
     swapCommitBtn.disabled = true;
     childWin.postMessage({ type: 'prepareSwapPhotoFolder', files: imgs }, '*');
+  }
+  function renderNamedFolderSwapButtons_(){
+    const container = document.getElementById('named-folder-buttons');
+    container.innerHTML = namedFolders.map((g, i) =>
+      `<button type="button" class="named-folder-swap-btn" data-i="${i}">📁 「${escapeHtmlCP(g.name)}」に切り替える(${g.files.length}枚)</button>`
+    ).join('');
+    container.querySelectorAll('.named-folder-swap-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const group = namedFolders[parseInt(btn.dataset.i, 10)];
+        handleSwapPhotoSelection_(group.files, group.name);
+      });
+    });
   }
   document.getElementById('swap-section-toggle').addEventListener('click', () => {
     const section = document.getElementById('swap-section');
