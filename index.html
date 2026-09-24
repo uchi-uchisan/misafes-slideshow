@@ -2067,8 +2067,10 @@
 
     <div class="cp-btn-grid">
       <button class="cp-btn wide" id="add-btn">＋ 写真を追加</button>
-      <button class="cp-btn wide" id="swap-folder-btn">🔄 表示中の写真セットを切り替える</button>
+      <button class="cp-btn wide" id="swap-folder-btn">🔄 フォルダを選んで切り替える</button>
       <input type="file" id="swap-folder-input" webkitdirectory style="display:none;">
+      <button class="cp-btn wide" id="swap-files-btn">🔄 複数ファイルを選んで切り替える</button>
+      <input type="file" id="swap-files-input" accept="image/*" multiple style="display:none;">
       <!-- 「お知らせを表示」機能は、いったん非表示にしています(また使う時はコメントを外してください)
       <button class="cp-btn wide" id="announce-btn">📢 お知らせを表示</button>
       -->
@@ -9517,19 +9519,29 @@ if(isDisplay){
   });
 
   // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える
-  document.getElementById('swap-folder-btn').addEventListener('click', () => {
-    document.getElementById('swap-folder-input').click();
-  });
-  document.getElementById('swap-folder-input').addEventListener('change', e => {
-    const imgs = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
-    e.target.value = '';
+  function handleSwapPhotoSelection_(fileList){
+    const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     if(imgs.length === 0) return;
     if(!childWin || childWin.closed){
       alert('会場側の表示ウィンドウが見つかりません。');
       return;
     }
-    if(!confirm(`選んだフォルダの${imgs.length}枚に、表示中の写真セットを切り替えます。ランダム再生・表示間隔などの設定は、そのまま引き継がれます。よろしいですか?`)) return;
+    if(!confirm(`選んだ${imgs.length}枚に、表示中の写真セットを切り替えます。ランダム再生・表示間隔などの設定は、そのまま引き継がれます。よろしいですか?`)) return;
     childWin.postMessage({ type: 'swapPhotoFolder', files: imgs }, '*');
+  }
+  document.getElementById('swap-folder-btn').addEventListener('click', () => {
+    document.getElementById('swap-folder-input').click();
+  });
+  document.getElementById('swap-folder-input').addEventListener('change', e => {
+    handleSwapPhotoSelection_(e.target.files);
+    e.target.value = '';
+  });
+  document.getElementById('swap-files-btn').addEventListener('click', () => {
+    document.getElementById('swap-files-input').click();
+  });
+  document.getElementById('swap-files-input').addEventListener('change', e => {
+    handleSwapPhotoSelection_(e.target.files);
+    e.target.value = '';
   });
 
   function finalizeAddPhotos(caption){
