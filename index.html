@@ -594,6 +594,18 @@
     text-overflow:ellipsis;
   }
   .slide .caption.corner-square{ border-radius:0; }
+  .slide .caption.scroll-caption{
+    max-width:100%;
+    width:100%;
+    padding:14px 0;
+    overflow:hidden;
+    white-space:nowrap;
+    text-align:left;
+  }
+  @keyframes caption-scroll-move{
+    0%{ transform:translateX(0); }
+    100%{ transform:translateX(-100%); }
+  }
   .slide .caption.shape-glow{
     padding:34px 46px;
     box-shadow:none;
@@ -1832,15 +1844,25 @@
           <input type="number" id="sponsor-thanks-duration-input" value="8" min="1" style="width:100%; margin-top:4px;">
         </label>
       </div>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7); margin-top:6px;">
+        <input type="checkbox" id="sponsor-thanks-no-text-toggle"> 文字を表示しない(画像だけを見せる)
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:rgba(233,228,216,0.7);">
+        <input type="checkbox" id="sponsor-thanks-scroll-toggle"> 文字を、横にスライドさせる(テロップ風)
+      </label>
     </div>
 
     <div class="row" style="flex-direction:column; align-items:flex-start; gap:6px;">
-      <label>🗂️ 複数フォルダを、名前をつけて登録(任意)<span class="hint">再生中に、ボタン1つで切り替えられます</span></label>
+      <label>🗂️ 複数フォルダを、名前をつけて登録(任意)<span class="hint">名前を空にすると、フォルダ名・ファイル名から自動でつけます</span></label>
       <div style="display:flex; gap:6px; width:100%;">
-        <input type="text" id="named-folder-name-input" placeholder="名前(例:午後用)" style="flex:1;">
-        <button type="button" id="named-folder-add-btn" style="width:auto; padding:0 14px; white-space:nowrap;">フォルダを選んで登録</button>
+        <input type="text" id="named-folder-name-input" placeholder="名前(空でも登録できます)" style="flex:1;">
+      </div>
+      <div style="display:flex; gap:6px; width:100%; margin-top:6px;">
+        <button type="button" id="named-folder-add-btn" style="flex:1; padding:8px 0;">📁 フォルダを選んで登録</button>
+        <button type="button" id="named-file-add-btn" style="flex:1; padding:8px 0;">🖼️ ファイルを選んで登録</button>
       </div>
       <input type="file" id="named-folder-picker" webkitdirectory style="display:none;">
+      <input type="file" id="named-file-picker" accept="image/*" multiple style="display:none;">
       <div id="named-folder-list" style="width:100%; font-size:12px; color:rgba(233,228,216,0.75); margin-top:4px;"></div>
     </div>
 
@@ -5202,6 +5224,23 @@ if(isDisplay){
     if(st.pos === 'top'){ cap.style.top = '7%'; cap.style.bottom = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
     else if(st.pos === 'center'){ cap.style.top = '50%'; cap.style.bottom = 'auto'; cap.style.transform = 'translate(-50%, -50%) rotate(-1.2deg)'; }
     else { cap.style.bottom = '9%'; cap.style.top = 'auto'; cap.style.transform = 'translateX(-50%) rotate(-1.2deg)'; }
+
+    // 「横にスライドさせる(テロップ風)」が指定されている場合、通常の静止表示の代わりに、
+    // 画面幅いっぱいを、右から左へ流れるテロップ表示に切り替える
+    if(data.scrollCaption){
+      cap.classList.add('scroll-caption');
+      cap.style.left = '0';
+      cap.style.right = '0';
+      cap.style.width = '100%';
+      cap.style.transform = st.pos === 'center' ? 'translateY(-50%)' : 'none';
+      cap.style.borderRadius = '0';
+      textSpan.style.display = 'inline-block';
+      textSpan.style.paddingLeft = '100%';
+      textSpan.style.whiteSpace = 'nowrap';
+      const scrollDuration = Math.max(10, data.caption.length * 0.35);
+      textSpan.style.animation = `caption-scroll-move ${scrollDuration}s linear infinite`;
+    }
+
     el.appendChild(cap);
   }
 
@@ -7103,7 +7142,7 @@ if(isDisplay){
   }
 
   async function initializeFromPayload(payload){
-    const { files, captions, styles, settings, disasterFiles, sponsorThanksFile, sponsorThanksText, sponsorThanksIntervalMin, sponsorThanksDurationSec } = payload;
+    const { files, captions, styles, settings, disasterFiles, sponsorThanksFile, sponsorThanksText, sponsorThanksIntervalMin, sponsorThanksDurationSec, sponsorThanksScroll } = payload;
     slides = await processInBatches_(files, 20, async (f, i) => ({
       url: await createResizedImageUrl_(f, 2400),
       caption: captions[i] || '',
@@ -7117,19 +7156,20 @@ if(isDisplay){
       : [];
 
     // 協賛店の感謝スライド:落ち着いたトーンで、定期的に1枚だけローテーションに挟み込む
+    // ※ここではまだ、通常のローテーション(order)には含めない。最初から仲間入りさせず、
+    //  あくまで後から、タイマーで「控えめに1枚だけ」挟み込むための、独立した存在として管理する。
     window.__sponsorThanksSlideObj = null;
+    let sponsorThanksSlideObjForLater = null;
     if(sponsorThanksFile){
       const sponsorThanksUrl = await createResizedImageUrl_(sponsorThanksFile, 1600);
-      const sponsorThanksSlideObj = {
+      sponsorThanksSlideObjForLater = {
         url: sponsorThanksUrl,
         caption: sponsorThanksText || '',
         style: { size: 22, color: 'custom', colorCustom: '#5a3a1a', shape: 'box', pos: 'bottom', deco: 'normal', font: 'gothic', bg: 'custom', bgCustom: '#f5ece0' },
         isSponsorThanks: true,
-        durationSec: sponsorThanksDurationSec || 8
+        durationSec: sponsorThanksDurationSec || 8,
+        scrollCaption: !!sponsorThanksScroll
       };
-      slides.push(sponsorThanksSlideObj);
-      window.__sponsorThanksSlideObj = sponsorThanksSlideObj;
-      startSponsorThanksTimer_(sponsorThanksIntervalMin || 7);
     }
 
     window.__interval = settings.interval;
@@ -7140,6 +7180,13 @@ if(isDisplay){
     order = shuffleOn ? shuffleArray(slides.map((_, i) => i)) : slides.map((_, i) => i);
     stepCount = 0;
     paused = false;
+
+    // 協賛スライドは、ここで(通常のローテーションを組み終えた後に)slidesへ追加する
+    if(sponsorThanksSlideObjForLater){
+      slides.push(sponsorThanksSlideObjForLater);
+      window.__sponsorThanksSlideObj = sponsorThanksSlideObjForLater;
+      startSponsorThanksTimer_(sponsorThanksIntervalMin || 7);
+    }
 
     showEl.querySelectorAll('.slide').forEach(el => el.remove());
     for(let i = 0; i < 2; i++){
@@ -8172,6 +8219,7 @@ if(isDisplay){
   let namedFolders = []; // { name, files }
   const namedFolderNameInput = document.getElementById('named-folder-name-input');
   const namedFolderPicker = document.getElementById('named-folder-picker');
+  const namedFilePicker = document.getElementById('named-file-picker');
   const namedFolderList = document.getElementById('named-folder-list');
 
   // 「開始」ボタンは、最初の写真か、名前付きフォルダの、どちらか1つでもあれば押せるようにする
@@ -8180,23 +8228,40 @@ if(isDisplay){
     startBtn.disabled = slides.length === 0 && namedFolders.length === 0;
   }
 
+  function registerNamedGroup_(files, autoName){
+    if(files.length === 0) return;
+    const name = namedFolderNameInput.value.trim() || autoName;
+    namedFolders.push({ name, files });
+    namedFolderNameInput.value = '';
+    renderNamedFolderList_();
+    updateStartBtnState_();
+  }
+
   document.getElementById('named-folder-add-btn').addEventListener('click', () => {
-    if(!namedFolderNameInput.value.trim()){
-      alert('先に、名前を入力してください(例:午後用)');
-      return;
-    }
     namedFolderPicker.click();
   });
   namedFolderPicker.addEventListener('change', () => {
     const files = Array.from(namedFolderPicker.files).filter(f => f.type.startsWith('image/'));
     namedFolderPicker.value = '';
-    const name = namedFolderNameInput.value.trim();
-    if(files.length === 0 || !name) return;
-    namedFolders.push({ name, files });
-    namedFolderNameInput.value = '';
-    renderNamedFolderList_();
-    updateStartBtnState_();
+    if(files.length === 0) return;
+    // フォルダ名を、選んだファイルのパス(webkitRelativePath)から取り出す(例:「午後の写真/1.jpg」→「午後の写真」)
+    const folderName = (files[0].webkitRelativePath || '').split('/')[0] || 'フォルダ';
+    registerNamedGroup_(files, folderName);
   });
+
+  document.getElementById('named-file-add-btn').addEventListener('click', () => {
+    namedFilePicker.click();
+  });
+  namedFilePicker.addEventListener('change', () => {
+    const files = Array.from(namedFilePicker.files).filter(f => f.type.startsWith('image/'));
+    namedFilePicker.value = '';
+    if(files.length === 0) return;
+    // 名前が空の場合、選んだ最初のファイル名(拡張子なし)を、そのまま名前に使う
+    const firstName = files[0].name.replace(/\.[^.]+$/, '');
+    const autoName = files.length > 1 ? `${firstName} 他${files.length - 1}枚` : firstName;
+    registerNamedGroup_(files, autoName);
+  });
+
   function renderNamedFolderList_(){
     if(namedFolders.length === 0){ namedFolderList.innerHTML = ''; return; }
     namedFolderList.innerHTML = namedFolders.map((g, i) =>
@@ -8852,9 +8917,10 @@ if(isDisplay){
         styles: slides.map(s => s.style || null),
         disasterFiles: disasterSetupFiles,
         sponsorThanksFile: sponsorThanksFile,
-        sponsorThanksText: document.getElementById('sponsor-thanks-text-input').value.trim(),
+        sponsorThanksText: document.getElementById('sponsor-thanks-no-text-toggle').checked ? '' : document.getElementById('sponsor-thanks-text-input').value.trim(),
         sponsorThanksIntervalMin: parseInt(document.getElementById('sponsor-thanks-interval-input').value, 10) || 7,
         sponsorThanksDurationSec: parseInt(document.getElementById('sponsor-thanks-duration-input').value, 10) || 8,
+        sponsorThanksScroll: document.getElementById('sponsor-thanks-scroll-toggle').checked,
         settings
       }, '*');
       document.getElementById('cp-status').textContent = '🟢 表示ウィンドウに接続しました';
@@ -9673,13 +9739,15 @@ if(isDisplay){
     container.innerHTML = namedFolders.map((g, i) =>
       `<button type="button" class="named-folder-swap-btn" data-i="${i}">📁 「${escapeHtmlCP(g.name)}」に切り替える(${g.files.length}枚)</button>`
     ).join('');
-    container.querySelectorAll('.named-folder-swap-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const group = namedFolders[parseInt(btn.dataset.i, 10)];
-        handleSwapPhotoSelection_(group.files, group.name);
-      });
-    });
   }
+  // イベント委任方式:ボタンを何度作り直しても、この1つの登録だけで、常にクリックを拾える
+  document.getElementById('named-folder-buttons').addEventListener('click', (e) => {
+    const btn = e.target.closest('.named-folder-swap-btn');
+    if(!btn) return;
+    const group = namedFolders[parseInt(btn.dataset.i, 10)];
+    if(!group) return;
+    handleSwapPhotoSelection_(group.files, group.name);
+  });
   document.getElementById('swap-section-toggle').addEventListener('click', () => {
     const section = document.getElementById('swap-section');
     const btn = document.getElementById('swap-section-toggle');
