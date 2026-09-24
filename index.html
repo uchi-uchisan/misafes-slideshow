@@ -6753,6 +6753,7 @@ if(isDisplay){
   }
 
   function goNext(){
+    if(order.length === 0){ scheduleNext(); return; } // 写真が1枚もない間は、何もせず様子を見る(フォルダが切り替わるまで待つ)
     if(!loopOn && stepCount >= order.length - 1) return;
     const shownIdx = order.shift();
     const shownSlide = slides[shownIdx];
@@ -7148,8 +7149,14 @@ if(isDisplay){
       slideEls[i] = d;
     }
     activeSlide = 0;
-    renderSlide(order[0]);
-    slideEls[0].classList.add('show');
+    if(order.length > 0){
+      renderSlide(order[0]);
+      slideEls[0].classList.add('show');
+    }else{
+      // 最初の写真が1枚もない状態で開始された場合(名前付きフォルダだけ登録していた場合など)
+      slideEls[0].innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#e9e4d8; font-size:22px; font-family:sans-serif; text-align:center; padding:40px;">写真がありません。<br>操作パネルから、フォルダを切り替えてください。</div>';
+      slideEls[0].classList.add('show');
+    }
     updateCounter();
 
     if(settings.qrOffset){
@@ -8101,14 +8108,14 @@ if(isDisplay){
     const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     slides = slides.concat(imgs.map(f => ({ file: f, caption: '' }))); // 上書きではなく、追加する
     photoCount.textContent = slides.length + '枚';
-    startBtn.disabled = slides.length === 0;
+    updateStartBtnState_();
   }
 
   document.getElementById('photo-clear-btn').addEventListener('click', () => {
     if(slides.length > 0 && !confirm('選択中の写真を、すべてクリアしますか?')) return;
     slides = [];
     photoCount.textContent = '0枚';
-    startBtn.disabled = true;
+    updateStartBtnState_();
   });
 
   // ---------- 防災関連の写真(任意):「防災コーナー」で、これだけを流せる ----------
@@ -8167,6 +8174,12 @@ if(isDisplay){
   const namedFolderPicker = document.getElementById('named-folder-picker');
   const namedFolderList = document.getElementById('named-folder-list');
 
+  // 「開始」ボタンは、最初の写真か、名前付きフォルダの、どちらか1つでもあれば押せるようにする
+  // (名前付きフォルダだけ登録して、開始後にそちらへ切り替える、という使い方もできるようにするため)
+  function updateStartBtnState_(){
+    startBtn.disabled = slides.length === 0 && namedFolders.length === 0;
+  }
+
   document.getElementById('named-folder-add-btn').addEventListener('click', () => {
     if(!namedFolderNameInput.value.trim()){
       alert('先に、名前を入力してください(例:午後用)');
@@ -8182,6 +8195,7 @@ if(isDisplay){
     namedFolders.push({ name, files });
     namedFolderNameInput.value = '';
     renderNamedFolderList_();
+    updateStartBtnState_();
   });
   function renderNamedFolderList_(){
     if(namedFolders.length === 0){ namedFolderList.innerHTML = ''; return; }
@@ -8195,6 +8209,7 @@ if(isDisplay){
       btn.addEventListener('click', () => {
         namedFolders.splice(parseInt(btn.dataset.i, 10), 1);
         renderNamedFolderList_();
+        updateStartBtnState_();
       });
     });
   }
