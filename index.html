@@ -1504,6 +1504,33 @@
     font-weight:700;
     cursor:pointer;
   }
+  #swap-section{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height 0.3s ease;
+  }
+  #swap-section.open{
+    max-height:400px;
+    margin-bottom:12px;
+    margin-top:8px;
+  }
+  #swap-commit-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    margin-bottom:6px;
+    background:rgba(74,163,94,0.2);
+    border:1.5px solid rgba(74,163,94,0.6);
+    color:#8fd6a3;
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  #swap-commit-btn:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
   #lost-child-btn, #closing-notice-btn{
     display:block;
     width:100%;
@@ -2065,12 +2092,19 @@
       <div class="note" style="margin:6px 0 10px; font-size:11px;">再生中でも、ここで変更・反映できます(協賛店の感謝スライドを、最初に設定していた場合のみ有効です)。</div>
     </div>
 
+    <button type="button" id="swap-section-toggle" class="cp-section-toggle">🔄 写真セットの切り替え ▼</button>
+    <div id="swap-section">
+      <button class="cp-btn wide" id="swap-folder-btn" style="margin-bottom:6px;">📁 フォルダを選んで、裏で準備する</button>
+      <input type="file" id="swap-folder-input" webkitdirectory style="display:none;">
+      <button class="cp-btn wide" id="swap-files-btn" style="margin-bottom:6px;">🖼️ 複数ファイルを選んで、裏で準備する</button>
+      <input type="file" id="swap-files-input" accept="image/*" multiple style="display:none;">
+      <div class="note" id="swap-status-note" style="margin:2px 0 10px; font-size:11.5px;">まだ、準備中の写真セットはありません。</div>
+      <button type="button" id="swap-commit-btn" disabled>🔁 準備できたセットに、今すぐ切り替える</button>
+      <div class="note" style="margin:6px 0 10px; font-size:11px;">先にファイルを選んで「裏で準備」しておくと、会場画面には何も表示されないまま、裏側だけで読み込みが進みます。準備ができたら、好きなタイミングで「今すぐ切り替える」を押してください。ランダム再生・表示間隔などの設定は、そのまま引き継がれます。</div>
+    </div>
+
     <div class="cp-btn-grid">
       <button class="cp-btn wide" id="add-btn">＋ 写真を追加</button>
-      <button class="cp-btn wide" id="swap-folder-btn">🔄 フォルダを選んで切り替える</button>
-      <input type="file" id="swap-folder-input" webkitdirectory style="display:none;">
-      <button class="cp-btn wide" id="swap-files-btn">🔄 複数ファイルを選んで切り替える</button>
-      <input type="file" id="swap-files-input" accept="image/*" multiple style="display:none;">
       <!-- 「お知らせを表示」機能は、いったん非表示にしています(また使う時はコメントを外してください)
       <button class="cp-btn wide" id="announce-btn">📢 お知らせを表示</button>
       -->
@@ -6999,8 +7033,24 @@ if(isDisplay){
     return results;
   }
 
-  // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える
-  async function swapPhotoFolder_(files){
+  // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える(準備フェーズ:裏側で先に読み込んでおくだけ)
+  window.__stagedSwapSlides = null;
+  async function prepareSwapPhotoFolder_(files){
+    const staged = await processInBatches_(files, 20, async f => ({
+      url: await createResizedImageUrl_(f, 2400),
+      caption: '',
+      style: null,
+      isLocalFolder: true
+    }));
+    window.__stagedSwapSlides = staged;
+    // 準備ができたことを、操作パネルに知らせる(会場画面には、何も表示しない)
+    if(window.opener) window.opener.postMessage({ type: 'swapPhotoReady', count: staged.length }, '*');
+  }
+
+  // 準備しておいた写真セットに、一瞬で切り替える(切り替えフェーズ)
+  function commitSwapPhotoFolder_(){
+    if(!window.__stagedSwapSlides) return;
+
     // 今のローカル写真(切り替え対象)だけ、メモリを解放しておく
     // (承認済み投稿・協賛感謝スライド・文字スライドなど、それ以外は消さずに残す)
     slides.forEach(s => {
@@ -7011,19 +7061,14 @@ if(isDisplay){
     // 今、順番待ちの中にある「維持するスライド」を、後で順番を組み直すために控えておく
     const keptObjectsInOrder = order.map(idx => slides[idx]).filter(s => s && !s.isLocalFolder);
 
-    const newLocalSlides = await processInBatches_(files, 20, async f => ({
-      url: await createResizedImageUrl_(f, 2400),
-      caption: '',
-      style: null,
-      isLocalFolder: true
-    }));
-
+    const newLocalSlides = window.__stagedSwapSlides;
     slides = newLocalSlides.concat(keepSlides);
 
     const newLocalOrder = shuffleOn ? shuffleArray(newLocalSlides.map((_, i) => i)) : newLocalSlides.map((_, i) => i);
     const keptOrder = keptObjectsInOrder.map(s => slides.indexOf(s)).filter(i => i !== -1);
     order = newLocalOrder.concat(keptOrder);
 
+    window.__stagedSwapSlides = null;
     stepCount = 0;
     renderSlide(order[0]);
     updateCounter();
@@ -7178,13 +7223,12 @@ if(isDisplay){
         if(msg.intervalMin) startSponsorThanksTimer_(msg.intervalMin); // タイマーを、新しい間隔で立て直す
       }
     }
-    if(msg.type === 'swapPhotoFolder'){
-      const loadingEl = document.createElement('div');
-      loadingEl.id = 'display-loading-notice';
-      loadingEl.style.cssText = 'position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; background:#0d0a06; color:#e9e4d8; font-size:22px; font-family:sans-serif;';
-      loadingEl.textContent = '📷 新しい写真セットに切り替えています…';
-      document.body.appendChild(loadingEl);
-      swapPhotoFolder_(msg.files).then(() => loadingEl.remove());
+    if(msg.type === 'prepareSwapPhotoFolder'){
+      // 会場画面には、何も表示せず、裏側で静かに読み込んでおく
+      prepareSwapPhotoFolder_(msg.files);
+    }
+    if(msg.type === 'commitSwapPhotoFolder'){
+      commitSwapPhotoFolder_();
     }
     if(msg.type === 'showNotice'){
       showNotice(msg.text, msg.icon, msg.duration, msg.reading, msg.audioFile);
@@ -9518,7 +9562,10 @@ if(isDisplay){
     updateCaptionPreview();
   });
 
-  // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える
+  // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える(準備→切り替えの2段階)
+  const swapStatusNote = document.getElementById('swap-status-note');
+  const swapCommitBtn = document.getElementById('swap-commit-btn');
+
   function handleSwapPhotoSelection_(fileList){
     const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     if(imgs.length === 0) return;
@@ -9526,9 +9573,16 @@ if(isDisplay){
       alert('会場側の表示ウィンドウが見つかりません。');
       return;
     }
-    if(!confirm(`選んだ${imgs.length}枚に、表示中の写真セットを切り替えます。ランダム再生・表示間隔などの設定は、そのまま引き継がれます。よろしいですか?`)) return;
-    childWin.postMessage({ type: 'swapPhotoFolder', files: imgs }, '*');
+    swapStatusNote.textContent = `⏳ ${imgs.length}枚を、裏側で準備しています…`;
+    swapCommitBtn.disabled = true;
+    childWin.postMessage({ type: 'prepareSwapPhotoFolder', files: imgs }, '*');
   }
+  document.getElementById('swap-section-toggle').addEventListener('click', () => {
+    const section = document.getElementById('swap-section');
+    const btn = document.getElementById('swap-section-toggle');
+    section.classList.toggle('open');
+    btn.textContent = section.classList.contains('open') ? '🔄 写真セットの切り替え ▲' : '🔄 写真セットの切り替え ▼';
+  });
   document.getElementById('swap-folder-btn').addEventListener('click', () => {
     document.getElementById('swap-folder-input').click();
   });
@@ -9542,6 +9596,22 @@ if(isDisplay){
   document.getElementById('swap-files-input').addEventListener('change', e => {
     handleSwapPhotoSelection_(e.target.files);
     e.target.value = '';
+  });
+  document.getElementById('swap-commit-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。');
+      return;
+    }
+    childWin.postMessage({ type: 'commitSwapPhotoFolder' }, '*');
+    swapStatusNote.textContent = '✅ 切り替えました。次の写真セットを準備するには、もう一度ファイルを選んでください。';
+    swapCommitBtn.disabled = true;
+  });
+
+  // 会場側で、準備が完了した時に届く通知
+  window.addEventListener('message', e => {
+    if(!e.data || e.data.type !== 'swapPhotoReady') return;
+    swapStatusNote.textContent = `✅ ${e.data.count}枚の準備ができました。好きなタイミングで切り替えてください。`;
+    swapCommitBtn.disabled = false;
   });
 
   function finalizeAddPhotos(caption){
