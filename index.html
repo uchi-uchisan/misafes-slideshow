@@ -1481,6 +1481,29 @@
     font-size:12.5px;
     cursor:pointer;
   }
+  #sponsor-thanks-section{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height 0.3s ease;
+  }
+  #sponsor-thanks-section.open{
+    max-height:300px;
+    margin-bottom:12px;
+    margin-top:8px;
+  }
+  #sponsor-thanks-apply-btn{
+    display:block;
+    width:100%;
+    padding:11px;
+    margin-bottom:6px;
+    background:rgba(212,168,67,0.15);
+    border:1.5px solid rgba(212,168,67,0.5);
+    color:var(--gold);
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
   #lost-child-btn, #closing-notice-btn{
     display:block;
     width:100%;
@@ -1744,6 +1767,7 @@
     <div class="count-row">
       <span>選択中の写真</span>
       <b id="photo-count">0枚</b>
+      <button type="button" id="photo-clear-btn" style="margin-left:auto; padding:4px 10px; font-size:11px; background:transparent; border:1px solid rgba(233,228,216,0.3); color:rgba(233,228,216,0.6); border-radius:6px; cursor:pointer;">クリア</button>
     </div>
 
     <div class="row" style="flex-direction:column; align-items:flex-start; gap:6px;">
@@ -1759,6 +1783,14 @@
       <label>🙏 協賛店の感謝スライド(任意)<span class="hint">ロゴを、落ち着いたトーンで定期的に挟み込みます</span></label>
       <input type="file" id="sponsor-thanks-file-input" accept="image/*" style="width:100%; display:block;">
       <input type="text" id="sponsor-thanks-text-input" placeholder="例:アーバンホール様、いつも綿菓子をご協賛いただきありがとうございます" style="width:100%; margin-top:6px;">
+      <div style="display:flex; gap:10px; width:100%; margin-top:6px;">
+        <label style="flex:1; font-size:12px; color:rgba(233,228,216,0.6);">表示間隔(分)
+          <input type="number" id="sponsor-thanks-interval-input" value="7" min="1" style="width:100%; margin-top:4px;">
+        </label>
+        <label style="flex:1; font-size:12px; color:rgba(233,228,216,0.6);">表示秒数
+          <input type="number" id="sponsor-thanks-duration-input" value="8" min="1" style="width:100%; margin-top:4px;">
+        </label>
+      </div>
     </div>
 
     <div class="row">
@@ -2018,6 +2050,18 @@
       <button type="button" id="disaster-start-btn">🚨 防災コーナーを開始(写真も切り替える)</button>
       <button type="button" id="disaster-stop-btn">✕ 防災コーナーを終了(通常表示に戻す)</button>
       <div class="note" style="margin:6px 0 10px; font-size:11px;">開始すると、設定画面で選んだ「防災関連の写真」だけが流れ、それ以外のスライドは一時的に表示されません。</div>
+    </div>
+
+    <button type="button" id="sponsor-thanks-section-toggle" class="cp-section-toggle">🙏 感謝スライドの設定 ▼</button>
+    <div id="sponsor-thanks-section">
+      <div class="cp-speed-row">
+        <span>表示間隔(分)</span>
+        <input type="number" id="cp-sponsor-thanks-interval" value="7" min="1" style="width:60px; padding:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink);">
+        <span>表示秒数</span>
+        <input type="number" id="cp-sponsor-thanks-duration" value="8" min="1" style="width:60px; padding:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(212,168,67,0.3); border-radius:6px; color:var(--ink);">
+      </div>
+      <button type="button" id="sponsor-thanks-apply-btn">この設定を、今すぐ反映する</button>
+      <div class="note" style="margin:6px 0 10px; font-size:11px;">再生中でも、ここで変更・反映できます(協賛店の感謝スライドを、最初に設定していた場合のみ有効です)。</div>
     </div>
 
     <div class="cp-btn-grid">
@@ -6636,7 +6680,10 @@ if(isDisplay){
   function scheduleNext(){
     clearTimeout(timer);
     if(paused) return;
-    const secs = window.__interval * 1000;
+    const currentSlide = slides[order[0]];
+    const secs = (currentSlide && currentSlide.isSponsorThanks && currentSlide.durationSec)
+      ? currentSlide.durationSec * 1000
+      : window.__interval * 1000;
     timer = setTimeout(goNext, secs);
   }
 
@@ -6918,8 +6965,22 @@ if(isDisplay){
     }
   }
 
+  // 協賛店の感謝スライドを、指定した分数おきに、ローテーションへ控えめに挟み込むタイマー
+  function startSponsorThanksTimer_(intervalMin){
+    clearInterval(window.__sponsorThanksTimer);
+    if(window.__sponsorThanksSlideIndex === null || window.__sponsorThanksSlideIndex === undefined) return;
+    window.__sponsorThanksTimer = setInterval(() => {
+      const idx = window.__sponsorThanksSlideIndex;
+      // すでに挿入待ちの状態でなければ、次の1枚として控えめに挟み込む(連続でスパムのように出ないよう配慮する)
+      if(!order.includes(idx)){
+        order.splice(insertPos(), 0, idx);
+        updateCounter();
+      }
+    }, intervalMin * 60 * 1000);
+  }
+
   async function initializeFromPayload(payload){
-    const { files, captions, styles, settings, disasterFiles, sponsorThanksFile, sponsorThanksText } = payload;
+    const { files, captions, styles, settings, disasterFiles, sponsorThanksFile, sponsorThanksText, sponsorThanksIntervalMin, sponsorThanksDurationSec } = payload;
     slides = await Promise.all(files.map(async (f, i) => ({
       url: await createResizedImageUrl_(f, 2400),
       caption: captions[i] || '',
@@ -6932,22 +6993,18 @@ if(isDisplay){
       : [];
 
     // 協賛店の感謝スライド:落ち着いたトーンで、定期的に1枚だけローテーションに挟み込む
-    clearInterval(window.__sponsorThanksTimer);
+    window.__sponsorThanksSlideIndex = null;
     if(sponsorThanksFile){
-      const sponsorThanksSlideIndex = slides.length;
+      window.__sponsorThanksSlideIndex = slides.length;
       const sponsorThanksUrl = await createResizedImageUrl_(sponsorThanksFile, 1600);
       slides.push({
         url: sponsorThanksUrl,
         caption: sponsorThanksText || '',
-        style: { size: 22, color: 'custom', colorCustom: '#5a3a1a', shape: 'box', pos: 'bottom', deco: 'normal', font: 'gothic', bg: 'custom', bgCustom: '#f5ece0' }
+        style: { size: 22, color: 'custom', colorCustom: '#5a3a1a', shape: 'box', pos: 'bottom', deco: 'normal', font: 'gothic', bg: 'custom', bgCustom: '#f5ece0' },
+        isSponsorThanks: true,
+        durationSec: sponsorThanksDurationSec || 8
       });
-      window.__sponsorThanksTimer = setInterval(() => {
-        // すでに挿入待ちの状態でなければ、次の1枚として控えめに挟み込む(連続でスパムのように出ないよう配慮する)
-        if(!order.includes(sponsorThanksSlideIndex)){
-          order.splice(insertPos(), 0, sponsorThanksSlideIndex);
-          updateCounter();
-        }
-      }, 7 * 60 * 1000); // 7分おき
+      startSponsorThanksTimer_(sponsorThanksIntervalMin || 7);
     }
 
     window.__interval = settings.interval;
@@ -7051,6 +7108,12 @@ if(isDisplay){
     }
     if(msg.type === 'stopDisasterMode'){
       stopDisasterMode_();
+    }
+    if(msg.type === 'setSponsorThanksTiming'){
+      if(window.__sponsorThanksSlideIndex !== null && window.__sponsorThanksSlideIndex !== undefined){
+        if(msg.durationSec) slides[window.__sponsorThanksSlideIndex].durationSec = msg.durationSec;
+        if(msg.intervalMin) startSponsorThanksTimer_(msg.intervalMin); // タイマーを、新しい間隔で立て直す
+      }
     }
     if(msg.type === 'showNotice'){
       showNotice(msg.text, msg.icon, msg.duration, msg.reading, msg.audioFile);
@@ -7895,10 +7958,17 @@ if(isDisplay){
 
   function handleFiles(fileList){
     const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-    slides = imgs.map(f => ({ file: f, caption: '' }));
+    slides = slides.concat(imgs.map(f => ({ file: f, caption: '' }))); // 上書きではなく、追加する
     photoCount.textContent = slides.length + '枚';
     startBtn.disabled = slides.length === 0;
   }
+
+  document.getElementById('photo-clear-btn').addEventListener('click', () => {
+    if(slides.length > 0 && !confirm('選択中の写真を、すべてクリアしますか?')) return;
+    slides = [];
+    photoCount.textContent = '0枚';
+    startBtn.disabled = true;
+  });
 
   // ---------- 防災関連の写真(任意):「防災コーナー」で、これだけを流せる ----------
   let disasterSetupFiles = [];
@@ -8276,6 +8346,30 @@ if(isDisplay){
     }
   });
 
+  document.getElementById('sponsor-thanks-section-toggle').addEventListener('click', () => {
+    const section = document.getElementById('sponsor-thanks-section');
+    const btn = document.getElementById('sponsor-thanks-section-toggle');
+    section.classList.toggle('open');
+    btn.textContent = section.classList.contains('open') ? '🙏 感謝スライドの設定 ▲' : '🙏 感謝スライドの設定 ▼';
+    // 開いた時に、最初の設定画面で入力した値を、初期値として反映しておく
+    if(section.classList.contains('open')){
+      const setupInterval = document.getElementById('sponsor-thanks-interval-input');
+      const setupDuration = document.getElementById('sponsor-thanks-duration-input');
+      if(setupInterval) document.getElementById('cp-sponsor-thanks-interval').value = setupInterval.value;
+      if(setupDuration) document.getElementById('cp-sponsor-thanks-duration').value = setupDuration.value;
+    }
+  });
+
+  document.getElementById('sponsor-thanks-apply-btn').addEventListener('click', () => {
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。スライドショーを開き直してください。');
+      return;
+    }
+    const intervalMin = parseInt(document.getElementById('cp-sponsor-thanks-interval').value, 10) || 7;
+    const durationSec = parseInt(document.getElementById('cp-sponsor-thanks-duration').value, 10) || 8;
+    childWin.postMessage({ type: 'setSponsorThanksTiming', intervalMin, durationSec }, '*');
+  });
+
   document.getElementById('notice-speech-toggle').addEventListener('change', (e) => {
     if(childWin && !childWin.closed){
       childWin.postMessage({ type: 'setNoticeSpeech', on: e.target.checked }, '*');
@@ -8530,6 +8624,8 @@ if(isDisplay){
         disasterFiles: disasterSetupFiles,
         sponsorThanksFile: sponsorThanksFile,
         sponsorThanksText: document.getElementById('sponsor-thanks-text-input').value.trim(),
+        sponsorThanksIntervalMin: parseInt(document.getElementById('sponsor-thanks-interval-input').value, 10) || 7,
+        sponsorThanksDurationSec: parseInt(document.getElementById('sponsor-thanks-duration-input').value, 10) || 8,
         settings
       }, '*');
       document.getElementById('cp-status').textContent = '🟢 表示ウィンドウに接続しました';
