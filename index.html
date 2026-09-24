@@ -2105,6 +2105,8 @@
 
     <div class="cp-btn-grid">
       <button class="cp-btn wide" id="add-btn">＋ 写真を追加</button>
+      <button class="cp-btn wide" id="add-folder-btn">＋ フォルダから追加</button>
+      <input type="file" id="add-folder-input" webkitdirectory style="display:none;">
       <!-- 「お知らせを表示」機能は、いったん非表示にしています(また使う時はコメントを外してください)
       <button class="cp-btn wide" id="announce-btn">📢 お知らせを表示</button>
       -->
@@ -7287,12 +7289,12 @@ if(isDisplay){
     if(msg.type === 'addPhotos'){
       (async () => {
         const startIndex = slides.length;
-        const newSlides = await Promise.all(msg.files.map(async (f) => ({
+        const newSlides = await processInBatches_(msg.files, 20, async (f) => ({
           url: await createResizedImageUrl_(f, 2400),
           caption: msg.caption || '',
           style: msg.style || null,
           isApproved: true
-        })));
+        }));
         slides = slides.concat(newSlides);
         const newIndices = newSlides.map((_, i) => startIndex + i);
         order.splice(insertPos(), 0, ...(shuffleOn ? shuffleArray(newIndices) : newIndices));
@@ -9549,9 +9551,8 @@ if(isDisplay){
   }));
   captionInput.addEventListener('input', updateCaptionPreview);
 
-  addInput.addEventListener('change', e => {
-    const imgs = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
-    addInput.value = '';
+  function handleAddPhotoSelection_(fileList){
+    const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     if(imgs.length === 0) return;
     pendingFiles = imgs;
     if(pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
@@ -9560,6 +9561,17 @@ if(isDisplay){
     captionModal.classList.add('active');
     captionInput.focus();
     updateCaptionPreview();
+  }
+  addInput.addEventListener('change', e => {
+    handleAddPhotoSelection_(e.target.files);
+    addInput.value = '';
+  });
+  document.getElementById('add-folder-btn').addEventListener('click', () => {
+    document.getElementById('add-folder-input').click();
+  });
+  document.getElementById('add-folder-input').addEventListener('change', e => {
+    handleAddPhotoSelection_(e.target.files);
+    e.target.value = '';
   });
 
   // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える(準備→切り替えの2段階)
