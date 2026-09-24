@@ -1746,6 +1746,7 @@
     box-shadow:0 10px 26px rgba(232,84,42,0.35);
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
@@ -1781,7 +1782,7 @@
 
     <div class="row" style="flex-direction:column; align-items:flex-start; gap:6px;">
       <label>🙏 協賛店の感謝スライド(任意)<span class="hint">ロゴを、落ち着いたトーンで定期的に挟み込みます</span></label>
-      <input type="file" id="sponsor-thanks-file-input" accept="image/*" style="width:100%; display:block;">
+      <input type="file" id="sponsor-thanks-file-input" accept="image/*,application/pdf" style="width:100%; display:block;">
       <input type="text" id="sponsor-thanks-text-input" placeholder="例:アーバンホール様、いつも綿菓子をご協賛いただきありがとうございます" style="width:100%; margin-top:6px;">
       <div style="display:flex; gap:10px; width:100%; margin-top:6px;">
         <label style="flex:1; font-size:12px; color:rgba(233,228,216,0.6);">表示間隔(分)
@@ -2066,6 +2067,8 @@
 
     <div class="cp-btn-grid">
       <button class="cp-btn wide" id="add-btn">＋ 写真を追加</button>
+      <button class="cp-btn wide" id="swap-folder-btn">🔄 表示中の写真セットを切り替える</button>
+      <input type="file" id="swap-folder-input" webkitdirectory style="display:none;">
       <!-- 「お知らせを表示」機能は、いったん非表示にしています(また使う時はコメントを外してください)
       <button class="cp-btn wide" id="announce-btn">📢 お知らせを表示</button>
       -->
@@ -6968,9 +6971,11 @@ if(isDisplay){
   // 協賛店の感謝スライドを、指定した分数おきに、ローテーションへ控えめに挟み込むタイマー
   function startSponsorThanksTimer_(intervalMin){
     clearInterval(window.__sponsorThanksTimer);
-    if(window.__sponsorThanksSlideIndex === null || window.__sponsorThanksSlideIndex === undefined) return;
+    if(!window.__sponsorThanksSlideObj) return;
     window.__sponsorThanksTimer = setInterval(() => {
-      const idx = window.__sponsorThanksSlideIndex;
+      // フォルダ切り替えなどでインデックスが変わっている可能性があるため、その都度、今の位置を調べ直す
+      const idx = slides.indexOf(window.__sponsorThanksSlideObj);
+      if(idx === -1) return;
       // すでに挿入待ちの状態でなければ、次の1枚として控えめに挟み込む(連続でスパムのように出ないよう配慮する)
       if(!order.includes(idx)){
         order.splice(insertPos(), 0, idx);
@@ -6979,31 +6984,77 @@ if(isDisplay){
     }, intervalMin * 60 * 1000);
   }
 
+  // 大量の写真を、一度に全部ではなく、少しずつ(バッチ単位)処理する
+  // (一気に処理すると、ピーク時のメモリ使用量が跳ね上がり、
+  //  「メモリが不足しているため、このページを開けません」の原因になるため)
+  async function processInBatches_(items, batchSize, worker){
+    const results = [];
+    for(let i = 0; i < items.length; i += batchSize){
+      const batch = items.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map((item, j) => worker(item, i + j)));
+      results.push(...batchResults);
+    }
+    return results;
+  }
+
+  // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える
+  async function swapPhotoFolder_(files){
+    // 今のローカル写真(切り替え対象)だけ、メモリを解放しておく
+    // (承認済み投稿・協賛感謝スライド・文字スライドなど、それ以外は消さずに残す)
+    slides.forEach(s => {
+      if(s.isLocalFolder && s.url) URL.revokeObjectURL(s.url);
+    });
+
+    const keepSlides = slides.filter(s => !s.isLocalFolder);
+    // 今、順番待ちの中にある「維持するスライド」を、後で順番を組み直すために控えておく
+    const keptObjectsInOrder = order.map(idx => slides[idx]).filter(s => s && !s.isLocalFolder);
+
+    const newLocalSlides = await processInBatches_(files, 20, async f => ({
+      url: await createResizedImageUrl_(f, 2400),
+      caption: '',
+      style: null,
+      isLocalFolder: true
+    }));
+
+    slides = newLocalSlides.concat(keepSlides);
+
+    const newLocalOrder = shuffleOn ? shuffleArray(newLocalSlides.map((_, i) => i)) : newLocalSlides.map((_, i) => i);
+    const keptOrder = keptObjectsInOrder.map(s => slides.indexOf(s)).filter(i => i !== -1);
+    order = newLocalOrder.concat(keptOrder);
+
+    stepCount = 0;
+    renderSlide(order[0]);
+    updateCounter();
+    scheduleNext();
+  }
+
   async function initializeFromPayload(payload){
     const { files, captions, styles, settings, disasterFiles, sponsorThanksFile, sponsorThanksText, sponsorThanksIntervalMin, sponsorThanksDurationSec } = payload;
-    slides = await Promise.all(files.map(async (f, i) => ({
+    slides = await processInBatches_(files, 20, async (f, i) => ({
       url: await createResizedImageUrl_(f, 2400),
       caption: captions[i] || '',
-      style: styles[i] || null
-    })));
+      style: styles[i] || null,
+      isLocalFolder: true // 「フォルダの切り替え」機能で、このスライドだけを対象に入れ替えるための印
+    }));
 
     // 防災コーナー専用の写真(通常のスライドとは別で管理する)
     disasterSlides = disasterFiles && disasterFiles.length > 0
-      ? await Promise.all(disasterFiles.map(async f => ({ url: await createResizedImageUrl_(f, 2400) })))
+      ? await processInBatches_(disasterFiles, 20, async f => ({ url: await createResizedImageUrl_(f, 2400) }))
       : [];
 
     // 協賛店の感謝スライド:落ち着いたトーンで、定期的に1枚だけローテーションに挟み込む
-    window.__sponsorThanksSlideIndex = null;
+    window.__sponsorThanksSlideObj = null;
     if(sponsorThanksFile){
-      window.__sponsorThanksSlideIndex = slides.length;
       const sponsorThanksUrl = await createResizedImageUrl_(sponsorThanksFile, 1600);
-      slides.push({
+      const sponsorThanksSlideObj = {
         url: sponsorThanksUrl,
         caption: sponsorThanksText || '',
         style: { size: 22, color: 'custom', colorCustom: '#5a3a1a', shape: 'box', pos: 'bottom', deco: 'normal', font: 'gothic', bg: 'custom', bgCustom: '#f5ece0' },
         isSponsorThanks: true,
         durationSec: sponsorThanksDurationSec || 8
-      });
+      };
+      slides.push(sponsorThanksSlideObj);
+      window.__sponsorThanksSlideObj = sponsorThanksSlideObj;
       startSponsorThanksTimer_(sponsorThanksIntervalMin || 7);
     }
 
@@ -7046,7 +7097,17 @@ if(isDisplay){
     if(!pendingInit) return;
     document.documentElement.requestFullscreen?.().catch(() => {});
     startOverlay.classList.add('hidden');
-    initializeFromPayload(pendingInit);
+
+    // 写真の枚数が多いと、準備に時間がかかることがあるため、その間は「読み込み中」を表示しておく
+    const loadingEl = document.createElement('div');
+    loadingEl.id = 'display-loading-notice';
+    loadingEl.style.cssText = 'position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; background:#0d0a06; color:#e9e4d8; font-size:22px; font-family:sans-serif;';
+    loadingEl.textContent = '📷 写真を読み込んでいます…しばらくお待ちください';
+    document.body.appendChild(loadingEl);
+
+    initializeFromPayload(pendingInit).then(() => {
+      loadingEl.remove();
+    });
   });
 
   window.addEventListener('message', e => {
@@ -7110,10 +7171,18 @@ if(isDisplay){
       stopDisasterMode_();
     }
     if(msg.type === 'setSponsorThanksTiming'){
-      if(window.__sponsorThanksSlideIndex !== null && window.__sponsorThanksSlideIndex !== undefined){
-        if(msg.durationSec) slides[window.__sponsorThanksSlideIndex].durationSec = msg.durationSec;
+      if(window.__sponsorThanksSlideObj){
+        if(msg.durationSec) window.__sponsorThanksSlideObj.durationSec = msg.durationSec;
         if(msg.intervalMin) startSponsorThanksTimer_(msg.intervalMin); // タイマーを、新しい間隔で立て直す
       }
+    }
+    if(msg.type === 'swapPhotoFolder'){
+      const loadingEl = document.createElement('div');
+      loadingEl.id = 'display-loading-notice';
+      loadingEl.style.cssText = 'position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; background:#0d0a06; color:#e9e4d8; font-size:22px; font-family:sans-serif;';
+      loadingEl.textContent = '📷 新しい写真セットに切り替えています…';
+      document.body.appendChild(loadingEl);
+      swapPhotoFolder_(msg.files).then(() => loadingEl.remove());
     }
     if(msg.type === 'showNotice'){
       showNotice(msg.text, msg.icon, msg.duration, msg.reading, msg.audioFile);
@@ -7982,9 +8051,43 @@ if(isDisplay){
   // ---------- 協賛店の感謝スライド(任意):ロゴを、落ち着いたトーンで定期的に挟み込む ----------
   let sponsorThanksFile = null;
   const sponsorThanksFileInput = document.getElementById('sponsor-thanks-file-input');
-  sponsorThanksFileInput.addEventListener('change', () => {
-    sponsorThanksFile = sponsorThanksFileInput.files[0] || null;
+  const sponsorThanksStatus = document.createElement('div');
+  sponsorThanksStatus.style.cssText = 'font-size:11px; color:rgba(233,228,216,0.5); margin-top:4px;';
+  sponsorThanksFileInput.insertAdjacentElement('afterend', sponsorThanksStatus);
+
+  sponsorThanksFileInput.addEventListener('change', async () => {
+    const file = sponsorThanksFileInput.files[0];
+    if(!file) return;
+
+    if(file.type === 'application/pdf'){
+      sponsorThanksStatus.textContent = '⏳ PDFを画像に変換しています…';
+      try{
+        sponsorThanksFile = await convertPdfFirstPageToImageFile_(file);
+        sponsorThanksStatus.textContent = '✅ PDFを画像に変換しました';
+      }catch(err){
+        sponsorThanksStatus.textContent = '❌ PDFの変換に失敗しました。お手数ですが、画像(PNG/JPG)に変換してから、あらためて選び直してください';
+        sponsorThanksFile = null;
+      }
+    }else{
+      sponsorThanksFile = file;
+      sponsorThanksStatus.textContent = '';
+    }
   });
+
+  // アップロードされたPDFの1ページ目を、画像ファイル(File)に変換する
+  async function convertPdfFirstPageToImageFile_(pdfFile){
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2.5 }); // 高めの解像度で描画する
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    return new File([blob], pdfFile.name.replace(/\.pdf$/i, '.png'), { type: 'image/png' });
+  }
 
   intervalSlider.addEventListener('input', () => { intervalVal.textContent = intervalSlider.value + '秒'; });
   const qrOffsetSlider = document.getElementById('qr-offset-slider');
@@ -9411,6 +9514,22 @@ if(isDisplay){
     captionModal.classList.add('active');
     captionInput.focus();
     updateCaptionPreview();
+  });
+
+  // 再生中に、表示するフォルダ(写真セット)を丸ごと切り替える
+  document.getElementById('swap-folder-btn').addEventListener('click', () => {
+    document.getElementById('swap-folder-input').click();
+  });
+  document.getElementById('swap-folder-input').addEventListener('change', e => {
+    const imgs = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+    e.target.value = '';
+    if(imgs.length === 0) return;
+    if(!childWin || childWin.closed){
+      alert('会場側の表示ウィンドウが見つかりません。');
+      return;
+    }
+    if(!confirm(`選んだフォルダの${imgs.length}枚に、表示中の写真セットを切り替えます。ランダム再生・表示間隔などの設定は、そのまま引き継がれます。よろしいですか?`)) return;
+    childWin.postMessage({ type: 'swapPhotoFolder', files: imgs }, '*');
   });
 
   function finalizeAddPhotos(caption){
